@@ -1,0 +1,196 @@
+{
+  "status": true,
+  "msg": "done",
+  "data": {
+    "seoOnPage": {
+      "og_type": "website",
+      "titleHead": "Phim Bộ | Phim Bộ hay tuyển chọn | Phim Bộ mới nhất 2026",
+      "descriptionHead": "Phim Bộ mới nhất tuyển chọn chất lượng cao, phim bộ trọn bộ vietsub cập nhật nhanh nhất. Phim Bộ vietsub nhanh nhất",
+      "og_image": [
+        "uploads/movies/20260914/trai-tim-cua-ke-ky-sinh-poster.webp",
+        "uploads/movies/20260904/sinh-dung-thoi-diem-poster.webp",
+        "uploads/movies/20260825/pho-ma-tieu-ngo-tac-poster.webp",
+        "uploads/movies/20260904/nguoi-quyet-dinh-poster.webp",
+        "uploads/movies/20260805/lau-dai-tham-vong-ban-thai-poster.webp",
+        "uploads/movies/20260912/lan-huong-nhu-co-poster.webp",
+        "uploads/movies/20260902/hanh-trinh-tap-duot-chia-tay-poster.webp",
+        "uploads/movies/20260907/doi-chung-poster.webp",
+        "uploads/movies/20260826/dau-xuan-tuoi-sang-poster.webp",
+        "uploads/movies/20260913/dung-thanh-poster.webp"
+      ],
+      "og_url": "danh-sach/phim-bo"
+    },
+    "breadCrumb": [
+      {
+        "name": "Phim Bộ",
+        "slug": "/danh-sach/phim-bo",
+        "isCurrent": false,
+        "position": 2
+      },
+      {
+        "name": "Trang 1",
+        "isCurrent": true,
+        "position": 3
+      }
+    ],
+    "titlePage": "Phim Bộ",
+    "items": [
+      {
+        "tmdb": {
+          "id": "324931",
+          "type": "tv",
+          "season": 1,
+          "vote_average": 0,
+          "vote_count": 0
+        },
+        "imdb": {
+          "id": null,
+          "vote_average": 0,
+          "vote_count": 0
+        },
+        "modified": {
+          "time": "2026-09-14T23:39:12.000Z"
+        },
+        "_id": "863e3c95bb7bb455d9da4e2b056948d1",
+        "name": "Trái tim của kẻ ký sinh",
+        "slug": "trai-tim-cua-ke-ky-sinh",
+        "origin_name": "A Parasite's Heart",
+        "alternative_names": [
+          "วิมานทราย",
+          "หัวใจกาฝาก"
+        ],
+        "type": "series",
+        "thumb_url": "uploads/movies/20260914/trai-tim-cua-ke-ky-sinh-thumb.webp",
+        "poster_url": "uploads/movies/20260914/trai-tim-cua-ke-ky-sinh-poster.webp",
+        "sub_docquyen": false,
+        "chieurap": false,
+        "time": "50 phút/tập",
+        "episode_current": "Tập 1",
+        "quality": "FHD",
+        "lang": "Vietsub",
+        "lang_key": [
+          "vs"
+        ],
+        "year": 2026,
+        "category": [
+          {
+            "id": "37a7b38b6184a5ebd3c43015aa20709d",
+            "name": "Chính Kịch",
+            "slug": "chinh-kich"
+          },
+          {
+            "id": "bb2b4b030608ca5984c8dd0770f5b40b",
+            "name": "Tình Cảm",
+            "slug": "tinh-cam"
+          }
+        ],
+        "country": [
+          {
+            "id": "cefbf1640a17bad1e13c2f6f2a811a2d",
+            "name": "Thái Lan",
+            "slug": "thai-lan"
+          }
+        ],
+        "last_episodes": [
+          {
+            "server_name": "Vietsub",
+            "is_ai": false,
+            "name": "Tập 01"
+          }
+        ]
+      },
+      {
+        "tmdb": {
+          "id": "286686",
+          "type": "tv",
+          "season": 1,
+          "vote_average": 0,
+          "vote_count": 0
+        },
+        "imdb": {
+          "id": "tt36218252",
+          "vote_average": 0,
+          "vote_count": 0
+        },
+        "modified": {
+          "time": "2026-09-14T21:40:20.000Z"
+        },
+        "_id": "2c6bc320aa0f4bda550d550a689013ad",
+        "name": "Sinh Đúng Thời Điểm",
+        "slug": "sinh-dung-thoi-diem",
+        "origin_name": "In My Prime",
+        "alternative_names": [
+          "Sheng Feng Qi Shi",
+          "近邻",
+          "生逢其时"
+        ],
+        "type": "series",
+        "thumb_url": "uploads/movies/20260904/sinh-dung-thoi-diem-thumb.webp",
+        "poster_url": "uploads/movies/20260904/sinh-dung-thoi-diem-poster.webp",
+        "sub_docquyen": false,
+        "chieurap": false,
+        "time": "45 phút/tập",
+        "episode_current": "Tập 16",
+        "quality": "FHD",
+        "lang": "Vietsub",
+        "lang_key": [
+          "vs"
+        ],
+        "year": 2026,
+        "category": [
+          {
+            "id": "a2492d6cbc4d58f115406ca14e5ec7b6",
+            "name": "Gia Đình",
+            "slug": "gia-dinh"
+          },
+          {
+            "id": "37a7b38b6184a5ebd3c43015aa20709d",
+            "name": "Chính Kịch",
+            "slug": "chinh-kich"
+          }
+        ],
+        "country": [
+          {
+            "id": "3e075636c731fe0f889c69e0bf82c083",
+            "name": "Trung Quốc",
+            "slug": "trung-quoc"
+          }
+        ],
+        "last_episodes": [
+          {
+            "server_name": "Vietsub",
+            "is_ai": false,
+            "name": "Tập 16"
+          }
+        ]
+      }
+    ],
+    "params": {
+      "type_slug": "danh-sach",
+      "slug": "phim-bo",
+      "filterCategory": [
+        ""
+      ],
+      "filterCountry": [
+        ""
+      ],
+      "filterYear": [
+        ""
+      ],
+      "filterType": [
+        ""
+      ],
+      "sortField": "modified.time",
+      "sortType": "desc",
+      "pagination": {
+        "totalItems": 9026,
+        "totalItemsPerPage": 10,
+        "currentPage": 1,
+        "totalPages": 903
+      }
+    },
+    "type_list": "phim-bo",
+    "APP_DOMAIN_FRONTEND": "https://kkphim2.com",
+    "APP_DOMAIN_CDN_IMAGE": "https://phimimg.com"
+  }
+}

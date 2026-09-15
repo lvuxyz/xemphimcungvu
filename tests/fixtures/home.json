@@ -1,0 +1,305 @@
+{
+  "status": "success",
+  "message": "",
+  "data": {
+    "seoOnPage": {
+      "titleHead": "Dữ liệu phim vietsub miễn phí mới nhất. Cập nhật nhanh chóng, chất lượng cao và không quảng cáo.",
+      "descriptionHead": "Website cung cấp phim miễn phí nhanh chất lượng cao. Phim online VietSub, Thuyết minh, lồng tiếng chất lượng Full HD. Nguồn phim vietsub chất lượng cao cập nhật nhanh nhất",
+      "og_type": "website",
+      "og_image": [
+        "/upload/vod/20260607-1/0d46f3ca0500b986fda2df9d94ab9efa.jpg",
+        "/uploads/movies/20260729/kabushikigaisha-magi-lumiere-ss2-poster.webp",
+        "/uploads/movies/20260723/azur-lane-bisoku-zenshin-ni-phan-2-poster.webp",
+        "/uploads/movies/20260914/ngay-tan-cua-pho-oak-poster.webp",
+        "/uploads/movies/20260914/trai-tim-cua-ke-ky-sinh-poster.webp",
+        "/uploads/movies/20260914/diem-nong-2026-poster.webp",
+        "/uploads/movies/20260914/quai-vat-kem-poster.webp",
+        "/uploads/movies/20260914/cay-mangut-poster.webp",
+        "/uploads/movies/20260805/thanh-da-tieu-ha-poster.webp",
+        "/upload/vod/20240821-1/a651652396e9f53c09cd88d28700d5c4.jpg",
+        "/uploads/movies/20260711/koukaku-kidoutai-poster.webp",
+        "/uploads/movies/20260720/tien-nghich-poster.webp",
+        "/upload/vod/20260705-1/0bfec379d64859044e30d3840776d173.jpg",
+        "/uploads/movies/20260904/sinh-dung-thoi-diem-poster.webp",
+        "/uploads/movies/20260825/pho-ma-tieu-ngo-tac-poster.webp",
+        "/uploads/movies/20260904/nguoi-quyet-dinh-poster.webp",
+        "/upload/vod/20260407-1/8bfc211dbf6e0ad5ae4c0c4be2109b47.jpg",
+        "/uploads/movies/20260805/lau-dai-tham-vong-ban-thai-poster.webp",
+        "/uploads/movies/20260912/lan-huong-nhu-co-poster.webp",
+        "/uploads/movies/20260902/hanh-trinh-tap-duot-chia-tay-poster.webp",
+        "/uploads/movies/20260711/flaming-dodgeball-girl-danko-poster.webp",
+        "/uploads/movies/20260907/doi-chung-poster.webp",
+        "/uploads/movies/20260826/dau-xuan-tuoi-sang-poster.webp",
+        "/uploads/movies/20260913/dung-thanh-poster.webp"
+      ]
+    },
+    "items": [
+      {
+        "tmdb": {
+          "id": "306721",
+          "type": "tv",
+          "season": 1,
+          "vote_average": 6.8,
+          "vote_count": 5
+        },
+        "imdb": {
+          "id": "tt39047437",
+          "vote_average": 8,
+          "vote_count": 10
+        },
+        "modified": {
+          "time": "2026-09-15T00:31:12.000Z"
+        },
+        "_id": "ec217345c687eb83217574d4dccd5551",
+        "name": "Meitantei Precure!",
+        "slug": "meitantei-precure",
+        "origin_name": "Star Detective Precure!",
+        "alternative_names": [
+          "名侦探光之美少女！",
+          "名侦探光之美少女",
+          "名侦探偶像光之美少女♪",
+          "名偵探光之美少女",
+          "Star Detective Precure!",
+          "Meitantei Pretty Cure!",
+          "Great Detective Pretty Cure!",
+          "Star Detective Pretty Cure!",
+          "Star Detective PreCure!",
+          "名探偵プリキュア！"
+        ],
+        "type": "hoathinh",
+        "poster_url": "upload/vod/20260607-1/0d46f3ca0500b986fda2df9d94ab9efa.jpg",
+        "sub_docquyen": false,
+        "time": "23 phút/tập",
+        "episode_current": "Tập 33",
+        "quality": "FHD",
+        "lang": "Vietsub",
+        "year": 2026,
+        "category": [
+          {
+            "id": "ba6fd52e5a3aca80eaaf1a3b50a182db",
+            "name": "Hài Hước",
+            "slug": "hai-huoc"
+          },
+          {
+            "id": "9822be111d2ccc29c7172c78b8af8ff5",
+            "name": "Hành Động",
+            "slug": "hanh-dong"
+          },
+          {
+            "id": "0bcf4077916678de9b48c89221fcf8ae",
+            "name": "Khoa Học",
+            "slug": "khoa-hoc"
+          },
+          {
+            "id": "66c78b23908113d478d8d85390a244b4",
+            "name": "Phiêu Lưu",
+            "slug": "phieu-luu"
+          },
+          {
+            "id": "0c853f6238e0997ee318b646bb1978bc",
+            "name": "Trẻ Em",
+            "slug": "tre-em"
+          },
+          {
+            "id": "68564911f00849030f9c9c144ea1b931",
+            "name": "Viễn Tưởng",
+            "slug": "vien-tuong"
+          }
+        ],
+        "country": [
+          {
+            "id": "d4097fbffa8f7149a61281437171eb83",
+            "name": "Nhật Bản",
+            "slug": "nhat-ban"
+          }
+        ]
+      },
+      {
+        "tmdb": {
+          "id": "240576",
+          "type": "tv",
+          "season": 1,
+          "vote_average": 6.8,
+          "vote_count": 10
+        },
+        "imdb": {
+          "id": "tt30476504",
+          "vote_average": 0,
+          "vote_count": 158
+        },
+        "modified": {
+          "time": "2026-09-15T00:30:46.000Z"
+        },
+        "_id": "6a69846c1acb8a7fd40b6475",
+        "name": "Kabushikigaisha Magi-Lumière SS2",
+        "slug": "kabushikigaisha-magi-lumiere-ss2",
+        "origin_name": "Magilumiere Magical Girls Inc. Season 2",
+        "alternative_names": [
+          "柔光魔女股份有限公司",
+          "魔法光源股份有限公司",
+          "Kabushiki Gaisha Majirumie",
+          "Kabushikigaisha Magilumiere",
+          "Kabushikigaisha Magi-Lumière",
+          "Kabushikigaisha Magi-Lumière",
+          "Magilumiere Co. Ltd.",
+          "株式会社マジルミエ"
+        ],
+        "type": "hoathinh",
+        "poster_url": "uploads/movies/20260729/kabushikigaisha-magi-lumiere-ss2-poster.webp",
+        "sub_docquyen": false,
+        "time": "24 phút/tập",
+        "episode_current": "Tập 10",
+        "quality": "FHD",
+        "lang": "Vietsub",
+        "year": 2026,
+        "category": [
+          {
+            "id": "d9983d88d8929b1d9f767884e2999e27",
+            "name": "Hoạt Hình",
+            "slug": "hoat-hinh"
+          },
+          {
+            "id": "ba6fd52e5a3aca80eaaf1a3b50a182db",
+            "name": "Hài Hước",
+            "slug": "hai-huoc"
+          },
+          {
+            "id": "9822be111d2ccc29c7172c78b8af8ff5",
+            "name": "Hành Động",
+            "slug": "hanh-dong"
+          },
+          {
+            "id": "0bcf4077916678de9b48c89221fcf8ae",
+            "name": "Khoa Học",
+            "slug": "khoa-hoc"
+          },
+          {
+            "id": "66c78b23908113d478d8d85390a244b4",
+            "name": "Phiêu Lưu",
+            "slug": "phieu-luu"
+          },
+          {
+            "id": "68564911f00849030f9c9c144ea1b931",
+            "name": "Viễn Tưởng",
+            "slug": "vien-tuong"
+          }
+        ],
+        "country": [
+          {
+            "id": "d4097fbffa8f7149a61281437171eb83",
+            "name": "Nhật Bản",
+            "slug": "nhat-ban"
+          }
+        ]
+      },
+      {
+        "tmdb": {
+          "id": "109805",
+          "type": "tv",
+          "season": 2,
+          "vote_average": 5.7,
+          "vote_count": 15
+        },
+        "imdb": {
+          "id": "tt13084120",
+          "vote_average": 7,
+          "vote_count": 98
+        },
+        "modified": {
+          "time": "2026-09-15T00:30:31.000Z"
+        },
+        "_id": "6a60fa7ba96188eec4063fa5",
+        "name": "Azur Lane: Bisoku Zenshin! Ni!! (Phần 2)",
+        "slug": "azur-lane-bisoku-zenshin-ni-phan-2",
+        "origin_name": "Azur Lane: Slow Ahead! (Season 2)",
+        "alternative_names": [
+          "Azur Lane - Bisoku Zenshin!",
+          "Azur Lane - Slow Ahead!",
+          "碧蓝航线 微速前进！",
+          "碧蓝航线 微速前进！第二季",
+          "anime-azurlane-slow-ahead",
+          "Azur Lane: Bisoku Zenshin!",
+          "Azur Lane – Bisoku Zenshin!",
+          "アズールレーン びそくぜんしんっ！にっ!!",
+          "벽람항로 미속전진",
+          "벽람항로",
+          "Azur Lane - Powoli przed siebie!",
+          "碧藍航線 微速前進！2",
+          "Azur Lane: Slow Ahead!",
+          "アズールレーン びそくぜんしんっ！"
+        ],
+        "type": "hoathinh",
+        "poster_url": "uploads/movies/20260723/azur-lane-bisoku-zenshin-ni-phan-2-poster.webp",
+        "sub_docquyen": false,
+        "time": "9 phút/tập",
+        "episode_current": "Tập 11",
+        "quality": "FHD",
+        "lang": "Vietsub",
+        "year": 2026,
+        "category": [
+          {
+            "id": "d9983d88d8929b1d9f767884e2999e27",
+            "name": "Hoạt Hình",
+            "slug": "hoat-hinh"
+          },
+          {
+            "id": "ba6fd52e5a3aca80eaaf1a3b50a182db",
+            "name": "Hài Hước",
+            "slug": "hai-huoc"
+          },
+          {
+            "id": "0bcf4077916678de9b48c89221fcf8ae",
+            "name": "Khoa Học",
+            "slug": "khoa-hoc"
+          },
+          {
+            "id": "a7b065b92ad356387ef2e075dee66529",
+            "name": "Tâm Lý",
+            "slug": "tam-ly"
+          },
+          {
+            "id": "68564911f00849030f9c9c144ea1b931",
+            "name": "Viễn Tưởng",
+            "slug": "vien-tuong"
+          }
+        ],
+        "country": [
+          {
+            "id": "d4097fbffa8f7149a61281437171eb83",
+            "name": "Nhật Bản",
+            "slug": "nhat-ban"
+          }
+        ]
+      }
+    ],
+    "itemsSportsVideos": [
+      null
+    ],
+    "params": {
+      "type_slug": "danh-sach",
+      "filterCategory": [
+        ""
+      ],
+      "filterCountry": [
+        ""
+      ],
+      "filterYear": [
+        ""
+      ],
+      "sortField": "modified.time",
+      "pagination": {
+        "totalItems": 30027,
+        "totalItemsPerPage": 24,
+        "currentPage": 1,
+        "totalPages": 1252,
+        "pageRanges": 5
+      },
+      "itemsUpdateInDay": 3,
+      "totalSportsVideos": 0,
+      "itemsSportsVideosUpdateInDay": 0
+    },
+    "type_list": "phim-moi",
+    "APP_DOMAIN_FRONTEND": "https://kkphim2.com",
+    "APP_DOMAIN_CDN_IMAGE": "https://phimimg.com"
+  }
+}

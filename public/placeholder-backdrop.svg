@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Chưa có ảnh">
+  <rect width="1280" height="720" fill="#121216"/>
+  <g fill="none" stroke="#5F5F68" stroke-width="4" opacity="0.5">
+    <rect x="560" y="312" width="160" height="96" rx="10"/>
+    <path d="M600 360h80M640 320v80"/>
+  </g>
+</svg>

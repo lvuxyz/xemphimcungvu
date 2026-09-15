@@ -1,0 +1,62 @@
+{
+  "success": true,
+  "message": "success",
+  "status_code": 200,
+  "data": {
+    "tmdb_id": 1101383,
+    "tmdb_type": "movie",
+    "tmdb_season": null,
+    "ophim_id": null,
+    "slug": "ngay-tan-cua-pho-oak",
+    "imdb_id": "tt27165187",
+    "image_sizes": {
+      "backdrop": {
+        "original": "https://image.tmdb.org/t/p/original",
+        "w1280": "https://image.tmdb.org/t/p/w1280",
+        "w300": "https://image.tmdb.org/t/p/w300",
+        "w780": "https://image.tmdb.org/t/p/w780"
+      },
+      "poster": {
+        "original": "https://image.tmdb.org/t/p/original",
+        "w154": "https://image.tmdb.org/t/p/w154",
+        "w185": "https://image.tmdb.org/t/p/w185",
+        "w342": "https://image.tmdb.org/t/p/w342",
+        "w500": "https://image.tmdb.org/t/p/w500",
+        "w780": "https://image.tmdb.org/t/p/w780",
+        "w92": "https://image.tmdb.org/t/p/w92"
+      }
+    },
+    "images": [
+      {
+        "width": 3840,
+        "height": 2160,
+        "aspect_ratio": 1.778,
+        "type": "backdrop",
+        "file_path": "/b9q9VmbXDvJmTziRqkwdEmFdwhr.jpg"
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "aspect_ratio": 1.778,
+        "type": "backdrop",
+        "file_path": "/wnR8pwWtoL3TFwP41mLCt91ReCt.jpg"
+      },
+      {
+        "width": 1000,
+        "height": 1500,
+        "aspect_ratio": 0.667,
+        "type": "poster",
+        "file_path": "/fYXqpgPmHMphSF2W30GbTeJVIa5.jpg",
+        "iso_639_1": "en"
+      },
+      {
+        "width": 2000,
+        "height": 3000,
+        "aspect_ratio": 0.667,
+        "type": "poster",
+        "file_path": "/3SifFCwwFzXdU1Ew0nA4Z92Bs15.jpg",
+        "iso_639_1": "en"
+      }
+    ]
+  }
+}

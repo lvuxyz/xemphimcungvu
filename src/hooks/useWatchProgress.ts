@@ -1,0 +1,98 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { PLAYER } from '@/lib/constants';
+import {
+  clearWatchProgress,
+  getWatchProgress,
+  setWatchProgress,
+  type WatchProgress,
+} from '@/lib/storage';
+
+/**
+ * §10.5 — lưu và khôi phục tiến độ xem.
+ *
+ *   · ghi mỗi 5 giây khi đang phát
+ *   · quay lại → hiện prompt "Tiếp tục xem từ 12:34" / "Xem từ đầu"
+ *   · xem đủ 95% → xoá key, đánh dấu đã xem
+ */
+export function useWatchProgress(slug: string, ep: string, videoRef: React.RefObject<HTMLVideoElement>) {
+  const [saved, setSaved] = useState<WatchProgress | null>(null);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const lastWriteRef = useRef(0);
+
+  // Đọc tiến độ đã lưu một lần khi đổi tập.
+  useEffect(() => {
+    if (!slug || !ep) return;
+    const progress = getWatchProgress(slug, ep);
+    setSaved(progress);
+    setShowResumePrompt(progress !== null && progress.position > 5);
+  }, [slug, ep]);
+
+  const persist = useCallback(
+    (position: number, duration: number) => {
+      if (!slug || !ep || !Number.isFinite(duration) || duration <= 0) return;
+
+      if (position / duration >= PLAYER.completedThreshold) {
+        clearWatchProgress(slug, ep);
+        setSaved(null);
+        return;
+      }
+      setWatchProgress(slug, ep, position, duration);
+    },
+    [slug, ep],
+  );
+
+  /** Gắn vào `onTimeUpdate` của thẻ video — tự throttle về 5s một lần ghi. */
+  const handleTimeUpdate = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || video.paused) return;
+
+    const now = Date.now();
+    if (now - lastWriteRef.current < PLAYER.progressSaveInterval) return;
+    lastWriteRef.current = now;
+
+    persist(video.currentTime, video.duration);
+  }, [persist, videoRef]);
+
+  const resume = useCallback(() => {
+    const video = videoRef.current;
+    if (video && saved) video.currentTime = saved.position;
+    setShowResumePrompt(false);
+  }, [saved, videoRef]);
+
+  const restart = useCallback(() => {
+    const video = videoRef.current;
+    if (video) video.currentTime = 0;
+    clearWatchProgress(slug, ep);
+    setSaved(null);
+    setShowResumePrompt(false);
+  }, [slug, ep, videoRef]);
+
+  /**
+   * Rời trang giữa chừng vẫn phải ghi lại vị trí.
+   *
+   * Trên iOS/Android, chuyển app hay khoá máy KHÔNG chắc bắn `pagehide` —
+   * `visibilitychange` là sự kiện duy nhất gần như luôn tới. Nghe cả hai.
+   */
+  useEffect(() => {
+    const flush = () => {
+      const video = videoRef.current;
+      if (video) persist(video.currentTime, video.duration);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+      flush();
+    };
+  }, [persist, videoRef]);
+
+  return { saved, showResumePrompt, handleTimeUpdate, resume, restart, dismissPrompt: () => setShowResumePrompt(false) };
+}

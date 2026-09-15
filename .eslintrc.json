@@ -1,0 +1,23 @@
+{
+  "extends": ["next/core-web-vitals", "prettier"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["**/types/api-raw", "@/types/api-raw"],
+            "message": "types/api-raw.ts CHỈ được import bởi src/lib/normalize.ts (§15). Dùng type đã chuẩn hoá ở @/types/movie."
+          }
+        ]
+      }
+    ],
+    "no-console": ["warn", { "allow": ["warn", "error"] }]
+  },
+  "overrides": [
+    {
+      "files": ["src/lib/normalize.ts", "tests/**/*.ts"],
+      "rules": { "no-restricted-imports": "off" }
+    }
+  ]
+}

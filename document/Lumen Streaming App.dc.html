@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/nocturne-4538f422-465a-4276-b03c-a53c4e224dad/styles.css">
+<script src="_ds/nocturne-4538f422-465a-4276-b03c-a53c4e224dad/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+body{margin:0;background:#0f101a;font-family:Inter,system-ui,sans-serif}
+a{color:#b5abfc;text-decoration:none}a:hover{color:#d2cefd}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(255,255,255,.08)}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#e9e9ed;color:#161826;border-radius:4px;text-decoration:none}
+.dv-tname{font:500 13px/1.2 Inter,system-ui,sans-serif;color:#e9e9ed}
+.dv-opts{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(233,233,237,.12);color:#e9e9ed;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 Inter,system-ui,sans-serif;color:rgba(233,233,237,.55);max-width:412px}
+.dv-opt:target .dv-oid{background:#9184d9;color:#161826}
+.dv-next{margin:26px 0 0;font:12px/1.6 Inter,system-ui,sans-serif;color:rgba(233,233,237,.5)}
+@keyframes scIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes floatUp{from{opacity:1;transform:translateY(0) scale(.8)}to{opacity:0;transform:translateY(-140px) scale(1.4)}}
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes shimmer{0%{opacity:.5}50%{opacity:1}100%{opacity:.5}}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Lumen — ứng dụng xem phim, bản đầu</span></div>
+
+<div style="max-width:660px;margin:0 0 26px;padding:18px 20px;background:#232532;border-radius:8px;box-shadow:0 0 0 1px #3f424d">
+<div style="font:500 12px/1.2 Inter;color:#9184d9;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Đề bài &amp; giả định</div>
+<div style="font:400 12.5px/1.65 Inter;color:#cfd3e5">
+Kế thừa từ <strong style="color:#e9e9ed;font-weight:500">Truyen4K-Mobile</strong>: bộ 4 tab (Trang chủ / Khám phá / Thư viện / Tôi), mini-player thường trực, thư viện ba trạng thái (đã lưu · đang xem · đã xong) và phần nâng cấp VIP — tất cả chuyển sang ngữ cảnh phim. Toàn bộ giao diện đã chuyển sang tiếng Việt, khớp với repo. Danh mục trộn phim thật và phim hư cấu; ảnh bìa là chỗ dành sẵn. Ba hướng bạn chọn nằm ở những chỗ cụ thể: <strong style="color:#e9e9ed;font-weight:500">khám phá theo cảm xúc</strong> làm chủ tab Khám phá, <strong style="color:#e9e9ed;font-weight:500">hoạt động của bạn bè</strong> chạy xuyên Trang chủ và trang chi tiết, <strong style="color:#e9e9ed;font-weight:500">cùng xem</strong> khởi động từ trang chi tiết và sống trong trình phát. <a href="#1a">1a</a> bấm được hoàn toàn — bắt đầu từ đăng nhập và đi qua cả mười màn hình.
+</div>
+</div>
+
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Bản prototype chạy thật — mười màn hình, có trạng thái. Bấm thử: đăng nhập → hồ sơ → trang chủ → chi tiết → trình phát.</div>
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="412px,892px">
+<div style="height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden;background:var(--color-bg);font-family:var(--font-body);color:var(--color-text)">
+<div style="flex:1;overflow:auto;position:relative">
+
+<sc-if value="{{ isSignup }}" hint-placeholder-val="{{ true }}">
+<div style="min-height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:28px 24px 34px;box-sizing:border-box;background:var(--color-bg);animation:scIn .3s ease">
+<div style="position:absolute;top:56px;left:24px;right:24px;height:300px;border-radius:14px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);overflow:hidden;display:flex;align-items:center;justify-content:center">
+<span style="font:500 88px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.04em">LU</span>
+<span style="position:absolute;left:18px;bottom:16px;font:400 10px var(--font-body);color:var(--color-neutral-600)">ảnh bìa — chỗ dành sẵn</span>
+</div>
+<div style="font:500 34px/1.1 var(--font-heading);letter-spacing:-.03em;margin-bottom:10px">Lumen</div>
+<div style="font:400 14px/1.6 var(--font-body);color:var(--color-neutral-400);margin-bottom:24px;max-width:300px">Phim được chọn theo cảm xúc bạn muốn — và theo những gì người bạn tin đang xem.</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 12px;height:48px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm)">
+<i class="ph ph-envelope-simple" style="color:var(--color-neutral-500);font-size:18px"></i>
+<span style="font:400 14px var(--font-body);color:var(--color-neutral-300)">mai.nguyen@email.com</span>
+</div>
+<div onClick="{{ enterApp }}" style="height:48px;border-radius:8px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:500 14px var(--font-body);color:var(--color-accent-300)" style-hover="background:rgba(145,132,217,.12)">Tiếp tục <i class="ph ph-arrow-right" style="font-size:16px"></i></div>
+<div style="text-align:center;font:400 11px/1.5 var(--font-body);color:var(--color-neutral-600);margin-top:6px">Tháng đầu miễn phí · huỷ bất cứ lúc nào</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isProfiles }}" hint-placeholder-val="{{ true }}">
+<div style="min-height:100%;box-sizing:border-box;padding:56px 24px;display:flex;flex-direction:column;align-items:center;animation:scIn .3s ease">
+<div style="font:500 22px/1.2 var(--font-heading);letter-spacing:-.02em;margin-bottom:6px">Ai đang xem?</div>
+<div style="font:400 12px var(--font-body);color:var(--color-neutral-500);margin-bottom:34px">Danh sách và lịch sử của mỗi người được giữ riêng</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;width:100%;max-width:280px">
+<div onClick="{{ pickAdult }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer">
+<div style="width:118px;height:118px;border-radius:8px;background:var(--color-neutral-900);box-shadow:0 0 0 2px var(--color-accent);display:flex;align-items:center;justify-content:center;font:500 34px var(--font-heading);color:var(--color-accent-300)">M</div>
+<div style="font:400 13px var(--font-body);color:var(--color-text)">Mai</div>
+</div>
+<div onClick="{{ pickAdult }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer">
+<div style="width:118px;height:118px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 34px var(--font-heading);color:var(--color-neutral-600)">H</div>
+<div style="font:400 13px var(--font-body);color:var(--color-neutral-400)">Huy</div>
+</div>
+<div onClick="{{ pickKid }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer">
+<div style="width:118px;height:118px;border-radius:8px;background:var(--color-accent-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-kite" style="font-size:40px;color:var(--color-accent-300)"></i></div>
+<div style="display:flex;align-items:center;gap:5px;font:400 13px var(--font-body);color:var(--color-neutral-400)">Bin <span class="tag tag-outline" style="font-size:9px;padding:1px 5px">TRẺ EM</span></div>
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer">
+<div style="width:118px;height:118px;border-radius:8px;border:1px dashed var(--color-neutral-700);display:flex;align-items:center;justify-content:center"><i class="ph ph-plus" style="font-size:26px;color:var(--color-neutral-600)"></i></div>
+<div style="font:400 13px var(--font-body);color:var(--color-neutral-600)">Thêm</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div style="animation:scIn .28s ease;padding-bottom:16px">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px">
+<div style="font:500 19px var(--font-heading);letter-spacing:-.02em">Lumen</div>
+<div style="display:flex;align-items:center;gap:14px">
+<i class="ph ph-magnifying-glass" onClick="{{ goDiscover }}" style="font-size:20px;color:var(--color-neutral-300);cursor:pointer"></i>
+<div onClick="{{ goSwitcher }}" style="width:28px;height:28px;border-radius:6px;background:var(--color-neutral-900);box-shadow:0 0 0 1px var(--color-accent-700);display:flex;align-items:center;justify-content:center;font:500 12px var(--font-heading);color:var(--color-accent-300);cursor:pointer">M</div>
+</div>
+</div>
+
+<div onClick="{{ openFeatured }}" style="margin:0 16px;height:360px;border-radius:14px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);position:relative;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-end">
+<span style="position:absolute;top:56px;left:0;right:0;text-align:center;font:500 110px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.05em">BH</span>
+<div style="position:relative;padding:18px;background:linear-gradient(to top,rgba(22,24,38,.94),rgba(22,24,38,0))">
+<div style="display:flex;gap:6px;margin-bottom:10px"><span class="tag tag-accent" style="font-size:9.5px">MỚI TRÊN LUMEN</span><span class="tag tag-outline" style="font-size:9.5px">Cảm xúc · Bồn chồn</span></div>
+<div style="font:500 26px/1.15 var(--font-heading);letter-spacing:-.02em;margin-bottom:6px">Blue Hour Radio</div>
+<div style="font:400 11.5px var(--font-body);color:var(--color-neutral-400);margin-bottom:14px">2025 · 1h 48m · Chính kịch</div>
+<div style="display:flex;gap:8px">
+<div onClick="{{ playFeatured }}" style="flex:1;height:40px;border-radius:8px;background:var(--color-accent-200);display:flex;align-items:center;justify-content:center;gap:7px;font:500 13px var(--font-body);color:var(--color-neutral-900)"><i class="ph-fill ph-play" style="font-size:14px"></i>Phát</div>
+<div style="height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--color-accent);display:flex;align-items:center;gap:7px;font:500 13px var(--font-body);color:var(--color-accent-300)"><i class="ph ph-plus" style="font-size:15px"></i>Lưu</div>
+</div>
+</div>
+</div>
+
+<sc-if value="{{ moodFirst }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:24px">
+<div style="padding:0 16px 10px;font:500 13.5px var(--font-heading);color:var(--color-text)">Tối nay bạn muốn cảm thấy thế nào?</div>
+<div style="display:flex;gap:8px;overflow:auto;padding:0 16px">
+<sc-for list="{{ moods }}" as="m" hint-placeholder-count="5"><div onClick="{{ m.pick }}" class="tag {{ m.cls }}" style="flex:0 0 auto;cursor:pointer;font-size:11.5px;padding:7px 12px">{{ m.label }}</div></sc-for>
+</div>
+</div>
+</sc-if>
+
+<div style="margin-top:24px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 16px 10px">
+<div style="font:500 13.5px var(--font-heading)">Xem tiếp</div>
+<div onClick="{{ goList }}" style="font:400 11.5px var(--font-body);color:var(--color-accent-300);cursor:pointer">Xem tất cả</div>
+</div>
+<div style="display:flex;gap:12px;overflow:auto;padding:0 16px">
+<sc-for list="{{ rowContinue }}" as="p" hint-placeholder-count="4">
+<div onClick="{{ p.open }}" style="flex:0 0 auto;width:152px;cursor:pointer">
+<div style="position:relative;width:152px;height:92px;border-radius:8px;overflow:hidden;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center">
+<span style="font:500 40px/1 var(--font-heading);color:var(--color-neutral-800)">{{ p.mark }}</span>
+<i class="ph-fill ph-play-circle" style="position:absolute;font-size:30px;color:rgba(233,233,237,.85)"></i>
+<div style="position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--color-neutral-800)"><div style="height:3px;background:var(--color-accent);width:{{ p.pct }}"></div></div>
+</div>
+<div style="margin-top:7px;font:400 11.5px/1.3 var(--font-body);color:var(--color-neutral-200)">{{ p.title }}</div>
+<div style="margin-top:2px;font:400 10px var(--font-body);color:var(--color-neutral-500)">{{ p.left }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{ showSocial }}" hint-placeholder-val="{{ true }}">
+<div style="margin-top:26px">
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px 10px">
+<div style="display:flex">
+<div style="width:20px;height:20px;border-radius:50%;background:var(--color-accent-800);box-shadow:0 0 0 2px var(--color-bg);display:flex;align-items:center;justify-content:center;font:500 9px var(--font-heading);color:var(--color-accent-200)">T</div>
+<div style="width:20px;height:20px;border-radius:50%;background:var(--color-neutral-800);box-shadow:0 0 0 2px var(--color-bg);margin-left:-7px;display:flex;align-items:center;justify-content:center;font:500 9px var(--font-heading);color:var(--color-neutral-300)">L</div>
+<div style="width:20px;height:20px;border-radius:50%;background:var(--color-neutral-800);box-shadow:0 0 0 2px var(--color-bg);margin-left:-7px;display:flex;align-items:center;justify-content:center;font:500 9px var(--font-heading);color:var(--color-neutral-300)">D</div>
+</div>
+<div style="font:500 13.5px var(--font-heading)">Bạn bè đã xem</div>
+</div>
+<div style="display:flex;gap:12px;overflow:auto;padding:0 16px">
+<sc-for list="{{ rowFriends }}" as="p" hint-placeholder-count="4">
+<div onClick="{{ p.open }}" style="flex:0 0 auto;width:112px;cursor:pointer">
+<div style="position:relative;width:112px;height:160px;border-radius:8px;overflow:hidden;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:flex-end">
+<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 52px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.04em">{{ p.mark }}</span>
+<span style="position:relative;padding:8px;font:500 11px/1.25 var(--font-body);color:var(--color-neutral-200);text-shadow:0 1px 6px rgba(0,0,0,.85)">{{ p.title }}</span>
+</div>
+<div style="margin-top:7px;display:flex;align-items:center;gap:5px"><i class="ph-fill ph-heart" style="font-size:11px;color:var(--color-accent-400)"></i><span style="font:400 10px/1.3 var(--font-body);color:var(--color-neutral-500)">{{ p.note }}</span></div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<div style="margin-top:26px">
+<div style="padding:0 16px 10px;font:500 13.5px var(--font-heading)">Thịnh hành ở Việt Nam</div>
+<div style="display:flex;gap:12px;overflow:auto;padding:0 16px">
+<sc-for list="{{ rowTrending }}" as="p" hint-placeholder-count="5">
+<div onClick="{{ p.open }}" style="flex:0 0 auto;width:112px;cursor:pointer">
+<div style="position:relative;width:112px;height:160px;border-radius:8px;overflow:hidden;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:flex-end">
+<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 52px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.04em">{{ p.mark }}</span>
+<span style="position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:4px;background:var(--color-bg);display:flex;align-items:center;justify-content:center;font:500 11px var(--font-heading);color:var(--color-accent-300)">{{ p.rank }}</span>
+<span style="position:relative;padding:8px;font:500 11px/1.25 var(--font-body);color:var(--color-neutral-200);text-shadow:0 1px 6px rgba(0,0,0,.85)">{{ p.title }}</span>
+</div>
+<div style="margin-top:6px;font:400 10px var(--font-body);color:var(--color-neutral-500)">{{ p.meta }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="margin-top:26px">
+<div style="padding:0 16px 10px;font:500 13.5px var(--font-heading)">Dưới 100 phút</div>
+<div style="display:flex;gap:12px;overflow:auto;padding:0 16px">
+<sc-for list="{{ rowShort }}" as="p" hint-placeholder-count="5">
+<div onClick="{{ p.open }}" style="flex:0 0 auto;width:112px;cursor:pointer">
+<div style="position:relative;width:112px;height:160px;border-radius:8px;overflow:hidden;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:flex-end">
+<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 52px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.04em">{{ p.mark }}</span>
+<span style="position:relative;padding:8px;font:500 11px/1.25 var(--font-body);color:var(--color-neutral-200);text-shadow:0 1px 6px rgba(0,0,0,.85)">{{ p.title }}</span>
+</div>
+<div style="margin-top:6px;font:400 10px var(--font-body);color:var(--color-neutral-500)">{{ p.meta }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDiscover }}" hint-placeholder-val="{{ false }}">
+<div style="animation:scIn .28s ease;padding:14px 0 16px">
+<div style="padding:0 16px 14px">
+<div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm)">
+<i class="ph ph-magnifying-glass" style="font-size:17px;color:var(--color-neutral-500)"></i>
+<span style="font:400 13.5px var(--font-body);color:var(--color-neutral-600)">Tên phim, diễn viên hoặc một cảm xúc</span>
+</div>
+</div>
+<div style="padding:0 16px 8px;font:500 15px var(--font-heading);letter-spacing:-.01em">Tối nay tôi muốn cảm thấy…</div>
+<div style="padding:0 16px 14px;font:400 11.5px/1.5 var(--font-body);color:var(--color-neutral-500)">Chọn một cảm xúc, rồi chọn bạn có bao nhiêu thời gian.</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 18px">
+<sc-for list="{{ moods }}" as="m" hint-placeholder-count="8"><div onClick="{{ m.pick }}" class="tag {{ m.cls }}" style="cursor:pointer;font-size:12px;padding:8px 13px">{{ m.label }}</div></sc-for>
+</div>
+<div style="padding:0 16px 10px;display:flex;gap:8px">
+<sc-for list="{{ times }}" as="t" hint-placeholder-count="3"><div onClick="{{ t.pick }}" class="tag {{ t.cls }}" style="cursor:pointer;font-size:11.5px;padding:7px 12px">{{ t.label }}</div></sc-for>
+</div>
+<div style="padding:16px 16px 10px;font:400 12px var(--font-body);color:var(--color-neutral-400)">{{ resultLine }}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:0 16px">
+<sc-for list="{{ moodResults }}" as="p" hint-placeholder-count="6">
+<div onClick="{{ p.open }}" style="cursor:pointer">
+<div style="position:relative;width:100%;height:160px;border-radius:8px;overflow:hidden;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:flex-end">
+<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 48px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.04em">{{ p.mark }}</span>
+<span style="position:relative;padding:7px;font:500 10.5px/1.25 var(--font-body);color:var(--color-neutral-200);text-shadow:0 1px 6px rgba(0,0,0,.85)">{{ p.title }}</span>
+</div>
+<div style="margin-top:6px;font:400 9.5px var(--font-body);color:var(--color-neutral-500)">{{ p.meta }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLive }}" hint-placeholder-val="{{ false }}">
+<div style="animation:scIn .28s ease;padding:14px 0 16px">
+<div style="padding:0 16px 14px;font:500 19px var(--font-heading);letter-spacing:-.02em">Trực tiếp &amp; sự kiện</div>
+<div style="margin:0 16px 20px;border-radius:14px;overflow:hidden;background:var(--color-neutral-900);box-shadow:var(--shadow-sm)">
+<div style="height:180px;position:relative;display:flex;align-items:center;justify-content:center">
+<span style="font:500 64px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.04em">Q&amp;A</span>
+<div style="position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:4px;background:var(--color-bg)">
+<span style="width:6px;height:6px;border-radius:50%;background:var(--color-accent-400);animation:livePulse 1.6s infinite"></span>
+<span style="font:500 10px var(--font-body);letter-spacing:.09em;color:var(--color-accent-200)">TRỰC TIẾP</span>
+</div>
+</div>
+<div style="padding:16px">
+<div style="font:500 16px/1.2 var(--font-heading);margin-bottom:6px">Gặp gỡ đạo diễn: Blue Hour Radio</div>
+<div style="font:400 11.5px var(--font-body);color:var(--color-neutral-500);margin-bottom:14px">4.208 người đang xem · bắt đầu 12 phút trước</div>
+<div onClick="{{ playFeatured }}" style="height:40px;border-radius:8px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font:500 13px var(--font-body);color:var(--color-accent-300)"><i class="ph-fill ph-broadcast" style="font-size:15px"></i>Vào xem</div>
+</div>
+</div>
+<div style="padding:0 16px 10px;font:500 13.5px var(--font-heading)">Sắp diễn ra</div>
+<sc-for list="{{ events }}" as="e" hint-placeholder-count="3">
+<div style="display:flex;gap:14px;align-items:center;padding:12px 16px;border-top:1px solid var(--color-divider)">
+<div style="width:52px;flex:0 0 auto;text-align:center">
+<div style="font:500 17px var(--font-heading);color:var(--color-accent-300)">{{ e.day }}</div>
+<div style="font:400 10px var(--font-body);color:var(--color-neutral-600)">{{ e.mon }}</div>
+</div>
+<div style="flex:1;min-width:0">
+<div style="font:400 13px/1.3 var(--font-body);color:var(--color-text)">{{ e.title }}</div>
+<div style="font:400 10.5px var(--font-body);color:var(--color-neutral-600);margin-top:3px">{{ e.meta }}</div>
+</div>
+<div class="tag tag-outline" style="font-size:10px;cursor:pointer">Nhắc tôi</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isList }}" hint-placeholder-val="{{ false }}">
+<div style="animation:scIn .28s ease;padding:14px 0 16px">
+<div style="padding:0 16px 12px;font:500 19px var(--font-heading);letter-spacing:-.02em">Danh sách của tôi</div>
+<div style="display:flex;gap:18px;padding:0 16px;border-bottom:1px solid var(--color-divider)">
+<sc-for list="{{ listTabs }}" as="t" hint-placeholder-count="3">
+<div onClick="{{ t.pick }}" style="padding-bottom:10px;cursor:pointer;font:500 12.5px var(--font-body);color:{{ t.color }};border-bottom:2px solid {{ t.line }}">{{ t.label }}</div>
+</sc-for>
+</div>
+<sc-for list="{{ listItems }}" as="p" hint-placeholder-count="5">
+<div onClick="{{ p.open }}" style="display:flex;gap:14px;align-items:center;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--color-divider)">
+<div style="width:52px;height:74px;flex:0 0 auto;border-radius:6px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 22px var(--font-heading);color:var(--color-neutral-800)">{{ p.mark }}</div>
+<div style="flex:1;min-width:0">
+<div style="font:400 13.5px/1.3 var(--font-body);color:var(--color-text)">{{ p.title }}</div>
+<div style="font:400 10.5px var(--font-body);color:var(--color-neutral-600);margin-top:4px">{{ p.meta }}</div>
+<sc-if value="{{ p.showBar }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:8px;height:3px;border-radius:2px;background:var(--color-neutral-800)"><div style="height:3px;border-radius:2px;background:var(--color-accent);width:{{ p.pct }};animation:shimmer 2.4s infinite"></div></div>
+</sc-if>
+</div>
+<i class="ph {{ p.icon }}" style="font-size:18px;color:var(--color-neutral-500)"></i>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+<div style="animation:scIn .28s ease;padding:22px 0 16px">
+<div style="display:flex;align-items:center;gap:14px;padding:0 16px 20px">
+<div style="width:56px;height:56px;border-radius:8px;background:var(--color-neutral-900);box-shadow:0 0 0 1px var(--color-accent-700);display:flex;align-items:center;justify-content:center;font:500 22px var(--font-heading);color:var(--color-accent-300)">M</div>
+<div style="flex:1">
+<div style="font:500 17px var(--font-heading)">Mai Nguyen</div>
+<div style="font:400 11.5px var(--font-body);color:var(--color-neutral-500);margin-top:3px">Lumen Plus · gia hạn 3/10</div>
+</div>
+<div onClick="{{ goSwitcher }}" class="tag tag-outline" style="font-size:10px;cursor:pointer">Đổi</div>
+</div>
+<div style="display:flex;gap:10px;padding:0 16px 22px">
+<div style="flex:1;padding:12px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm)">
+<div style="font:500 20px var(--font-heading);color:var(--color-accent-300)">128</div>
+<div style="font:400 10px var(--font-body);color:var(--color-neutral-500);margin-top:2px">phim đã xem</div>
+</div>
+<div style="flex:1;padding:12px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm)">
+<div style="font:500 20px var(--font-heading);color:var(--color-accent-300)">9</div>
+<div style="font:400 10px var(--font-body);color:var(--color-neutral-500);margin-top:2px">bạn đang theo</div>
+</div>
+<div style="flex:1;padding:12px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm)">
+<div style="font:500 20px var(--font-heading);color:var(--color-accent-300)">4</div>
+<div style="font:400 10px var(--font-body);color:var(--color-neutral-500);margin-top:2px">buổi cùng xem</div>
+</div>
+</div>
+<sc-for list="{{ profileRows }}" as="r" hint-placeholder-count="5">
+<div onClick="{{ r.go }}" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid var(--color-divider);cursor:pointer">
+<i class="ph {{ r.icon }}" style="font-size:19px;color:var(--color-neutral-400)"></i>
+<div style="flex:1;font:400 13.5px var(--font-body)">{{ r.label }}</div>
+<i class="ph ph-caret-right" style="font-size:14px;color:var(--color-neutral-600)"></i>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="animation:scIn .28s ease;padding:14px 0 16px">
+<div style="display:flex;align-items:center;gap:12px;padding:0 16px 18px">
+<i class="ph ph-arrow-left" onClick="{{ goProfile }}" style="font-size:20px;color:var(--color-neutral-300);cursor:pointer"></i>
+<div style="font:500 19px var(--font-heading);letter-spacing:-.02em">Phát &amp; tải xuống</div>
+</div>
+<div style="padding:0 16px 8px;font:500 11px var(--font-body);letter-spacing:.09em;color:var(--color-neutral-600)">PHÁT</div>
+<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid var(--color-divider)">
+<div style="flex:1"><div style="font:400 13.5px var(--font-body)">Tự động phát tiếp</div><div style="font:400 10.5px var(--font-body);color:var(--color-neutral-600);margin-top:3px">Tự động phát phim tiếp theo</div></div>
+<div onClick="{{ toggleAutoplay }}" style="width:42px;height:24px;border-radius:12px;cursor:pointer;background:{{ autoplayBg }};display:flex;align-items:center;padding:0 3px;box-sizing:border-box;justify-content:{{ autoplayJustify }};transition:all .2s ease">
+<div style="width:18px;height:18px;border-radius:50%;background:var(--color-neutral-100)"></div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid var(--color-divider)">
+<div style="flex:1"><div style="font:400 13.5px var(--font-body)">Tiết kiệm dữ liệu</div><div style="font:400 10.5px var(--font-body);color:var(--color-neutral-600);margin-top:3px">Giới hạn 720p khi dùng dữ liệu di động</div></div>
+<div onClick="{{ toggleSaver }}" style="width:42px;height:24px;border-radius:12px;cursor:pointer;background:{{ saverBg }};display:flex;align-items:center;padding:0 3px;box-sizing:border-box;justify-content:{{ saverJustify }};transition:all .2s ease">
+<div style="width:18px;height:18px;border-radius:50%;background:var(--color-neutral-100)"></div>
+</div>
+</div>
+<div style="padding:22px 16px 8px;font:500 11px var(--font-body);letter-spacing:.09em;color:var(--color-neutral-600)">TẢI XUỐNG</div>
+<div style="padding:14px 16px;border-top:1px solid var(--color-divider)">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><span style="font:400 13.5px var(--font-body)">Chất lượng tải</span><span style="font:400 12px var(--font-body);color:var(--color-neutral-500)">Chuẩn</span></div>
+<div style="display:flex;gap:6px">
+<sc-for list="{{ quality }}" as="q" hint-placeholder-count="3"><div onClick="{{ q.pick }}" class="tag {{ q.cls }}" style="flex:1;justify-content:center;text-align:center;cursor:pointer;font-size:11.5px;padding:8px 0">{{ q.label }}</div></sc-for>
+</div>
+<div style="margin-top:16px;font:400 10.5px/1.6 var(--font-body);color:var(--color-neutral-600)">Đã dùng 14,2 GB / 64 GB · 6 phim đã tải</div>
+<div style="margin-top:8px;height:4px;border-radius:2px;background:var(--color-neutral-800)"><div style="height:4px;border-radius:2px;background:var(--color-accent-600);width:22%"></div></div>
+</div>
+<div style="padding:22px 16px 0"><div style="font:400 13px var(--font-body);color:var(--color-accent-300);cursor:pointer">Đăng xuất khỏi thiết bị này</div></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+<div style="animation:scIn .28s ease">
+<div style="position:relative;height:300px;background:var(--color-neutral-900);display:flex;align-items:center;justify-content:center">
+<span style="font:500 96px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.05em">{{ sel.mark }}</span>
+<i class="ph ph-arrow-left" onClick="{{ back }}" style="position:absolute;top:14px;left:14px;font-size:20px;color:var(--color-neutral-200);cursor:pointer;text-shadow:0 1px 8px rgba(0,0,0,.9)"></i>
+<div style="position:absolute;left:0;right:0;bottom:0;height:90px;background:linear-gradient(to top,var(--color-bg),rgba(22,24,38,0))"></div>
+</div>
+<div style="padding:0 16px 18px;margin-top:-26px;position:relative">
+<div style="font:500 27px/1.12 var(--font-heading);letter-spacing:-.025em;margin-bottom:8px">{{ sel.title }}</div>
+<div style="font:400 11.5px var(--font-body);color:var(--color-neutral-400);margin-bottom:12px">{{ sel.meta }}</div>
+<div style="display:flex;gap:6px;margin-bottom:16px">
+<span class="tag tag-accent" style="font-size:9.5px">{{ sel.mood }}</span>
+<span class="tag tag-outline" style="font-size:9.5px">{{ sel.genre }}</span>
+<span class="tag tag-outline" style="font-size:9.5px">4K HDR</span>
+</div>
+<div onClick="{{ playSel }}" style="height:44px;border-radius:8px;background:var(--color-accent-200);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:500 14px var(--font-body);color:var(--color-neutral-900);margin-bottom:10px"><i class="ph-fill ph-play" style="font-size:15px"></i>Phát</div>
+<div style="display:flex;gap:10px;margin-bottom:20px">
+<div onClick="{{ openParty }}" style="flex:1;height:42px;border-radius:8px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font:500 12.5px var(--font-body);color:var(--color-accent-300)"><i class="ph ph-users-three" style="font-size:16px"></i>Cùng xem</div>
+<div style="width:46px;height:42px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph ph-plus" style="font-size:17px;color:var(--color-neutral-300)"></i></div>
+<div style="width:46px;height:42px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph ph-download-simple" style="font-size:17px;color:var(--color-neutral-300)"></i></div>
+</div>
+<div style="font:400 13px/1.7 var(--font-body);color:var(--color-neutral-300);margin-bottom:20px">{{ sel.synopsis }}</div>
+
+<sc-if value="{{ showSocial }}" hint-placeholder-val="{{ true }}">
+<div style="padding:14px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);margin-bottom:22px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+<i class="ph-fill ph-users-three" style="font-size:15px;color:var(--color-accent-400)"></i>
+<span style="font:500 12.5px var(--font-body)">3 người bạn đã xem phim này</span>
+</div>
+<sc-for list="{{ friendNotes }}" as="f" hint-placeholder-count="2">
+<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0">
+<div style="width:26px;height:26px;flex:0 0 auto;border-radius:50%;background:var(--color-neutral-800);display:flex;align-items:center;justify-content:center;font:500 11px var(--font-heading);color:var(--color-neutral-300)">{{ f.initial }}</div>
+<div style="flex:1">
+<div style="font:400 11.5px/1.5 var(--font-body);color:var(--color-neutral-200)">{{ f.text }}</div>
+<div style="font:400 10px var(--font-body);color:var(--color-neutral-600);margin-top:3px">{{ f.when }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<div style="font:500 13.5px var(--font-heading);margin-bottom:12px">Phim tương tự</div>
+<div style="display:flex;gap:12px;overflow:auto;margin:0 -16px;padding:0 16px">
+<sc-for list="{{ rowTrending }}" as="p" hint-placeholder-count="4">
+<div onClick="{{ p.open }}" style="flex:0 0 auto;width:104px;cursor:pointer">
+<div style="position:relative;width:104px;height:150px;border-radius:8px;overflow:hidden;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:flex-end">
+<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 46px/1 var(--font-heading);color:var(--color-neutral-800)">{{ p.mark }}</span>
+<span style="position:relative;padding:7px;font:500 10.5px/1.25 var(--font-body);color:var(--color-neutral-200);text-shadow:0 1px 6px rgba(0,0,0,.85)">{{ p.title }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isKids }}" hint-placeholder-val="{{ false }}">
+<div style="animation:scIn .28s ease;padding:18px 0 20px">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:0 18px 18px">
+<div>
+<div style="font:500 24px/1.1 var(--font-heading);letter-spacing:-.02em">Chào Bin</div>
+<div style="font:400 12px var(--font-body);color:var(--color-neutral-500);margin-top:4px">Hôm nay còn 45 phút</div>
+</div>
+<div onClick="{{ exitKids }}" style="width:40px;height:40px;border-radius:8px;border:1px solid var(--color-neutral-700);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph ph-lock-simple" style="font-size:18px;color:var(--color-neutral-400)"></i></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 18px">
+<sc-for list="{{ kidsItems }}" as="k" hint-placeholder-count="6">
+<div style="cursor:pointer">
+<div style="height:130px;border-radius:14px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center"><i class="ph-fill {{ k.icon }}" style="font-size:44px;color:var(--color-accent-500)"></i></div>
+<div style="margin-top:8px;font:500 14px/1.3 var(--font-body);color:var(--color-neutral-200)">{{ k.title }}</div>
+<div style="font:400 11px var(--font-body);color:var(--color-neutral-600);margin-top:2px">{{ k.meta }}</div>
+</div>
+</sc-for>
+</div>
+<div style="margin:22px 18px 0;padding:14px;border-radius:14px;background:var(--color-accent-900);display:flex;align-items:center;gap:12px">
+<i class="ph-fill ph-moon-stars" style="font-size:26px;color:var(--color-accent-300)"></i>
+<div><div style="font:500 13px var(--font-body);color:var(--color-accent-100)">45 phút nữa đến giờ đi ngủ</div><div style="font:400 11px/1.4 var(--font-body);color:var(--color-accent-300);margin-top:3px">Lumen sẽ tạm nghỉ sau phim này.</div></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPlayer }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;background:#0b0c14;position:relative;display:flex;flex-direction:column;animation:scIn .22s ease">
+<div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center">
+<span style="font:500 78px/1 var(--font-heading);color:#1b1d2b;letter-spacing:-.05em">{{ sel.mark }}</span>
+<div style="position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:center;justify-content:space-between">
+<i class="ph ph-caret-down" onClick="{{ back }}" style="font-size:22px;color:var(--color-neutral-200);cursor:pointer"></i>
+<div style="display:flex;gap:16px"><i class="ph ph-cast-screen" style="font-size:19px;color:var(--color-neutral-300)"></i><i class="ph ph-subtitles" style="font-size:19px;color:var(--color-neutral-300)"></i></div>
+</div>
+<sc-if value="{{ partyOn }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:56px;left:14px;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:20px;background:rgba(35,37,50,.9);box-shadow:var(--shadow-sm)">
+<div style="display:flex">
+<div style="width:20px;height:20px;border-radius:50%;background:var(--color-accent-800);box-shadow:0 0 0 2px #0b0c14;display:flex;align-items:center;justify-content:center;font:500 9px var(--font-heading);color:var(--color-accent-200)">T</div>
+<div style="width:20px;height:20px;border-radius:50%;background:var(--color-neutral-800);box-shadow:0 0 0 2px #0b0c14;margin-left:-7px;display:flex;align-items:center;justify-content:center;font:500 9px var(--font-heading);color:var(--color-neutral-300)">L</div>
+</div>
+<span style="font:400 10.5px var(--font-body);color:var(--color-neutral-300)">Đang xem cùng Trang, Long</span>
+</div>
+</sc-if>
+<sc-for list="{{ floaters }}" as="f" hint-placeholder-count="0">
+<i class="ph-fill {{ f.icon }}" style="position:absolute;bottom:120px;right:{{ f.right }};font-size:24px;color:var(--color-accent-300);animation:floatUp 1.8s ease-out forwards"></i>
+</sc-for>
+</div>
+<div style="padding:0 16px 22px">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+<div onClick="{{ scrub }}" style="flex:1;height:3px;border-radius:2px;background:#2a2d3d;cursor:pointer;position:relative">
+<div style="height:3px;border-radius:2px;background:var(--color-accent);width:{{ playPct }}"></div>
+<div style="position:absolute;top:-3.5px;left:{{ playPct }};width:10px;height:10px;border-radius:50%;background:var(--color-accent-200);margin-left:-5px"></div>
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;font:400 10px var(--font-body);color:var(--color-neutral-500);margin-bottom:16px"><span>{{ elapsed }}</span><span>{{ remaining }}</span></div>
+<div style="display:flex;align-items:center;justify-content:center;gap:30px;margin-bottom:20px">
+<i class="ph ph-skip-back" style="font-size:24px;color:var(--color-neutral-300);cursor:pointer"></i>
+<div onClick="{{ togglePlay }}" style="width:58px;height:58px;border-radius:50%;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph-fill {{ playIcon }}" style="font-size:24px;color:var(--color-accent-200)"></i></div>
+<i class="ph ph-skip-forward" style="font-size:24px;color:var(--color-neutral-300);cursor:pointer"></i>
+</div>
+<sc-if value="{{ showSocial }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;background:rgba(35,37,50,.7)">
+<span style="font:400 11px var(--font-body);color:var(--color-neutral-500)">Bày tỏ cùng mọi người</span>
+<div style="display:flex;gap:16px">
+<i class="ph-fill ph-heart" onClick="{{ reactLove }}" style="font-size:19px;color:var(--color-neutral-300);cursor:pointer"></i>
+<i class="ph-fill ph-fire" onClick="{{ reactFire }}" style="font-size:19px;color:var(--color-neutral-300);cursor:pointer"></i>
+<i class="ph-fill ph-eyes" onClick="{{ reactWow }}" style="font-size:19px;color:var(--color-neutral-300);cursor:pointer"></i>
+</div>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ partySheet }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:rgba(11,12,20,.72);display:flex;align-items:flex-end" onClick="{{ closeParty }}">
+<div style="width:100%;background:var(--color-surface);border-radius:14px 14px 0 0;padding:20px 18px 26px;box-shadow:var(--shadow-lg);animation:scIn .26s ease">
+<div style="width:36px;height:4px;border-radius:2px;background:var(--color-neutral-700);margin:0 auto 18px"></div>
+<div style="font:500 18px var(--font-heading);letter-spacing:-.02em;margin-bottom:6px">Bắt đầu buổi cùng xem</div>
+<div style="font:400 12px/1.6 var(--font-body);color:var(--color-neutral-500);margin-bottom:18px">Mọi người xem đồng bộ. Biểu cảm hiện ngay trên phim — không có hộp chat che khuất.</div>
+<div style="display:flex;gap:14px;margin-bottom:20px">
+<sc-for list="{{ partyFriends }}" as="f" hint-placeholder-count="4">
+<div style="display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer">
+<div style="width:48px;height:48px;border-radius:50%;background:var(--color-neutral-900);box-shadow:{{ f.ring }};display:flex;align-items:center;justify-content:center;font:500 17px var(--font-heading);color:var(--color-neutral-300)">{{ f.initial }}</div>
+<span style="font:400 10px var(--font-body);color:var(--color-neutral-500)">{{ f.name }}</span>
+</div>
+</sc-for>
+</div>
+<div onClick="{{ startParty }}" style="height:44px;border-radius:8px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:500 13.5px var(--font-body);color:var(--color-accent-300)"><i class="ph ph-link-simple" style="font-size:16px"></i>Tạo liên kết &amp; bắt đầu</div>
+</div>
+</div>
+</sc-if>
+
+</div>
+
+<sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+<div style="flex:0 0 auto;display:flex;padding:8px 6px 10px;background:var(--color-surface);box-shadow:0 -1px 0 var(--color-divider)">
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+<div onClick="{{ t.go }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;min-height:48px;justify-content:center">
+<div style="position:relative;width:60px;height:30px;display:flex;align-items:center;justify-content:center">
+<sc-if value="{{ t.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;border-radius:15px;background:var(--color-accent-900)"></div></sc-if>
+<i class="ph {{ t.icon }}" style="position:relative;font-size:19px;color:{{ t.color }}"></i>
+</div>
+<span style="font:400 10px var(--font-body);color:{{ t.color }}">{{ t.label }}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ showMini }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ resumeMini }}" style="position:absolute;left:8px;right:8px;bottom:78px;display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-md);cursor:pointer">
+<div style="width:44px;height:30px;border-radius:4px;background:var(--color-neutral-800);display:flex;align-items:center;justify-content:center;font:500 13px var(--font-heading);color:var(--color-neutral-600)">{{ sel.mark }}</div>
+<div style="flex:1;min-width:0">
+<div style="font:400 11.5px/1.2 var(--font-body);color:var(--color-neutral-200)">{{ sel.title }}</div>
+<div style="font:400 9.5px var(--font-body);color:var(--color-neutral-500);margin-top:2px">còn {{ remainingHuman }}</div>
+</div>
+<i class="ph-fill {{ playIcon }}" onClick="{{ togglePlay }}" style="font-size:20px;color:var(--color-neutral-200)"></i>
+<i class="ph ph-x" onClick="{{ dismissMini }}" style="font-size:16px;color:var(--color-neutral-600)"></i>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Chi tiết, ưu tiên ảnh bìa — kiểu quen thuộc: ảnh, tên, hành động, nội dung. An toàn, dễ quét mắt.</div>
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="412px,892px">
+<div style="height:100%;overflow:auto;background:var(--color-bg);font-family:var(--font-body);color:var(--color-text)">
+<div style="position:relative;height:330px;background:var(--color-neutral-900);display:flex;align-items:center;justify-content:center">
+<span style="font:500 104px/1 var(--font-heading);color:var(--color-neutral-800);letter-spacing:-.05em">PL</span>
+<i class="ph ph-arrow-left" style="position:absolute;top:14px;left:14px;font-size:20px;color:var(--color-neutral-200)"></i>
+<div style="position:absolute;left:0;right:0;bottom:0;height:100px;background:linear-gradient(to top,var(--color-bg),rgba(22,24,38,0))"></div>
+</div>
+<div style="padding:0 16px 24px;margin-top:-30px;position:relative">
+<div style="font:500 30px/1.1 var(--font-heading);letter-spacing:-.03em;margin-bottom:8px">Past Lives</div>
+<div style="font:400 11.5px var(--font-body);color:var(--color-neutral-400);margin-bottom:14px">2023 · 1h 45m · Chính kịch · khớp 97%</div>
+<div style="height:44px;border-radius:8px;background:var(--color-accent-200);display:flex;align-items:center;justify-content:center;gap:8px;font:500 14px var(--font-body);color:var(--color-neutral-900);margin-bottom:10px"><i class="ph-fill ph-play" style="font-size:15px"></i>Phát</div>
+<div style="display:flex;gap:10px;margin-bottom:20px">
+<div style="flex:1;height:42px;border-radius:8px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;gap:7px;font:500 12.5px var(--font-body);color:var(--color-accent-300)"><i class="ph ph-users-three" style="font-size:16px"></i>Cùng xem</div>
+<div style="width:46px;height:42px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center"><i class="ph ph-plus" style="font-size:17px;color:var(--color-neutral-300)"></i></div>
+<div style="width:46px;height:42px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center"><i class="ph ph-download-simple" style="font-size:17px;color:var(--color-neutral-300)"></i></div>
+</div>
+<div style="font:400 13px/1.7 var(--font-body);color:var(--color-neutral-300);margin-bottom:20px">Hai người bạn thuở nhỏ chia xa khi một người di cư. Hai mươi bốn năm sau, họ có một tuần ở New York để đối diện với điều họ từng là của nhau.</div>
+<div style="font:400 12px/1.7 var(--font-body);color:var(--color-neutral-500);margin-bottom:22px"><span style="color:var(--color-neutral-600)">Diễn viên</span> Greta Lee, Teo Yoo, John Magaro<br><span style="color:var(--color-neutral-600)">Đạo diễn</span> Celine Song</div>
+<div style="font:500 13.5px var(--font-heading);margin-bottom:12px">Phim tương tự</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+<div style="height:150px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 40px var(--font-heading);color:var(--color-neutral-800)">AR</div>
+<div style="height:150px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 40px var(--font-heading);color:var(--color-neutral-800)">NL</div>
+<div style="height:150px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 40px var(--font-heading);color:var(--color-neutral-800)">SR</div>
+</div>
+</div>
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Chi tiết, ưu tiên bạn bè — nhận xét của bạn bè nằm ngay đầu trang; ảnh thu nhỏ thành thẻ. Phù hợp nhất với hướng bạn bè.</div>
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="412px,892px">
+<div style="height:100%;overflow:auto;background:var(--color-bg);font-family:var(--font-body);color:var(--color-text);padding:14px 16px 24px;box-sizing:border-box">
+<i class="ph ph-arrow-left" style="font-size:20px;color:var(--color-neutral-300)"></i>
+<div style="display:flex;gap:14px;margin-top:16px">
+<div style="width:112px;height:160px;flex:0 0 auto;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 44px var(--font-heading);color:var(--color-neutral-800)">PL</div>
+<div style="flex:1;min-width:0">
+<div style="font:500 23px/1.12 var(--font-heading);letter-spacing:-.025em;margin-bottom:7px">Past Lives</div>
+<div style="font:400 11px var(--font-body);color:var(--color-neutral-500);margin-bottom:12px">2023 · 1h 45m · Chính kịch</div>
+<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+<div style="display:flex">
+<div style="width:22px;height:22px;border-radius:50%;background:var(--color-accent-800);box-shadow:0 0 0 2px var(--color-bg);display:flex;align-items:center;justify-content:center;font:500 9px var(--font-heading);color:var(--color-accent-200)">T</div>
+<div style="width:22px;height:22px;border-radius:50%;background:var(--color-neutral-800);box-shadow:0 0 0 2px var(--color-bg);margin-left:-8px;display:flex;align-items:center;justify-content:center;font:500 9px var(--font-heading);color:var(--color-neutral-300)">L</div>
+<div style="width:22px;height:22px;border-radius:50%;background:var(--color-neutral-800);box-shadow:0 0 0 2px var(--color-bg);margin-left:-8px;display:flex;align-items:center;justify-content:center;font:500 9px var(--font-heading);color:var(--color-neutral-300)">D</div>
+</div>
+<span style="font:400 11px/1.4 var(--font-body);color:var(--color-neutral-300)">3 người bạn rất thích phim này</span>
+</div>
+<span class="tag tag-accent" style="font-size:9.5px">Cảm xúc · Day dứt</span>
+</div>
+</div>
+<div style="margin-top:18px;padding:14px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm)">
+<div style="display:flex;gap:10px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--color-divider)">
+<div style="width:28px;height:28px;flex:0 0 auto;border-radius:50%;background:var(--color-accent-800);display:flex;align-items:center;justify-content:center;font:500 11px var(--font-heading);color:var(--color-accent-200)">T</div>
+<div><div style="font:400 12px/1.6 var(--font-body);color:var(--color-neutral-200)">"Xem trên máy bay và khóc ướt cả khay ăn. Đừng bật muộn."</div><div style="font:400 10px var(--font-body);color:var(--color-neutral-600);margin-top:4px">Trang · 2 tuần trước</div></div>
+</div>
+<div style="display:flex;gap:10px;align-items:flex-start;padding-top:12px">
+<div style="width:28px;height:28px;flex:0 0 auto;border-radius:50%;background:var(--color-neutral-800);display:flex;align-items:center;justify-content:center;font:500 11px var(--font-heading);color:var(--color-neutral-300)">L</div>
+<div><div style="font:400 12px/1.6 var(--font-body);color:var(--color-neutral-200)">"Phim tĩnh nhất tôi xem cả năm nay. Nên xem cùng ai đó."</div><div style="font:400 10px var(--font-body);color:var(--color-neutral-600);margin-top:4px">Long · tháng trước</div></div>
+</div>
+</div>
+<div style="display:flex;gap:10px;margin-top:18px">
+<div style="flex:1;height:44px;border-radius:8px;background:var(--color-accent-200);display:flex;align-items:center;justify-content:center;gap:8px;font:500 13.5px var(--font-body);color:var(--color-neutral-900)"><i class="ph-fill ph-play" style="font-size:15px"></i>Phát</div>
+<div style="flex:1;height:44px;border-radius:8px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;gap:7px;font:500 12.5px var(--font-body);color:var(--color-accent-300)"><i class="ph ph-users-three" style="font-size:16px"></i>Cùng xem với Trang</div>
+</div>
+<div style="margin-top:20px;font:400 13px/1.7 var(--font-body);color:var(--color-neutral-300)">Hai người bạn thuở nhỏ chia xa khi một người di cư. Hai mươi bốn năm sau, họ có một tuần ở New York để đối diện với điều họ từng là của nhau.</div>
+<div style="margin-top:22px;font:500 13.5px var(--font-heading);margin-bottom:12px">Cũng trong danh sách của họ</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+<div style="height:150px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 40px var(--font-heading);color:var(--color-neutral-800)">AR</div>
+<div style="height:150px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 40px var(--font-heading);color:var(--color-neutral-800)">BH</div>
+<div style="height:150px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font:500 40px var(--font-heading);color:var(--color-neutral-800)">TF</div>
+</div>
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Chi tiết, kiểu biên tập — chữ dẫn dắt cả trang, không ảnh bìa ở đầu. Đọc như tạp chí phim; hơi kén người xem dạo.</div>
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="412px,892px">
+<div style="height:100%;overflow:auto;background:var(--color-bg);font-family:var(--font-body);color:var(--color-text);padding:14px 20px 24px;box-sizing:border-box">
+<i class="ph ph-arrow-left" style="font-size:20px;color:var(--color-neutral-300)"></i>
+<div style="margin-top:34px;font:500 11px var(--font-body);letter-spacing:.14em;color:var(--color-accent-400)">DAY DỨT · 1H 45M</div>
+<div style="margin-top:14px;font:500 44px/1.02 var(--font-heading);letter-spacing:-.045em">Past<br>Lives</div>
+<div style="margin-top:20px;height:1px;background:linear-gradient(to right,transparent,var(--color-neutral-700) 48px,var(--color-neutral-700) calc(100% - 48px),transparent)"></div>
+<div style="margin-top:20px;font:400 15px/1.65 var(--font-body);color:var(--color-neutral-200)">Hai người bạn thuở nhỏ chia xa khi một người di cư. Hai mươi bốn năm sau, họ có một tuần ở New York để đối diện với điều họ từng là của nhau.</div>
+<div style="margin-top:22px;display:grid;grid-template-columns:78px 1fr;gap:9px 14px;font:400 12px/1.5 var(--font-body)">
+<span style="color:var(--color-neutral-600)">Đạo diễn</span><span style="color:var(--color-neutral-300)">Celine Song</span>
+<span style="color:var(--color-neutral-600)">Diễn viên</span><span style="color:var(--color-neutral-300)">Greta Lee, Teo Yoo, John Magaro</span>
+<span style="color:var(--color-neutral-600)">Năm</span><span style="color:var(--color-neutral-300)">2023 · A24</span>
+<span style="color:var(--color-neutral-600)">Bạn bè</span><span style="color:var(--color-neutral-300)">Trang, Long và Dung đã xem</span>
+</div>
+<div style="margin-top:26px;padding-left:14px;border-left:2px solid var(--color-accent-600);font:400 14px/1.6 var(--font-body);color:var(--color-neutral-200)">Một bộ phim về những cuộc đời ta không được sống — và sự dịu dàng khi gặp người có thể đã cùng ta sống nó.</div>
+<div style="margin-top:8px;font:400 10.5px var(--font-body);color:var(--color-neutral-600)">Lumen biên tập</div>
+<div style="margin-top:28px;display:flex;gap:10px">
+<div style="flex:1;height:46px;border-radius:8px;background:var(--color-accent-200);display:flex;align-items:center;justify-content:center;gap:8px;font:500 14px var(--font-body);color:var(--color-neutral-900)"><i class="ph-fill ph-play" style="font-size:15px"></i>Phát</div>
+<div style="width:52px;height:46px;border-radius:8px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center"><i class="ph ph-users-three" style="font-size:18px;color:var(--color-accent-300)"></i></div>
+<div style="width:52px;height:46px;border-radius:8px;border:1px solid var(--color-neutral-700);display:flex;align-items:center;justify-content:center"><i class="ph ph-plus" style="font-size:18px;color:var(--color-neutral-400)"></i></div>
+</div>
+<div style="margin-top:30px;height:200px;border-radius:8px;background:var(--color-neutral-900);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;position:relative">
+<span style="font:500 64px var(--font-heading);color:var(--color-neutral-800)">PL</span>
+<span style="position:absolute;left:14px;bottom:12px;font:400 10px var(--font-body);color:var(--color-neutral-600)">ảnh tạm — ở phương án này ảnh bìa nằm phía dưới</span>
+</div>
+</div>
+</x-import>
+</div>
+
+</div>
+<p class="dv-next">Thử tiếp: "đưa khối bạn bè của <a class="dv-oid" href="#1c">1c</a>vào bản prototype <a class="dv-oid" href="#1a">1a</a> " · "dựng trọn luồng cùng xem" · "hướng mới cho tab Khám phá" · "thêm màn hình gói VIP"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showSocial&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Product bets&quot;},&quot;moodFirst&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Product bets&quot;}}">
+const T = {
+  bh:{mark:'BH',title:'Blue Hour Radio',meta:'2025 · 1h 48m',genre:'Chính kịch',mood:'Bồn chồn',synopsis:'Một MC radio ca đêm ở Đà Nẵng bắt đầu nhận cuộc gọi từ người nghe kể lại chính đời cô — trước khi nó xảy ra một ngày.'},
+  pl:{mark:'PL',title:'Past Lives',meta:'2023 · 1h 45m',genre:'Chính kịch',mood:'Day dứt',synopsis:'Hai người bạn thuở nhỏ chia xa khi một người di cư. Hai mươi bốn năm sau, họ có một tuần ở New York để đối diện với điều họ từng là của nhau.'},
+  ar:{mark:'AR',title:'Arrival',meta:'2016 · 1h 56m',genre:'Khoa học',mood:'Choáng ngợp',synopsis:'Một nhà ngôn ngữ học được mời đến tiếp xúc với phi thuyền lạ, và học một thứ tiếng phá vỡ cảm nhận của cô về thời gian.'},
+  mm:{mark:'MM',title:'Mad Max: Fury Road',meta:'2015 · 2h 0m',genre:'Hành động',mood:'Dồn dập',synopsis:'Một con đường, một xe bồn, và mọi động cơ trên hoang mạc lao theo nó.'},
+  sa:{mark:'SA',title:'Spirited Away',meta:'2001 · 2h 5m',genre:'Hoạt hình',mood:'Ấm áp',synopsis:'Một cô bé lạc vào nhà tắm của các linh hồn và phải làm việc để tìm đường về với cha mẹ.'},
+  sr:{mark:'SR',title:'Đường Muối',meta:'2024 · 1h 32m',genre:'Tài liệu',mood:'Bình yên',synopsis:'Ba thế hệ một gia đình làm muối ở ven biển Ninh Thuận, trong trọn một vụ thu hoạch.'},
+  nl:{mark:'NL',title:'Ánh Bắc',meta:'2024 · 1h 39m',genre:'Ly kỳ',mood:'Dồn dập',synopsis:'Người giữ hải đăng trên mỏm đá đã ngừng hoạt động nghe được tín hiệu cấp cứu có từ trước ngày cô nhận việc.'},
+  tf:{mark:'TF',title:'Cá Hổ',meta:'2025 · 1h 27m',genre:'Hài',mood:'Nhẹ nhõm',synopsis:'Một dòng họ nước mắm đang lụn bại thuê về một chuyên gia thẩm vị chưa từng ăn cá.'},
+  nd:{mark:'ND',title:'Chín Ngày Ở Hà Nội',meta:'2023 · 1h 51m',genre:'Tình cảm',mood:'Day dứt',synopsis:'Hai người lạ cứ lỡ nhau suốt một tuần mưa ở Phố Cổ.'},
+  ps:{mark:'PS',title:'Parasite',meta:'2019 · 2h 12m',genre:'Ly kỳ',mood:'Dồn dập',synopsis:'Một gia đình lẻn được vào nhà của gia đình khác, và căn nhà không chịu nhả họ ra.'}
+};
+const MOODS = ['Tất cả','Dồn dập','Day dứt','Ấm áp','Choáng ngợp','Nhẹ nhõm','Bình yên','Bức bối'];
+const TIMES = ['< 90 phút','Cả buổi tối','Bao lâu cũng được'];
+const QUALITY = ['Tiết kiệm','Chuẩn','Cao nhất'];
+
+class Component extends DCLogic {
+  state = {
+    screen:'signup', tab:'home', prev:'home', selId:'bh',
+    mood:'Tất cả', time:'Bao lâu cũng được', listTab:'Đã lưu', quality:'Chuẩn',
+    playing:true, progress:0.34, partySheet:false, partyOn:false,
+    mini:false, floaters:[], autoplay:true, saver:false
+  };
+
+  componentDidMount(){
+    this._t = setInterval(() => {
+      if (this.state.screen === 'player' && this.state.playing) {
+        this.setState(s => ({ progress: Math.min(0.999, s.progress + 0.0012) }));
+      }
+    }, 120);
+  }
+  componentWillUnmount(){ clearInterval(this._t); }
+
+  go(screen, extra){ this.setState(s => ({ screen, prev: s.screen, ...(extra||{}) })); }
+  open(id){ this.setState({ selId:id, screen:'detail', prev:this.state.screen }); }
+  react(icon){
+    const f = { id: Math.random(), icon, right: (20 + Math.random()*60).toFixed(0) + 'px' };
+    this.setState(s => ({ floaters: s.floaters.concat(f) }));
+    setTimeout(() => this.setState(s => ({ floaters: s.floaters.filter(x => x.id !== f.id) })), 1900);
+  }
+  posters(ids, extra){
+    return ids.map((id, i) => Object.assign({}, T[id], { open: () => this.open(id) }, extra ? extra(id, i) : {}));
+  }
+  fmt(sec){
+    const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = Math.floor(sec%60);
+    return (h ? h + ':' + String(m).padStart(2,'0') : String(m)) + ':' + String(s).padStart(2,'0');
+  }
+  human(sec){ const h = Math.floor(sec/3600), m = Math.round(sec%3600/60); return (h ? h + 'h ' : '') + m + 'm'; }
+
+  renderVals(){
+    const st = this.state;
+    const showSocial = this.props.showSocial ?? true;
+    const sel = T[st.selId];
+    const total = 6480;
+    const tabDef = [
+      ['home','Trang chủ','ph-house'],['discover','Khám phá','ph-compass'],['live','Trực tiếp','ph-broadcast'],
+      ['list','Thư viện','ph-bookmark-simple'],['profile','Tôi','ph-user']
+    ];
+    const moodPool = { 'Dồn dập':['mm','ps','nl'], 'Day dứt':['pl','nd','bh'], 'Ấm áp':['sa','tf','sr'], 'Choáng ngợp':['ar','sa','bh'], 'Nhẹ nhõm':['tf','sr','sa'], 'Bình yên':['sr','sa','ar'], 'Bức bối':['mm','ps','nl'], 'Tất cả':['bh','pl','ar','mm','sa','sr'] };
+    const picked = (moodPool[st.mood] || moodPool['Tất cả']).concat(['nd','tf','ps']).slice(0,6);
+    const listSets = {
+      'Đã lưu': this.posters(['ar','sa','nd','ps'], () => ({ icon:'ph-dots-three-vertical' })),
+      'Đang xem': this.posters(['bh','mm','pl'], (id,i) => ({ icon:'ph-play-circle', showBar:true, pct:[62,18,44][i] + '%' })),
+      'Tải xuống': this.posters(['sr','nl'], (id,i) => ({ icon: i===1 ? 'ph-arrow-circle-down' : 'ph-check-circle', showBar: i===1, pct:'71%', meta: i===1 ? 'Đang tải · 71%' : 'Đã tải · hết hạn sau 6 ngày' }))
+    };
+
+    return {
+      isSignup: st.screen==='signup', isProfiles: st.screen==='profiles', isHome: st.screen==='home',
+      isDiscover: st.screen==='discover', isLive: st.screen==='live', isList: st.screen==='list',
+      isProfile: st.screen==='profile', isSettings: st.screen==='settings', isDetail: st.screen==='detail',
+      isKids: st.screen==='kids', isPlayer: st.screen==='player',
+      showTabs: ['home','discover','live','list','profile'].indexOf(st.screen) > -1,
+      showMini: st.mini && ['home','discover','live','list','profile'].indexOf(st.screen) > -1,
+      partySheet: st.partySheet, partyOn: st.partyOn,
+      showSocial, moodFirst: this.props.moodFirst ?? true,
+      sel,
+
+      tabs: tabDef.map(([k,label,icon]) => ({
+        label, icon, active: st.screen===k,
+        color: st.screen===k ? 'var(--color-accent-200)' : 'var(--color-neutral-500)',
+        go: () => this.go(k)
+      })),
+      moods: MOODS.map(label => ({ label, cls: st.mood===label ? 'tag-accent' : 'tag-outline', pick: () => this.setState({ mood: label }) })),
+      times: TIMES.map(label => ({ label, cls: st.time===label ? 'tag-accent' : 'tag-outline', pick: () => this.setState({ time: label }) })),
+      quality: QUALITY.map(label => ({ label, cls: st.quality===label ? 'tag-accent' : 'tag-outline', pick: () => this.setState({ quality: label }) })),
+      resultLine: st.mood==='Tất cả' ? 'Tất cả, mới nhất trước · ' + st.time.toLowerCase() : 'Phim ' + st.mood.toLowerCase() + ' bạn chưa xem · ' + st.time.toLowerCase(),
+      moodResults: this.posters(picked),
+
+      rowContinue: this.posters(['bh','mm','pl','ps'], (id,i) => ({ pct:[62,18,44,80][i] + '%', left:['còn 41 phút','còn 1h 38m','còn 58 phút','còn 26 phút'][i] })),
+      rowFriends: this.posters(['pl','ar','nd','sr'], (id,i) => ({ note:['Trang rất thích','Long đã xem xong','Dung đã lưu','Trang cho 5 sao'][i] })),
+      rowTrending: this.posters(['ps','mm','sa','nl','tf'], (id,i) => ({ rank: i+1 })),
+      rowShort: this.posters(['tf','sr','nl','nd','ar']),
+      listTabs: ['Đã lưu','Đang xem','Tải xuống'].map(label => ({
+        label, color: st.listTab===label ? 'var(--color-text)' : 'var(--color-neutral-600)',
+        line: st.listTab===label ? 'var(--color-accent)' : 'transparent',
+        pick: () => this.setState({ listTab: label })
+      })),
+      listItems: listSets[st.listTab],
+      events: [
+        { day:'18', mon:'TH9', title:'Công chiếu: Cá Hổ', meta:'20:00 · giao lưu cùng diễn viên' },
+        { day:'21', mon:'TH9', title:'Tuần phim Hà Nội — đêm khai mạc', meta:'19:30 · trực tiếp từ Nhà hát Lớn' },
+        { day:'27', mon:'TH9', title:'Hoà nhạc trực tiếp: Mad Max', meta:'21:00 · duy nhất một đêm' }
+      ],
+      profileRows: [
+        { label:'Phát & tải xuống', icon:'ph-sliders-horizontal', go: () => this.go('settings') },
+        { label:'Bạn bè (9 người)', icon:'ph-users-three', go: () => this.go('home') },
+        { label:'Lịch sử xem', icon:'ph-clock-counter-clockwise', go: () => this.go('list') },
+        { label:'Quản lý hồ sơ', icon:'ph-user-switch', go: () => this.go('profiles') },
+        { label:'Lumen Plus', icon:'ph-crown-simple', go: () => this.go('settings') }
+      ],
+      friendNotes: [
+        { initial:'T', text:'\u201cXem trên máy bay và khóc ướt cả khay ăn. Đừng bật muộn.\u201d', when:'Trang · 2 tuần trước' },
+        { initial:'L', text:'\u201cPhim tĩnh nhất tôi xem cả năm nay. Nên xem cùng ai đó.\u201d', when:'Long · tháng trước' }
+      ],
+      partyFriends: [
+        { initial:'T', name:'Trang', ring:'0 0 0 2px var(--color-accent)' },
+        { initial:'L', name:'Long', ring:'0 0 0 2px var(--color-accent)' },
+        { initial:'D', name:'Dung', ring:'var(--shadow-sm)' },
+        { initial:'K', name:'Khanh', ring:'var(--shadow-sm)' }
+      ],
+      kidsItems: [
+        { title:'Cá Voi Trên Mây', meta:'4 tuổi+ · 22 phút', icon:'ph-cloud' },
+        { title:'Bo Và Cánh Diều', meta:'4 tuổi+ · 14 phút', icon:'ph-kite' },
+        { title:'Chiếc Đèn Nhỏ', meta:'6 tuổi+ · 40 phút', icon:'ph-lighthouse' },
+        { title:'Dàn Nhạc Ếch', meta:'4 tuổi+ · 18 phút', icon:'ph-music-notes' },
+        { title:'Hội Thuyền Giấy', meta:'6 tuổi+ · 25 phút', icon:'ph-boat' },
+        { title:'Vườn Sao', meta:'6 tuổi+ · 30 phút', icon:'ph-star-four' }
+      ],
+      floaters: st.floaters,
+      playIcon: st.playing ? 'ph-pause' : 'ph-play',
+      playPct: (st.progress*100).toFixed(1) + '%',
+      elapsed: this.fmt(total*st.progress),
+      remaining: '-' + this.fmt(total*(1-st.progress)),
+      remainingHuman: this.human(total*(1-st.progress)),
+      autoplayBg: st.autoplay ? 'var(--color-accent-600)' : 'var(--color-neutral-800)',
+      autoplayJustify: st.autoplay ? 'flex-end' : 'flex-start',
+      saverBg: st.saver ? 'var(--color-accent-600)' : 'var(--color-neutral-800)',
+      saverJustify: st.saver ? 'flex-end' : 'flex-start',
+
+      enterApp: () => this.go('profiles'),
+      pickAdult: () => this.go('home'),
+      pickKid: () => this.go('kids'),
+      exitKids: () => this.go('profiles'),
+      goSwitcher: () => this.go('profiles'),
+      goDiscover: () => this.go('discover'),
+      goList: () => this.go('list'),
+      goProfile: () => this.go('profile'),
+      openFeatured: () => this.open('bh'),
+      playFeatured: () => this.setState({ selId:'bh', screen:'player', prev:'home', playing:true, mini:false }),
+      playSel: () => this.setState({ screen:'player', prev:'detail', playing:true, mini:false }),
+      back: () => this.setState(s => {
+        const dest = (s.prev && s.prev !== s.screen && s.prev !== 'player' && s.prev !== 'signup') ? s.prev : 'home';
+        return { screen: dest, prev:'home', mini: s.screen==='player' ? true : s.mini };
+      }),
+      resumeMini: () => this.go('player'),
+      dismissMini: () => this.setState({ mini:false }),
+      togglePlay: () => this.setState(s => ({ playing: !s.playing })),
+      scrub: () => this.setState({ progress: 0.62 }),
+      openParty: () => this.setState({ partySheet:true }),
+      closeParty: () => this.setState({ partySheet:false }),
+      startParty: () => this.setState({ partySheet:false, partyOn:true, screen:'player', prev:'detail', playing:true, mini:false }),
+      reactLove: () => this.react('ph-heart'),
+      reactFire: () => this.react('ph-fire'),
+      reactWow: () => this.react('ph-eyes'),
+      toggleAutoplay: () => this.setState(s => ({ autoplay: !s.autoplay })),
+      toggleSaver: () => this.setState(s => ({ saver: !s.saver }))
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+{
+  "status": true,
+  "msg": "done",
+  "items": [
+    {
+      "tmdb": {
+        "id": "306721",
+        "type": "tv",
+        "season": 1,
+        "vote_average": 6.8,
+        "vote_count": 5
+      },
+      "imdb": {
+        "id": "tt39047437",
+        "vote_average": 8,
+        "vote_count": 10
+      },
+      "modified": {
+        "time": "2026-09-15T00:31:12.000Z"
+      },
+      "_id": "ec217345c687eb83217574d4dccd5551",
+      "name": "Meitantei Precure!",
+      "slug": "meitantei-precure",
+      "origin_name": "Star Detective Precure!",
+      "type": "hoathinh",
+      "poster_url": "https://phimimg.com/upload/vod/20260607-1/0d46f3ca0500b986fda2df9d94ab9efa.jpg",
+      "thumb_url": "https://phimimg.com/upload/vod/20260607-1/9369fb0b1a0db1c015470c105d065ba0.jpg",
+      "sub_docquyen": false,
+      "time": "23 phút/tập",
+      "episode_current": "Tập 33",
+      "quality": "FHD",
+      "lang": "Vietsub",
+      "year": 2026,
+      "category": [
+        {
+          "id": "ba6fd52e5a3aca80eaaf1a3b50a182db",
+          "name": "Hài Hước",
+          "slug": "hai-huoc"
+        },
+        {
+          "id": "9822be111d2ccc29c7172c78b8af8ff5",
+          "name": "Hành Động",
+          "slug": "hanh-dong"
+        },
+        {
+          "id": "0bcf4077916678de9b48c89221fcf8ae",
+          "name": "Khoa Học",
+          "slug": "khoa-hoc"
+        },
+        {
+          "id": "66c78b23908113d478d8d85390a244b4",
+          "name": "Phiêu Lưu",
+          "slug": "phieu-luu"
+        },
+        {
+          "id": "0c853f6238e0997ee318b646bb1978bc",
+          "name": "Trẻ Em",
+          "slug": "tre-em"
+        },
+        {
+          "id": "68564911f00849030f9c9c144ea1b931",
+          "name": "Viễn Tưởng",
+          "slug": "vien-tuong"
+        }
+      ],
+      "country": [
+        {
+          "id": "d4097fbffa8f7149a61281437171eb83",
+          "name": "Nhật Bản",
+          "slug": "nhat-ban"
+        }
+      ]
+    },
+    {
+      "tmdb": {
+        "id": "240576",
+        "type": "tv",
+        "season": 1,
+        "vote_average": 6.8,
+        "vote_count": 10
+      },
+      "imdb": {
+        "id": "tt30476504",
+        "vote_average": 0,
+        "vote_count": 158
+      },
+      "modified": {
+        "time": "2026-09-15T00:30:46.000Z"
+      },
+      "_id": "6a69846c1acb8a7fd40b6475",
+      "name": "Kabushikigaisha Magi-Lumière SS2",
+      "slug": "kabushikigaisha-magi-lumiere-ss2",
+      "origin_name": "Magilumiere Magical Girls Inc. Season 2",
+      "type": "hoathinh",
+      "poster_url": "https://phimimg.com/uploads/movies/20260729/kabushikigaisha-magi-lumiere-ss2-poster.webp",
+      "thumb_url": "https://phimimg.com/uploads/movies/20260729/kabushikigaisha-magi-lumiere-ss2-thumb.webp",
+      "sub_docquyen": false,
+      "time": "24 phút/tập",
+      "episode_current": "Tập 10",
+      "quality": "FHD",
+      "lang": "Vietsub",
+      "year": 2026,
+      "category": [
+        {
+          "id": "d9983d88d8929b1d9f767884e2999e27",
+          "name": "Hoạt Hình",
+          "slug": "hoat-hinh"
+        },
+        {
+          "id": "ba6fd52e5a3aca80eaaf1a3b50a182db",
+          "name": "Hài Hước",
+          "slug": "hai-huoc"
+        },
+        {
+          "id": "9822be111d2ccc29c7172c78b8af8ff5",
+          "name": "Hành Động",
+          "slug": "hanh-dong"
+        },
+        {
+          "id": "0bcf4077916678de9b48c89221fcf8ae",
+          "name": "Khoa Học",
+          "slug": "khoa-hoc"
+        },
+        {
+          "id": "66c78b23908113d478d8d85390a244b4",
+          "name": "Phiêu Lưu",
+          "slug": "phieu-luu"
+        },
+        {
+          "id": "68564911f00849030f9c9c144ea1b931",
+          "name": "Viễn Tưởng",
+          "slug": "vien-tuong"
+        }
+      ],
+      "country": [
+        {
+          "id": "d4097fbffa8f7149a61281437171eb83",
+          "name": "Nhật Bản",
+          "slug": "nhat-ban"
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "totalItems": 30027,
+    "totalItemsPerPage": 24,
+    "currentPage": 1,
+    "totalPages": 1252,
+    "updateToday": 3
+  }
+}

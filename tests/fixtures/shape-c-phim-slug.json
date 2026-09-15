@@ -1,0 +1,97 @@
+{
+  "status": true,
+  "msg": "",
+  "movie": {
+    "tmdb": {
+      "id": "324931",
+      "type": "tv",
+      "season": 1,
+      "vote_average": 0,
+      "vote_count": 0
+    },
+    "imdb": {
+      "id": null,
+      "vote_average": 0,
+      "vote_count": 0
+    },
+    "created": {
+      "time": "2026-09-14T23:29:01.000Z"
+    },
+    "modified": {
+      "time": "2026-09-14T23:39:12.000Z"
+    },
+    "_id": "863e3c95bb7bb455d9da4e2b056948d1",
+    "name": "Trái tim của kẻ ký sinh",
+    "slug": "trai-tim-cua-ke-ky-sinh",
+    "origin_name": "A Parasite's Heart",
+    "alternative_names": [
+      "วิมานทราย",
+      "หัวใจกาฝาก"
+    ],
+    "content": "<p>Bị ràng buộc trong cuộc hôn nhân bất ngờ, Hataya và Ramil vốn bị chính gia đình họ ghẻ lạnh nhưng vẫn luôn sẵn lòng cứu người thân để chứng minh giá trị của bản thân.</p>",
+    "type": "series",
+    "status": "ongoing",
+    "thumb_url": "https://phimimg.com/uploads/movies/20260914/trai-tim-cua-ke-ky-sinh-thumb.webp",
+    "poster_url": "https://phimimg.com/uploads/movies/20260914/trai-tim-cua-ke-ky-sinh-poster.webp",
+    "is_copyright": false,
+    "sub_docquyen": false,
+    "chieurap": false,
+    "is_published": true,
+    "trailer_url": null,
+    "time": "50 phút/tập",
+    "episode_current": "Tập 1",
+    "episode_total": 30,
+    "quality": "FHD",
+    "lang": "Vietsub",
+    "lang_key": [
+      "vs"
+    ],
+    "notify": "",
+    "showtimes": "",
+    "year": 2026,
+    "view": 54,
+    "actor": [
+      "Varakorn Sawasakorn",
+      "Chertinnara Phongpeeradej",
+      "Sipatrada Phiuthong",
+      "Khomsan Arunrueangsawat"
+    ],
+    "director": [
+      "Đang cập nhật"
+    ],
+    "category": [
+      {
+        "id": "37a7b38b6184a5ebd3c43015aa20709d",
+        "name": "Chính Kịch",
+        "slug": "chinh-kich"
+      },
+      {
+        "id": "bb2b4b030608ca5984c8dd0770f5b40b",
+        "name": "Tình Cảm",
+        "slug": "tinh-cam"
+      }
+    ],
+    "country": [
+      {
+        "id": "cefbf1640a17bad1e13c2f6f2a811a2d",
+        "name": "Thái Lan",
+        "slug": "thai-lan"
+      }
+    ]
+  },
+  "episodes": [
+    {
+      "server_name": "Vietsub",
+      "is_ai": false,
+      "server_data": [
+        {
+          "name": "Tập 01",
+          "slug": "tap-01",
+          "filename": "Trái tim của kẻ ký sinh_S01E01_Tập 1",
+          "link_embed": "https://player.phimapi.com/player/?url=https://v7.kkphimplayer7.com/20260914/zUi7U0r7/index.m3u8",
+          "link_m3u8": "https://v7.kkphimplayer7.com/20260914/zUi7U0r7/index.m3u8"
+        }
+      ]
+    }
+  ]
+}
