@@ -5,6 +5,7 @@
  * Hai hàm ở đây là cặp đối xứng: parse (URL → ListFilters) và serialize (ngược lại).
  */
 
+import { TIME_PARAM } from './routes';
 import {
   DEFAULT_LIMIT,
   MAX_LIMIT,
@@ -81,4 +82,25 @@ export function withFilters(pathname: string, current: ListFilters, patch: ListF
 
 export function parseKeyword(searchParams: RawSearchParams = {}): string {
   return (first(searchParams['keyword']) ?? '').trim();
+}
+
+/**
+ * `?t=` trên trang phát → số giây để nhảy tới.
+ *
+ * Trả `undefined` thay vì 0 cho mọi giá trị vô nghĩa (chữ, số âm, rỗng): 0 là
+ * một mốc HỢP LỆ về mặt kiểu dữ liệu nhưng lại trùng đúng với "phát từ đầu",
+ * nên nếu lẫn hai thứ thì `?t=abc` sẽ âm thầm ghi đè tiến độ đã lưu.
+ *
+ * Chặn trên 24 giờ: `?t=99999999` chỉ tổ đẩy con trỏ ra khỏi phim rồi treo ở
+ * khung đen cuối file.
+ */
+const MAX_START_AT = 24 * 60 * 60;
+
+export function parseStartTime(searchParams: RawSearchParams = {}): number | undefined {
+  const raw = first(searchParams[TIME_PARAM]);
+  if (raw === undefined) return undefined;
+
+  const seconds = Number.parseInt(raw, 10);
+  if (!Number.isFinite(seconds) || seconds <= 0 || seconds > MAX_START_AT) return undefined;
+  return seconds;
 }

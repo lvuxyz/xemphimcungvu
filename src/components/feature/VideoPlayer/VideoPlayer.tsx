@@ -20,6 +20,11 @@ interface VideoPlayerProps {
   linkM3u8: string;
   linkEmbed: string;
   onEnded?: () => void;
+  /**
+   * Giây lấy từ `?t=` trên URL — mở đúng phút đã chia sẻ, và F5 giữ nguyên chỗ
+   * đang xem (§2.4). Bỏ trống thì rơi về tiến độ lưu trong localStorage.
+   */
+  startAt?: number;
   /** Thoát trình phát — nút ← ở thanh trên (§1.4 L3). */
   onBack?: () => void;
   /** Sang tập kế. Bỏ trống ở phim lẻ / tập cuối → nút tự ẩn. */
@@ -60,6 +65,7 @@ export function VideoPlayer({
   linkM3u8,
   linkEmbed,
   onEnded,
+  startAt,
   onBack,
   onNext,
   nextLabel,
@@ -112,7 +118,21 @@ export function VideoPlayer({
     slug,
     episodeSlug,
     videoRef,
+    { skipResumePrompt: startAt !== undefined },
   );
+
+  /**
+   * `?t=` chỉ được áp đúng MỘT lần cho mỗi tập.
+   *
+   * `loadedmetadata` và `durationchange` còn bắn lại khi hls.js đổi mức chất
+   * lượng giữa chừng; thiếu chốt này thì mỗi lần đổi bitrate là video nhảy ngược
+   * về mốc `?t=` ban đầu, và người xem không tài nào tua đi đâu được.
+   */
+  const startAtAppliedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    startAtAppliedRef.current = null;
+  }, [episodeSlug]);
 
   // Control ẩn thì không cần cập nhật đồng hồ/thanh tiến độ nữa.
   const controlsShown = controlsVisible || !playing;
@@ -343,7 +363,18 @@ export function VideoPlayer({
       setBuffered(ranges.length > 0 ? ranges.end(ranges.length - 1) : 0);
     };
 
-    const onMeta = () => setDuration(video.duration || 0);
+    const onMeta = () => {
+      setDuration(video.duration || 0);
+
+      if (startAt === undefined || startAtAppliedRef.current === episodeSlug) return;
+      // Mốc nằm ngoài phim thì bỏ qua, còn hơn treo ở khung đen cuối file.
+      if (Number.isFinite(video.duration) && video.duration > 0 && startAt >= video.duration) {
+        startAtAppliedRef.current = episodeSlug;
+        return;
+      }
+      startAtAppliedRef.current = episodeSlug;
+      video.currentTime = startAt;
+    };
 
     const onVolumeChange = () => {
       setVolume(video.volume);
@@ -386,7 +417,7 @@ export function VideoPlayer({
       if (onEnded) video.removeEventListener('ended', onEnded);
       if (settingsTimerRef.current) clearTimeout(settingsTimerRef.current);
     };
-  }, [videoRef, handleTimeUpdate, onEnded, source]);
+  }, [videoRef, handleTimeUpdate, onEnded, source, startAt, episodeSlug]);
 
   useEffect(() => {
     const onFsChange = () => setFullscreen(Boolean(document.fullscreenElement));

@@ -54,13 +54,6 @@ export const CheckIcon = (props: IconProps) => (
   </Icon>
 );
 
-export const ThumbUpIcon = (props: IconProps) => (
-  <Icon {...props}>
-    <path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3Z" />
-    <path d="M7 11l4.5-7.5A2 2 0 0 1 15 4.6L14 9h4.8a2 2 0 0 1 2 2.5l-1.6 6A2 2 0 0 1 17.2 19H7" />
-  </Icon>
-);
-
 export const ChevronDownIcon = (props: IconProps) => (
   <Icon {...props}>
     <path d="m6 9 6 6 6-6" />

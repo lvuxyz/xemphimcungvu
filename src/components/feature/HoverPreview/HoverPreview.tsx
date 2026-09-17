@@ -9,7 +9,7 @@ import { episodeBadgeLabel, firstEpisodeHref, matchScore, parseEpisodeBadge } fr
 import type { Movie } from '@/types/movie';
 import { Chip, MatchScore } from '@/components/ui/Chip';
 import { IconButton } from '@/components/ui/Button';
-import { CheckIcon, ChevronDownIcon, PlayIcon, PlusIcon, ThumbUpIcon } from '@/components/ui/icons';
+import { CheckIcon, ChevronDownIcon, PlayIcon, PlusIcon } from '@/components/ui/icons';
 import { useMyListStore } from '@/store/useMyListStore';
 import { useUIStore } from '@/store/useUIStore';
 import { routes } from '@/lib/routes';
@@ -130,10 +130,6 @@ export function HoverPreview({
               ) : (
                 <PlusIcon className="text-[10px]" />
               )}
-            </IconButton>
-
-            <IconButton label="Thích phim này" size="sm">
-              <ThumbUpIcon className="text-[10px]" />
             </IconButton>
 
             <IconButton
