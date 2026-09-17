@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveImage } from '@/lib/image';
+import { isOptimizable, resolveImage } from '@/lib/image';
 import phimImageLoader from '@/lib/image-loader';
 
 describe('resolveImage — §4.2, §17 rủi ro #2', () => {
@@ -61,5 +61,25 @@ describe('phimImageLoader — §3.5, §12.3 (proxy đang TẮT)', () => {
     expect(url.searchParams.get('q')).toBe('75');
 
     vi.unstubAllEnvs();
+  });
+});
+
+describe('isOptimizable — host lạ không được làm sập trang', () => {
+  it('host đã khai báo trong next.config → qua optimizer', () => {
+    expect(isOptimizable('https://phimimg.com/uploads/a.webp')).toBe(true);
+    expect(isOptimizable('https://image.tmdb.org/t/p/original/a.jpg')).toBe(true);
+  });
+
+  it('đường dẫn nội bộ → qua optimizer', () => {
+    expect(isOptimizable('/placeholder-poster.svg')).toBe(true);
+  });
+
+  it('host lạ → KHÔNG qua optimizer (gặp thật với poster_url của KKPhim)', () => {
+    expect(isOptimizable('https://i.ex-cdn.com/danviet.vn/files/a.jpg')).toBe(false);
+  });
+
+  it('URL hỏng hoặc rỗng → KHÔNG qua optimizer', () => {
+    expect(isOptimizable('')).toBe(false);
+    expect(isOptimizable('https://')).toBe(false);
   });
 });

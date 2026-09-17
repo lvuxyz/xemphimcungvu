@@ -1,9 +1,9 @@
 import { SmartImage } from '@/components/ui/SmartImage';
+import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { firstEpisodeHref, matchScore, metaLine, statusLabel } from '@/lib/derive';
 import { sanitizeHtml } from '@/lib/sanitize';
-import type { MockDetail } from '@/mocks';
-import { relatedMock } from '@/mocks';
+import type { Movie, MovieDetailBundle } from '@/types/movie';
 import { Button } from '@/components/ui/Button';
 import { Chip, MatchScore } from '@/components/ui/Chip';
 import { PlayIcon, PlusIcon } from '@/components/ui/icons';
@@ -25,13 +25,18 @@ import { EpisodePicker } from './EpisodePicker';
  *   7. tabs server + grid tập
  *   8. "Có thể bạn thích"
  */
-export function DetailContent({ detail }: { detail: MockDetail }) {
+interface DetailContentProps {
+  detail: MovieDetailBundle;
+  /** §8.5 mục 8 — "Có thể bạn thích", do RSC fetch sẵn (`getRelated`). */
+  related?: Movie[];
+}
+
+export function DetailContent({ detail, related = [] }: DetailContentProps) {
   const { movie, episodes, images, peoples, keywords } = detail;
 
   const backdrop = images.backdrops[0] ?? movie.thumb;
   // §14.4 — content là HTML thô từ API, BẮT BUỘC sanitize trước khi render.
   const safeContent = sanitizeHtml(movie.content);
-  const related = relatedMock(movie);
 
   return (
     <article>
@@ -39,6 +44,7 @@ export function DetailContent({ detail }: { detail: MockDetail }) {
       <header className="relative aspect-backdrop w-full overflow-hidden">
         <SmartImage
           src={backdrop}
+          fallbackSrc={PLACEHOLDER_BACKDROP}
           alt={`${movie.name} (${movie.year})`}
           fill
           sizes={IMAGE_SIZES.hero}

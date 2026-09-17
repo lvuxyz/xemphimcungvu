@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { cn } from '@/lib/cn';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
-import { HOVER_DELAY } from '@/lib/constants';
+import { HOVER_DELAY, PLACEHOLDER_BACKDROP, PLACEHOLDER_POSTER } from '@/lib/constants';
 import { episodeBadgeLabel, matchScore, parseEpisodeBadge } from '@/lib/derive';
 import type { Movie } from '@/types/movie';
 import { useHoverDelay } from '@/hooks/useHoverDelay';
@@ -124,6 +124,7 @@ export function MovieCard({
         <div className={cn('relative', isRow ? 'aspect-backdrop' : 'aspect-poster')}>
           <SmartImage
             src={isRow ? movie.thumb : movie.poster}
+            fallbackSrc={isRow ? PLACEHOLDER_BACKDROP : PLACEHOLDER_POSTER}
             alt={`${movie.name} (${movie.year})`}
             fill
             sizes={isRow ? IMAGE_SIZES.rowCard : IMAGE_SIZES.gridCard}

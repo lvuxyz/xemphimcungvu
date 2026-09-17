@@ -1,52 +1,64 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { cn } from '@/lib/cn';
-import { BLUR_DATA_URL } from '@/lib/image';
-import { matchesSearch, searchKey } from '@/lib/text';
-import type { SearchIndexItem } from '@/mocks';
+import { CACHE, SEARCH_DEBOUNCE, SEARCH_MIN_LENGTH, SEARCH_SUGGESTIONS } from '@/lib/constants';
+import { search } from '@/lib/endpoints';
+import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
+import { queryKeys } from '@/lib/query-keys';
 import { CloseIcon, SearchIcon } from '@/components/ui/icons';
 
 /**
  * §8.1 — ô tìm kiếm.
  *
  *   click icon → input expand 0 → 280px
- *   debounce 350ms → truy vấn, tối đa 8 kết quả
+ *   debounce 350ms → truy vấn `/v1/api/tim-kiem`, tối đa 8 kết quả
  *   ESC hoặc blur → thu lại
  *   Enter → điều hướng /tim-kiem?keyword=
  *
- * Giai đoạn dựng giao diện: kết quả lấy từ mock tĩnh, chưa gọi API.
+ * Gợi ý lấy thẳng từ API chứ không từ chỉ mục dựng sẵn: chỉ mục đủ 30.000 phim
+ * là vài MB vào bundle initial, phá ngân sách §12.1.
  */
-export function SearchBox({ index }: { index: SearchIndexItem[] }) {
+const SEARCH_FILTERS = { limit: SEARCH_SUGGESTIONS };
+
+export function SearchBox() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
-  const [results, setResults] = useState<SearchIndexItem[]>([]);
+  /** Từ khoá đã qua debounce — chỉ giá trị này được đem đi gọi API. */
+  const [term, setTerm] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   // §8.1 — debounce 350ms
   useEffect(() => {
-    const term = keyword.trim();
-    if (term === '') {
-      setResults([]);
+    const trimmed = keyword.trim();
+    if (trimmed === '') {
+      setTerm('');
       return;
     }
 
-    const timer = setTimeout(() => {
-      // Bỏ dấu hai phía: "thien" phải ra "Thiên" (§8.1).
-      const needle = searchKey(term);
-      setResults(
-        index
-          .filter((m) => matchesSearch(m.name, needle) || matchesSearch(m.originName, needle))
-          .slice(0, 8),
-      );
-    }, 350);
+    const timer = setTimeout(() => setTerm(trimmed), SEARCH_DEBOUNCE);
     return () => clearTimeout(timer);
-  }, [keyword, index]);
+  }, [keyword]);
+
+  const enabled = open && term.length >= SEARCH_MIN_LENGTH;
+
+  const { data, isFetching, isError } = useQuery({
+    queryKey: queryKeys.search(term, SEARCH_FILTERS),
+    queryFn: ({ signal }) => search(term, SEARCH_FILTERS, { signal }),
+    enabled,
+    staleTime: CACHE.search.staleTime,
+    gcTime: CACHE.search.gcTime,
+  });
+
+  const results = enabled ? (data?.items ?? []) : [];
+  /** Chưa có kết quả nào trong tay thì vẽ skeleton, không dùng spinner (§12.2). */
+  const pending = enabled && isFetching && results.length === 0;
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -63,10 +75,10 @@ export function SearchBox({ index }: { index: SearchIndexItem[] }) {
   }, [open]);
 
   const submit = () => {
-    const term = keyword.trim();
-    if (!term) return;
+    const trimmed = keyword.trim();
+    if (!trimmed) return;
     setOpen(false);
-    router.push(`/tim-kiem?keyword=${encodeURIComponent(term)}`);
+    router.push(`/tim-kiem?keyword=${encodeURIComponent(trimmed)}`);
   };
 
   return (
@@ -129,7 +141,27 @@ export function SearchBox({ index }: { index: SearchIndexItem[] }) {
           role="listbox"
           aria-label="Kết quả tìm kiếm"
         >
-          {results.length === 0 ? (
+          {keyword.trim().length < SEARCH_MIN_LENGTH ? (
+            <p className="px-3 py-4 text-sm text-text-muted">
+              Nhập ít nhất {SEARCH_MIN_LENGTH} ký tự.
+            </p>
+          ) : pending ? (
+            <ul aria-hidden="true">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <li key={i} className="flex items-center gap-3 px-3 py-2">
+                  <div className="skeleton h-[60px] w-10 shrink-0 rounded-[3px]" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="skeleton h-3 w-3/4 rounded-[3px]" />
+                    <div className="skeleton h-2.5 w-1/3 rounded-[3px]" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : isError ? (
+            <p className="px-3 py-4 text-sm text-text-muted">
+              Không kết nối được máy chủ tìm kiếm.
+            </p>
+          ) : results.length === 0 ? (
             <p className="px-3 py-4 text-sm text-text-muted">Không tìm thấy phim phù hợp.</p>
           ) : (
             <ul>
@@ -146,7 +178,7 @@ export function SearchBox({ index }: { index: SearchIndexItem[] }) {
                         src={movie.poster}
                         alt=""
                         fill
-                        sizes="40px"
+                        sizes={IMAGE_SIZES.searchThumb}
                         placeholder="blur"
                         blurDataURL={BLUR_DATA_URL}
                         className="object-cover"

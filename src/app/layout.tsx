@@ -6,7 +6,7 @@ import { Navbar } from '@/components/feature/Navbar/Navbar';
 import { ToastViewport } from '@/components/ui/Toast';
 import { NetworkBanner } from '@/components/ui/NetworkBanner';
 import { Providers } from '@/providers';
-import { mockCategories, mockCountries, mockSearchIndex, mockYears } from '@/mocks';
+import { getTaxonomies } from '@/lib/endpoints';
 import '@/styles/globals.css';
 
 /**
@@ -53,13 +53,20 @@ export const viewport: Viewport = {
  * `modal` là parallel route slot của `app/@modal` — nền tảng của intercepting
  * route tạo trải nghiệm mở modal mà không rời trang (§6.1).
  */
-export default function RootLayout({
+export default async function RootLayout({
   children,
   modal,
 }: {
   children: ReactNode;
   modal: ReactNode;
 }) {
+  /**
+   * §3.4 — ba danh mục cho Navbar, cache 24 giờ nên gần như không tốn gì ở các
+   * lần render sau. Fail thì `getTaxonomies` trả rỗng và menu tự ẩn nhánh đó,
+   * layout vẫn dựng bình thường (§14.1).
+   */
+  const { categories, countries, years } = await getTaxonomies();
+
   return (
     <html lang="vi" className={beVietnamPro.variable}>
       <head>
@@ -75,12 +82,7 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>
-          <Navbar
-            categories={mockCategories}
-            countries={mockCountries}
-            years={mockYears}
-            searchIndex={mockSearchIndex}
-          />
+          <Navbar categories={categories} countries={countries} years={years} />
           {children}
           {modal}
           <ToastViewport />

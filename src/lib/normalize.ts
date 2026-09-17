@@ -41,7 +41,7 @@ import type {
   Taxonomy,
 } from '@/types/movie';
 import { DEFAULT_LIMIT } from '@/types/filters';
-import { resolveImage } from './image';
+import { resolveBackdrop, resolveImage } from './image';
 
 export { resolveImage } from './image';
 
@@ -98,14 +98,22 @@ function normalizeTaxonomy(list: unknown): Taxonomy[] {
 /* ------------------------------- movie item ------------------------------- */
 
 function normalizeMovie(raw: RawMovieItem | undefined, cdnBase?: string): Movie {
+  /**
+   * `/v1/api/home` chỉ trả `poster_url`, KHÔNG có `thumb_url` (kiểm tra thật
+   * 17/09/2026) — card 16:9 của ContentRow sẽ rỗng nếu không mượn tạm ảnh còn
+   * lại. Mượn chéo hai chiều: thà cắt ảnh sai tỉ lệ còn hơn hiện placeholder.
+   */
+  const posterPath = str(raw?.poster_url) || str(raw?.thumb_url);
+  const thumbPath = str(raw?.thumb_url) || str(raw?.poster_url);
+
   return {
     id: str(raw?._id),
     name: str(raw?.name),
     slug: str(raw?.slug),
     originName: str(raw?.origin_name),
     type: toMovieType(raw?.type),
-    poster: resolveImage(raw?.poster_url, cdnBase),
-    thumb: resolveImage(raw?.thumb_url, cdnBase),
+    poster: resolveImage(posterPath, cdnBase),
+    thumb: resolveBackdrop(thumbPath, cdnBase),
     duration: str(raw?.time),
     episodeCurrent: str(raw?.episode_current),
     quality: str(raw?.quality),

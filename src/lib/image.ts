@@ -30,6 +30,41 @@ export function isPlaceholder(src: string): boolean {
   return src === PLACEHOLDER_POSTER || src === PLACEHOLDER_BACKDROP;
 }
 
+/**
+ * Host được phép đi qua optimizer của Next — PHẢI khớp `images.remotePatterns`
+ * trong `next.config.mjs`.
+ *
+ * KKPhim để nguyên `poster_url` mà nguồn phim tự nhập, nên ngoài `phimimg.com`
+ * thỉnh thoảng có cả host lạ (gặp thật: `i.ex-cdn.com/danviet.vn/...`). Gặp host
+ * không khai báo, `next/image` NÉM LỖI ngay lúc render — nghĩa là một phim có
+ * ảnh lạ đủ sức thổi bay cả trang danh sách (§14.1 chỉ cho phép ảnh đó rơi về
+ * placeholder, không cho phép sập trang).
+ */
+const OPTIMIZABLE_HOSTS = new Set([
+  'phimimg.com',
+  'phimapi.com',
+  'img.phimapi.com',
+  'image.tmdb.org',
+]);
+
+/**
+ * Ảnh này có được đưa qua optimizer không.
+ *
+ * `false` → SmartImage đặt `unoptimized`, trình duyệt tải thẳng từ nguồn: mất
+ * phần resize nhưng ảnh vẫn hiện, và server của mình KHÔNG đi fetch hộ một URL
+ * bên thứ ba tuỳ ý (đó là lý do không mở `hostname: '**'`).
+ */
+export function isOptimizable(src: string): boolean {
+  if (!src) return false;
+  if (!/^https?:\/\//i.test(src)) return true; // đường dẫn nội bộ
+
+  try {
+    return OPTIMIZABLE_HOSTS.has(new URL(src).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** §7.5 — tỉ lệ ảnh theo vị trí hiển thị. */
 export const ASPECT = {
   /** Carousel ngang — dùng `thumb` */

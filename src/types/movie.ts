@@ -108,3 +108,14 @@ export interface Person {
 }
 
 export type Keyword = string;
+
+/**
+ * Gói dữ liệu đầy đủ của màn chi tiết — §11.3 gọi song song 4 endpoint:
+ * `/phim/{slug}` (cốt lõi) + `/images` + `/peoples` + `/keywords` (bổ trợ).
+ * Ba phần bổ trợ fail thì về rỗng, KHÔNG làm hỏng cả màn (§14.1).
+ */
+export interface MovieDetailBundle extends MovieDetailResult {
+  images: MovieImages;
+  peoples: Person[];
+  keywords: Keyword[];
+}

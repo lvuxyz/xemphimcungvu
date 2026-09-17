@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MOTION } from '@/lib/constants';
-import type { MockDetail } from '@/mocks';
+import type { Movie, MovieDetailBundle } from '@/types/movie';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { IconButton } from '@/components/ui/Button';
@@ -24,7 +24,13 @@ const FOCUSABLE =
  *   · focus trap trong modal
  *   · trả focus về phần tử đã mở modal khi đóng
  */
-export function DetailModal({ detail }: { detail: MockDetail }) {
+export function DetailModal({
+  detail,
+  related = [],
+}: {
+  detail: MovieDetailBundle;
+  related?: Movie[];
+}) {
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
@@ -118,7 +124,7 @@ export function DetailModal({ detail }: { detail: MockDetail }) {
             <CloseIcon />
           </IconButton>
 
-          <DetailContent detail={detail} />
+          <DetailContent detail={detail} related={related} />
         </motion.div>
       </motion.div>
     </AnimatePresence>

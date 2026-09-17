@@ -2,6 +2,7 @@
 
 import { SmartImage } from '@/components/ui/SmartImage';
 import { cn } from '@/lib/cn';
+import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { firstEpisodeHref, matchScore, metaLine } from '@/lib/derive';
 import type { Movie, MovieImages } from '@/types/movie';
@@ -48,6 +49,7 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
         <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
           <SmartImage
             src={source}
+            fallbackSrc={PLACEHOLDER_BACKDROP}
             alt=""
             fill
             // Blur 40px thì chi tiết không còn nghĩa lý gì — lấy bản nhỏ nhất.
@@ -62,6 +64,7 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
       <div className="absolute inset-0 overflow-hidden">
         <SmartImage
           src={source}
+          fallbackSrc={PLACEHOLDER_BACKDROP}
           alt={`${movie.name} (${movie.year})`}
           fill
           sizes={IMAGE_SIZES.hero}

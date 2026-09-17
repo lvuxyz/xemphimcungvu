@@ -1,14 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getByYear,
   getCategories,
   getCountries,
+  getDetail,
+  getHeroSpotlight,
   getHome,
+  getList,
   getListByType,
+  getMovieById,
+  getMovieBundle,
+  getMovieByImdb,
+  getMovieByTmdb,
   getMovieDetail,
+  getMovieDetailV1,
   getMovieImages,
   getMovieKeywords,
   getMoviePeoples,
   getNewlyUpdated,
+  getRelated,
+  getTaxonomies,
   getYears,
   search,
 } from '@/lib/endpoints';
@@ -91,5 +102,87 @@ describe.skipIf(!live)('KKPhim live API — hợp đồng endpoint', () => {
     await expect(getMovieDetail('slug-khong-ton-tai-xyz-123')).rejects.toMatchObject({
       name: 'ApiError',
     });
+  });
+});
+
+/**
+ * Nhóm thứ hai: các hàm được TRANG dùng trực tiếp (§11.2, §11.3) — chúng gộp
+ * nhiều endpoint nên hỏng một mắt xích là cả màn hình trống.
+ */
+describe.skipIf(!live)('KKPhim live API — hàm gộp dùng ở tầng trang', () => {
+  it('GET /v1/api/danh-sach (tổng hợp, không cần slug)', { timeout: 20_000 }, async () => {
+    const { items, pagination } = await getList({ page: 1, limit: 8 });
+    expect(items.length).toBeGreaterThan(0);
+    expect(pagination.totalPages).toBeGreaterThan(1);
+  });
+
+  it('GET /v1/api/nam/{year}', { timeout: 20_000 }, async () => {
+    const { items } = await getByYear(2024, { limit: 8 });
+    expect(items.length).toBeGreaterThan(0);
+  });
+
+  it('getDetail — Shape C, và Shape D vẫn đọc được', { timeout: 30_000 }, async () => {
+    const { items } = await getListByType('phim-bo', { page: 1, limit: 5 });
+    const slug = items[0]!.slug;
+
+    const [primary, fallback] = await Promise.all([getDetail(slug), getMovieDetailV1(slug)]);
+
+    expect(primary.movie.slug).toBe(slug);
+    // Hai format là hai shape của CÙNG một phim — phao thay được cho bản chính.
+    expect(fallback.movie.slug).toBe(slug);
+    expect(fallback.episodes.length).toBeGreaterThan(0);
+  });
+
+  it('getMovieBundle — 4 endpoint §11.3 về cùng một gói', { timeout: 30_000 }, async () => {
+    const { items } = await getListByType('phim-le', { page: 1, limit: 5 });
+    const slug = items[0]!.slug;
+
+    const bundle = await getMovieBundle(slug);
+    expect(bundle.movie.slug).toBe(slug);
+    expect(Array.isArray(bundle.images.backdrops)).toBe(true);
+    expect(Array.isArray(bundle.peoples)).toBe(true);
+    expect(Array.isArray(bundle.keywords)).toBe(true);
+  });
+
+  it('getRelated — cùng thể loại, bỏ chính nó', { timeout: 30_000 }, async () => {
+    const { items } = await getListByType('phim-bo', { page: 1, limit: 5 });
+    const movie = items.find((item) => item.categories.length > 0);
+    expect(movie).toBeTruthy();
+
+    const related = await getRelated(movie!, 12);
+    expect(related.every((item) => item.slug !== movie!.slug)).toBe(true);
+  });
+
+  it('getHeroSpotlight — hero luôn có phim để dựng', { timeout: 30_000 }, async () => {
+    const { items } = await getHome();
+    const hero = await getHeroSpotlight(items);
+
+    expect(hero).not.toBeNull();
+    expect(hero!.movie.slug).toBeTruthy();
+    for (const url of hero!.images.backdrops) expect(url).toMatch(/^https:\/\//);
+  });
+
+  it('getTaxonomies — ba danh mục §3.4 trong một lượt', { timeout: 20_000 }, async () => {
+    const { categories, countries, years } = await getTaxonomies();
+    expect(categories.length).toBeGreaterThan(0);
+    expect(countries.length).toBeGreaterThan(0);
+    expect(years.length).toBeGreaterThan(0);
+  });
+
+  it('§3.2 — tra theo _id / TMDB / IMDB ra cùng một phim', { timeout: 30_000 }, async () => {
+    const { items } = await getListByType('phim-bo', { page: 1, limit: 10 });
+    const seed = items.find((item) => item.tmdb.id && item.tmdb.type);
+    expect(seed).toBeTruthy();
+
+    const byId = await getMovieById(seed!.id);
+    expect(byId.movie.slug).toBe(seed!.slug);
+
+    const byTmdb = await getMovieByTmdb(seed!.tmdb.type!, seed!.tmdb.id!);
+    expect(byTmdb.movie.slug).toBe(seed!.slug);
+
+    if (seed!.imdb.id) {
+      const byImdb = await getMovieByImdb(seed!.imdb.id);
+      expect(byImdb.movie.slug).toBe(seed!.slug);
+    }
   });
 });
