@@ -6,7 +6,8 @@ import { sanitizeHtml } from '@/lib/sanitize';
 import type { Movie, MovieDetailBundle } from '@/types/movie';
 import { Button } from '@/components/ui/Button';
 import { Chip, MatchScore } from '@/components/ui/Chip';
-import { PlayIcon, PlusIcon } from '@/components/ui/icons';
+import { PlayIcon } from '@/components/ui/icons';
+import { MyListButton } from './MyListButton';
 import { CastRow } from '../CastRow/CastRow';
 import { MovieCard } from '../MovieCard/MovieCard';
 import { EpisodePicker } from './EpisodePicker';
@@ -72,10 +73,7 @@ export function DetailContent({ detail, related = [] }: DetailContentProps) {
               <PlayIcon />
               Phát
             </Button>
-            <Button variant="secondary">
-              <PlusIcon />
-              Danh sách
-            </Button>
+            <MyListButton movie={movie} />
           </div>
         </div>
       </header>

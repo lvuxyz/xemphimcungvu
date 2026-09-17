@@ -59,8 +59,12 @@ export function LazyRow({ title, source, href, limit = ROW_LIMIT }: LazyRowProps
             {title}
           </h2>
         </div>
-        {/* §12.2 — skeleton giữ đúng chỗ của row, không dùng spinner */}
-        <div className="flex gap-2 px-row" aria-hidden="true">
+        {/*
+          §12.2 — skeleton giữ đúng chỗ của row, không dùng spinner.
+          `overflow-hidden` là BẮT BUỘC: 6 ô `shrink-0` rộng hơn màn hình, thiếu
+          nó thì cả trang cuộn ngang được 160px ở màn 1366 (đo thật).
+        */}
+        <div className="flex gap-2 overflow-hidden px-row" aria-hidden="true">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="w-[45%] shrink-0 sm:w-[30%] lg:w-[19%] 2xl:w-[16%]">
               <CardSkeleton />

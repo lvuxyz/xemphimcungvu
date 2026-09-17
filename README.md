@@ -153,6 +153,42 @@ Từ đợt dựng UI (hành vi không đổi ở lần nối API này): hero tr
 2500ms và tự lặp · hover card phóng to không bị cắt · modal mở đè trang chủ và
 URL đổi · roving tabindex đi giữa các card bằng `←`/`→`.
 
+### Lượt rà theo kích thước màn
+
+Chạy lại toàn bộ màn ở **375 · 768 · 1024 · 1366 · 1920 · 2560** với dữ liệu thật.
+Ở mọi mức: `documentElement.scrollWidth == clientWidth` (không cuộn ngang ngoài ý
+muốn), không có ảnh vỡ, không màn nào rơi vào error state.
+
+| Kiểm tra | Kết quả |
+|---|---|
+| Lưới danh sách | 2 → 3 → 4 → 6 cột đúng breakpoint |
+| Navbar | menu ngang từ `lg`, dưới đó là drawer; drawer khoá scroll, chọn xong tự đóng |
+| Mega menu | mở khi rê chuột, đủ 26 thể loại / 36 quốc gia từ API |
+| FilterBar | đổi lọc ghi vào URL, số phim đổi theo (7652 → 447 khi thêm `country=han-quoc`) |
+| Infinite scroll | 18 → 90 phim, tự xin trang tiếp |
+| Modal | ESC đóng, quay lại đúng vị trí cuộn của trang nền |
+| Bàn phím | `←`/`→`/`End` chạy giữa các card, mỗi row chỉ một card nhận Tab |
+| My List | thêm từ hover preview và từ trang chi tiết, gỡ ở trang My List, còn nguyên sau F5 |
+| Trình phát | play/pause, `k`, `←`/`→` tua 10s, đổi tập, lưu tiến độ, thanh tiến độ ở tập đang xem dở |
+| Hover preview mép row | ở 2560 vẫn nằm trong viewport (transform-origin edge-aware) |
+
+Chưa kiểm được trong môi trường này: banner mất mạng (§14.1) — không giả lập được
+`navigator.onLine` từ bên ngoài trang.
+
+### Ba lỗi bắt được trong lượt rà này
+
+1. **Skeleton của `LazyRow` làm cả trang cuộn ngang 160px** ở màn 1366. Sáu ô
+   `shrink-0` rộng hơn màn hình mà thiếu `overflow-hidden`. Lỗi mới, do chính
+   lần nối API sinh ra.
+2. **Trang "Danh sách của tôi" kẹt ở skeleton vĩnh viễn.** Lỗi có sẵn từ trước:
+   cờ `hydrated` được đặt trong `onRehydrateStorage` bằng `useMyListStore.setState`,
+   mà callback đó chạy ngay giữa lúc `create()` còn đang chạy (localStorage là API
+   đồng bộ) — biến còn ở TDZ, setState ném lỗi và bị persist nuốt. Nay hỏi thẳng
+   `persist.hasHydrated()` / `onFinishHydration`.
+3. **Nút "Danh sách" ở trang chi tiết không làm gì** — cũng là lỗi có sẵn: nó là
+   `<Button>` trần không có handler. Nay là `MyListButton`, cùng hành vi với nút +
+   trong hover preview (toggle + toast + đổi nhãn "Đã lưu").
+
 Bundle initial: **140 kB** trang chủ (trước khi nối API là 165 kB — bỏ chỉ mục
 tìm kiếm tĩnh trả lại 25 kB), dưới ngưỡng 180 KB của §12.1. Phần lớn còn lại là
 Framer Motion (~50 kB), thứ §9.1 yêu cầu. Nếu cần cắt thêm: `VideoPlayer` đã

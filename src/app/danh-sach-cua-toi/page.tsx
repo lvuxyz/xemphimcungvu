@@ -6,13 +6,13 @@ import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { EmptyState, ListHeader } from '@/components/feature/FilterBar/MovieGrid';
 import { IconButton } from '@/components/ui/Button';
 import { CloseIcon } from '@/components/ui/icons';
-import { useMyListStore } from '@/store/useMyListStore';
+import { useMyListHydrated, useMyListStore } from '@/store/useMyListStore';
 
 /** My List — đọc localStorage qua zustand persist, không có backend (§1.2). */
 export default function MyListPage() {
   const entries = useMyListStore((s) => s.entries);
-  const hydrated = useMyListStore((s) => s.hydrated);
   const remove = useMyListStore((s) => s.remove);
+  const hydrated = useMyListHydrated();
 
   // Chưa hydrate xong thì giữ khung — tránh nháy "danh sách rỗng" rồi mới có dữ liệu.
   if (!hydrated) {

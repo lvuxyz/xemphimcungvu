@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Movie } from '@/types/movie';
@@ -36,8 +37,6 @@ function toEntry(movie: Movie): MyListEntry {
 
 interface MyListState {
   entries: MyListEntry[];
-  /** Hydrate xong chưa — dùng để tránh lệch server/client render. */
-  hydrated: boolean;
 
   add: (movie: Movie) => void;
   remove: (slug: string) => void;
@@ -52,7 +51,6 @@ export const useMyListStore = create<MyListState>()(
   persist<MyListState, [], [], PersistedMyList>(
     (set, get) => ({
       entries: [],
-      hydrated: false,
 
       add: (movie) =>
         set((state) =>
@@ -78,9 +76,44 @@ export const useMyListStore = create<MyListState>()(
       name: 'my-list',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ entries: state.entries }),
-      onRehydrateStorage: () => () => {
-        useMyListStore.setState({ hydrated: true });
-      },
     },
   ),
 );
+
+/**
+ * Đã đọc xong localStorage chưa — để trang My List không nháy "danh sách rỗng"
+ * rồi mới có dữ liệu, và để lượt render đầu ở client khớp với HTML từ server.
+ *
+ * ⚠️ KHÔNG dùng cờ `hydrated` tự đặt trong `onRehydrateStorage` như bản trước:
+ * localStorage là API ĐỒNG BỘ nên callback đó chạy ngay giữa lúc `create()` còn
+ * đang chạy — biến `useMyListStore` vẫn ở TDZ, `useMyListStore.setState` ném lỗi
+ * và bị persist nuốt mất. Cờ mãi là `false`, trang My List kẹt ở skeleton vĩnh
+ * viễn dù entries đã đọc về đủ. Hỏi thẳng API của persist thì không có cái bẫy đó.
+ */
+export function useMyListHydrated(): boolean {
+  // Lượt render đầu luôn là `false` để khớp HTML server (§13 tránh mismatch).
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (useMyListStore.persist.hasHydrated()) {
+      setHydrated(true);
+      return;
+    }
+
+    const unsubscribe = useMyListStore.persist.onFinishHydration(() => setHydrated(true));
+
+    /**
+     * Storage không dùng được (Safari private mode, cookie bị chặn) → persist bỏ
+     * qua hydrate và KHÔNG bao giờ báo xong. Vẫn phải cho trang hiện ra, với
+     * danh sách rỗng, thay vì để skeleton chạy mãi.
+     */
+    const timer = setTimeout(() => setHydrated(true), 1_000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
+  }, []);
+
+  return hydrated;
+}
