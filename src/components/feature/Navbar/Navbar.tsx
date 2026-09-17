@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
@@ -144,17 +144,45 @@ function MegaMenu({
 }) {
   const [open, setOpen] = useState(false);
 
+  /**
+   * Con trỏ có đang nằm trên mục này không.
+   *
+   * Thiếu cờ này thì click bằng chuột hoá ra là ĐÓNG: trình duyệt bắn
+   * `mouseenter` (mở) NGAY TRƯỚC `click` (toggle → đóng), nên menu vừa bung ra
+   * đã biến mất dưới chính con trỏ vừa bấm. Bàn phím không có `mouseenter` nên
+   * `Enter`/`Space` vẫn mở/đóng như thường.
+   */
+  const hovering = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
   if (items.length === 0) return null;
 
   return (
     <li
       className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={() => {
+        hovering.current = true;
+        setOpen(true);
+      }}
+      onMouseLeave={() => {
+        hovering.current = false;
+        setOpen(false);
+      }}
+      // §13.1 — ESC đóng menu và trả focus về nút mở.
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape' || !open) return;
+        event.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }}
     >
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (hovering.current) return;
+          setOpen((v) => !v);
+        }}
         aria-expanded={open}
         className="flex items-center gap-1 text-sm text-text-secondary transition-colors duration-micro ease-standard hover:text-text-primary"
       >

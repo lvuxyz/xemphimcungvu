@@ -189,6 +189,24 @@ Chưa kiểm được trong môi trường này: banner mất mạng (§14.1) �
    `<Button>` trần không có handler. Nay là `MyListButton`, cùng hành vi với nút +
    trong hover preview (toggle + toast + đổi nhãn "Đã lưu").
 
+### Ba lỗi bố cục sửa tiếp sau đó
+
+4. **Card đầu mỗi row dán sát mép màn hình** trong khi tiêu đề row vẫn thụt vào
+   (rõ nhất ở 1920: card ở `x=0`, chữ ở `x=77`). `scroll-snap-type: x mandatory`
+   snap theo mép scrollport, mà điểm snap của card đầu lại nằm sau `padding-left`
+   — trình duyệt kéo row sang phải đúng bằng gutter. Thêm
+   `scroll-padding-inline: var(--row-padding-x)` cho `.row-track`: điểm snap
+   trùng bố cục, và sau mỗi lần bấm mũi tên card cũng dừng đúng gutter.
+5. **Row đầu đè lên chữ của hero.** `-mt-[8vw]` ở 1920 là 154px, nuốt 62px cuối
+   của khối tiêu đề + nút Phát ("Mới cập nhật" nằm chồng lên nút). Kẹp lại còn
+   `clamp(0.5rem,4vw,4.5rem)` — vẫn chồng đủ để gradient đáy hero nối vào row,
+   mà 375 / 768 / 1366 / 1920 / 2560 đều còn hở 20–45px dưới nút.
+6. **Click vào "Thể loại" / "Quốc gia" / "Năm" lại ĐÓNG mega menu.** Trình duyệt
+   bắn `mouseenter` (mở) ngay trước `click` (toggle → đóng), nên menu vừa bung ra
+   đã biến mất dưới chính con trỏ vừa bấm. Nay `onClick` bỏ qua khi con trỏ đang
+   ở trên mục đó; bàn phím không có `mouseenter` nên `Enter` vẫn toggle như cũ,
+   và thêm `ESC` để đóng + trả focus về nút mở (§13.1).
+
 Bundle initial: **140 kB** trang chủ (trước khi nối API là 165 kB — bỏ chỉ mục
 tìm kiếm tĩnh trả lại 25 kB), dưới ngưỡng 180 KB của §12.1. Phần lớn còn lại là
 Framer Motion (~50 kB), thứ §9.1 yêu cầu. Nếu cần cắt thêm: `VideoPlayer` đã
