@@ -4,31 +4,62 @@
  */
 
 :root {
-  /* §7.1 — color tokens */
-  --bg-base: #08080b;
-  --bg-elevated: #121216;
-  --bg-hover: #1c1c22;
+  /**
+   * §7.1 — color tokens.
+   *
+   * Mỗi màu khai báo hai lần, từ CÙNG một bộ số:
+   *   --x-rgb : ba kênh trần `8 8 11` — chỗ Tailwind chèn alpha vào
+   *   --x     : màu đầy đủ dựng từ chính ba kênh đó — cho CSS thuần dùng thẳng
+   *
+   * Lý do phải tách kênh: Tailwind v3 KHÔNG chèn được alpha vào một biến chứa mã
+   * hex. Khai báo `bg: { base: 'var(--bg-base)' }` rồi viết `bg-bg-base/75` sinh
+   * ra `rgb(#08080B / 0.75)` — sai cú pháp, trình duyệt bỏ nguyên khai báo,
+   * KHÔNG báo lỗi, và nền thành trong suốt.
+   *
+   * Đo thật trên trang đang chạy trước khi sửa: gradient bảo vệ chữ navbar ra
+   * `background-image: none`, badge FHD và panel mega menu ra `rgba(0,0,0,0)`,
+   * nền mờ của modal không tối đi chút nào. 33 chỗ trong `src/` bị câm như vậy.
+   */
+  --bg-base-rgb: 8 8 11;
+  --bg-elevated-rgb: 18 18 22;
+  --bg-hover-rgb: 28 28 34;
 
-  --text-primary: #ffffff;
-  --text-secondary: #a1a1a8;
-  --text-muted: #5f5f68;
+  --bg-base: rgb(var(--bg-base-rgb));
+  --bg-elevated: rgb(var(--bg-elevated-rgb));
+  --bg-hover: rgb(var(--bg-hover-rgb));
+
+  --text-primary-rgb: 255 255 255;
+  --text-secondary-rgb: 161 161 168;
+  --text-muted-rgb: 95 95 104;
+
+  --text-primary: rgb(var(--text-primary-rgb));
+  --text-secondary: rgb(var(--text-secondary-rgb));
+  --text-muted: rgb(var(--text-muted-rgb));
 
   /**
    * Accent signature — tím Lumen, lấy từ design canvas.
    * Cố ý KHÔNG dùng đỏ Netflix (§7.1).
    * Tương phản trên --bg-base: 6.2:1 → đạt WCAG AA cho text và UI component (§13.4).
    */
-  --accent: #9184d9;
+  --accent-rgb: 145 132 217;
   /* Sáng hơn ~12% lightness, dùng cho hover (§7.1) */
-  --accent-hover: #b5abfc;
-  /* Nền mờ cho chip / trạng thái active */
-  --accent-soft: rgba(145, 132, 217, 0.14);
+  --accent-hover-rgb: 181 171 252;
   /* Màu chữ đặt TRÊN nền accent đặc */
-  --accent-contrast: #0b0c14;
+  --accent-contrast-rgb: 11 12 20;
 
-  --success: #3fb950;
-  --warning: #d29922;
-  --danger: #f85149;
+  --accent: rgb(var(--accent-rgb));
+  --accent-hover: rgb(var(--accent-hover-rgb));
+  --accent-contrast: rgb(var(--accent-contrast-rgb));
+  /* Nền mờ cho chip / trạng thái active */
+  --accent-soft: rgb(var(--accent-rgb) / 0.14);
+
+  --success-rgb: 63 185 80;
+  --warning-rgb: 210 153 34;
+  --danger-rgb: 248 81 73;
+
+  --success: rgb(var(--success-rgb));
+  --warning: rgb(var(--warning-rgb));
+  --danger: rgb(var(--danger-rgb));
 
   /* §7.4 — elevation bằng shadow nhiều lớp, KHÔNG dùng border */
   --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
@@ -43,7 +74,7 @@
   --duration-kenburns: 20000ms;
 
   /* §8.2 — lớp gradient của hero */
-  --hero-gradient-side: linear-gradient(77deg, rgba(8, 8, 11, 0.85) 0%, transparent 78%);
+  --hero-gradient-side: linear-gradient(77deg, rgb(var(--bg-base-rgb) / 0.85) 0%, transparent 78%);
   --hero-gradient-bottom: linear-gradient(to top, var(--bg-base) 0%, transparent 60%);
 
   /* §8.3 — hình học của ContentRow */

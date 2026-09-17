@@ -196,10 +196,7 @@ export function PlayerControls(props: PlayerControlsProps) {
           onPointerLeave={() => setHoverTime(null)}
           onKeyDown={onBarKeyDown}
           // touch-none: không để trình duyệt hiểu nhầm cú kéo ngang là cuộn trang
-          className={cn(
-            'group/bar relative cursor-pointer touch-none',
-            compact ? 'h-8' : 'h-6',
-          )}
+          className={cn('group/bar relative cursor-pointer touch-none', compact ? 'h-8' : 'h-6')}
         >
           <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-pill bg-white/25">
             <div
@@ -271,7 +268,7 @@ export function PlayerControls(props: PlayerControlsProps) {
                 value={muted ? 0 : volume}
                 onChange={(e) => props.onVolume(Number(e.target.value))}
                 aria-label="Âm lượng"
-                className="h-1 w-0 cursor-pointer appearance-none rounded-pill bg-white/30 opacity-0 transition-[width,opacity] duration-standard ease-standard accent-[color:var(--accent)] focus-visible:w-20 focus-visible:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100"
+                className="h-1 w-0 cursor-pointer appearance-none rounded-pill bg-white/30 accent-[color:var(--accent)] opacity-0 transition-[width,opacity] duration-standard ease-standard focus-visible:w-20 focus-visible:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100"
               />
             )}
           </div>
@@ -301,7 +298,7 @@ export function PlayerControls(props: PlayerControlsProps) {
             {menuOpen && (
               <div
                 role="menu"
-                className="absolute bottom-full right-0 mb-2 max-h-[60vh] w-48 overflow-y-auto overscroll-contain rounded-card bg-bg-elevated/98 p-2 text-sm shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md"
+                className="absolute bottom-full right-0 mb-2 max-h-[60vh] w-48 overflow-y-auto overscroll-contain rounded-card bg-bg-elevated/95 p-2 text-sm shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md"
               >
                 <p className="px-2 pb-1 text-[10px] uppercase tracking-wider text-text-muted">
                   Tốc độ

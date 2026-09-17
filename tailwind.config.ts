@@ -3,31 +3,39 @@ import type { Config } from 'tailwindcss';
 /**
  * Tailwind chỉ đọc lại biến CSS khai báo ở src/styles/tokens.css.
  * Không hardcode màu ở đây — tokens.css là nguồn sự thật duy nhất (§7).
+ *
+ * Màu trỏ vào biến KÊNH (`--x-rgb`) chứ không vào biến màu đầy đủ: chỗ
+ * `<alpha-value>` là nơi Tailwind thay độ mờ của `bg-bg-base/75` vào. Trỏ vào
+ * `var(--bg-base)` (mã hex) thì mọi utility có `/độ-mờ` sinh ra khai báo sai cú
+ * pháp và nền biến mất không một tiếng động — xem chú thích ở tokens.css.
  */
+const channel = (name: string) => `rgb(var(--${name}-rgb) / <alpha-value>)`;
+
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
         bg: {
-          base: 'var(--bg-base)',
-          elevated: 'var(--bg-elevated)',
-          hover: 'var(--bg-hover)',
+          base: channel('bg-base'),
+          elevated: channel('bg-elevated'),
+          hover: channel('bg-hover'),
         },
         text: {
-          primary: 'var(--text-primary)',
-          secondary: 'var(--text-secondary)',
-          muted: 'var(--text-muted)',
+          primary: channel('text-primary'),
+          secondary: channel('text-secondary'),
+          muted: channel('text-muted'),
         },
         accent: {
-          DEFAULT: 'var(--accent)',
-          hover: 'var(--accent-hover)',
+          DEFAULT: channel('accent'),
+          hover: channel('accent-hover'),
+          /* Đã có sẵn alpha 0.14 — không nhận thêm `/độ-mờ` */
           soft: 'var(--accent-soft)',
-          contrast: 'var(--accent-contrast)',
+          contrast: channel('accent-contrast'),
         },
-        success: 'var(--success)',
-        warning: 'var(--warning)',
-        danger: 'var(--danger)',
+        success: channel('success'),
+        warning: channel('warning'),
+        danger: channel('danger'),
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],

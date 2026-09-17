@@ -207,8 +207,74 @@ Chưa kiểm được trong môi trường này: banner mất mạng (§14.1) �
    ở trên mục đó; bàn phím không có `mouseenter` nên `Enter` vẫn toggle như cũ,
    và thêm `ESC` để đóng + trả focus về nút mở (§13.1).
 
-Bundle initial: **140 kB** trang chủ (trước khi nối API là 165 kB — bỏ chỉ mục
-tìm kiếm tĩnh trả lại 25 kB), dưới ngưỡng 180 KB của §12.1. Phần lớn còn lại là
+### Lượt hoàn thiện chuyển động — và năm lỗi nó lôi ra
+
+Mục tiêu của lượt này là "mượt". Nhưng vừa mở màu ra đo thì lộ ra một lỗi lớn
+hơn mọi thứ chuyển động cộng lại.
+
+7. **33 utility `bg-…/độ-mờ` trên màu token render ra TRONG SUỐT — im lặng.**
+   `tailwind.config.ts` trỏ màu vào `var(--bg-base)`, mà biến đó chứa mã hex.
+   Gặp `bg-bg-base/75`, Tailwind sinh ra `rgb(#08080B / 0.75)` — sai cú pháp,
+   trình duyệt bỏ nguyên khai báo, không một tiếng động. Đo trên trang đang chạy:
+
+   | Chỗ | Trước | Sau |
+   |---|---|---|
+   | Gradient bảo vệ chữ navbar | `background-image: none` | gradient thật |
+   | Badge FHD / số tập trên card | `rgba(0,0,0,0)` | `rgba(8,8,11,0.75)` |
+   | Nền mờ sau modal | không tối đi chút nào | `bg-base/70` + blur |
+   | Nền navbar sau khi cuộn | trong suốt | `bg-base/95` + blur |
+   | Scrim trên/dưới của trình phát | không có | gradient thật |
+   | Nền toast, mega menu, mũi tên row | trong suốt | đúng thiết kế |
+
+   Sửa ở gốc: mỗi màu trong `tokens.css` khai báo thêm biến KÊNH (`--bg-base-rgb:
+   8 8 11`), màu đầy đủ dựng lại từ chính ba kênh đó, và Tailwind trỏ vào kênh
+   với `<alpha-value>`. Một nguồn số, hai cách đọc.
+
+8. **`bg-bg-elevated/98` chưa bao giờ tồn tại.** 98 không nằm trong thang opacity
+   mặc định của Tailwind, nên class đó không được sinh ra — kể cả sau khi sửa lỗi
+   7. Ba chỗ dùng nó (mega menu, gợi ý tìm kiếm, menu của trình phát) đổi sang
+   `/95`, mắt không phân biệt được.
+
+9. **Mũi tên cuộn row nằm thấp hơn dải card 64px.** `.row-track` chừa 96px phía
+   trên và 224px phía dưới cho card phóng to, nên `top: 50%` của vùng cuộn rơi
+   hẳn xuống dưới hàng ảnh. Nay hai biến `--row-overflow-*` chuyển lên khung bao
+   `.row-viewport` để mũi tên đọc được, và `.row-arrow` trừ đúng hai khoảng đó —
+   đo lại: mũi tên `top 241 / cao 125`, card `top 241 / cao 125`.
+
+10. **Bấm vào ảnh card đang phóng to không làm gì.** Lớp preview che kín card gốc
+    nhưng bản thân nó chỉ có mấy nút tròn nhỏ là bấm được, nên phản xạ tự nhiên
+    nhất — rê chuột vào rồi bấm giữa ảnh — rơi vào khoảng không. Nay có `Link`
+    phủ kín ảnh (ẩn với bàn phím và trình đọc màn hình vì đã có nút "Xem chi tiết").
+
+11. **Mọi phần tử `fixed` nhảy ngang 10px mỗi lần mở modal.** Khoá scroll bằng
+    `overflow: hidden` làm thanh cuộn biến mất, viewport rộng ra, navbar và toast
+    trôi theo (đo ở 1440: header `1430 → 1440`). Nay `html { scrollbar-gutter:
+    stable }` giữ sẵn chỗ, và `useScrollLock` bỏ phần bù `padding-right` khi
+    trình duyệt đã hỗ trợ — bù thêm nữa là tự tạo lại đúng cú giật đang tránh.
+    Đo lại sau khi sửa: `1270 → 1270`.
+
+Phần chuyển động, tất cả đều dùng chung `usePresence` + transition CSS (không kéo
+thêm Framer Motion vào bundle initial):
+
+| Chỗ | Trước | Sau |
+|---|---|---|
+| Ảnh card về | nhảy từ ô xám sang ảnh | fade 300ms (ảnh `priority` KHÔNG fade — Chrome bỏ qua phần tử `opacity: 0` khi đo LCP) |
+| Đổi trang | thay nội dung tức thì | fade 300ms; lần vẽ đầu của phiên không animate, giữ nguyên LCP |
+| Nền navbar ở ngưỡng cuộn | gradient bị tháo tức thì, blur bật phụt | hai lớp chồng nhau mờ chéo 300ms |
+| Mega menu, gợi ý tìm kiếm, dropdown lọc | hiện/tắt tức thì | mờ + trượt 150ms cả hai chiều |
+| Drawer mobile | hiện/tắt tức thì | trượt từ mép phải 300ms |
+| Toast, banner mất mạng | hiện/tắt tức thì | trượt lên + mờ, gỡ khỏi store sau khi chạy xong |
+| Đóng modal chi tiết | tắt phụt (route tháo cả cây, `AnimatePresence` vô dụng) | thu nhỏ + mờ 200ms rồi mới `router.back()` |
+| Mũi tên row ở hai mép | biến mất khỏi DOM dưới con trỏ | mờ đi, `disabled` + `aria-hidden` |
+| Skeleton trang chủ | khung không khớp trang thật | hero full-bleed `56vw` + row đúng breakpoint card |
+
+Mọi chuyển tiếp mới đều mang `data-motion="fade"` — ngoại lệ duy nhất §9.4 cho
+phép giữ lại khi người dùng bật giảm chuyển động.
+
+Bundle initial: **141 kB** trang chủ (140 kB trước lượt hoàn thiện — toàn bộ phần
+chuyển động thêm vào tốn 1 kB vì dùng CSS transition chứ không thêm thư viện;
+trước khi nối API là 165 kB, bỏ chỉ mục tìm kiếm tĩnh trả lại 25 kB), dưới ngưỡng
+180 KB của §12.1. Phần lớn còn lại là
 Framer Motion (~50 kB), thứ §9.1 yêu cầu. Nếu cần cắt thêm: `VideoPlayer` đã
 code-split sẵn, bước tiếp theo là split `DetailModal`.
 

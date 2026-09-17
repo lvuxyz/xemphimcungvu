@@ -167,6 +167,7 @@ export function MovieCard({
           reducedMotion={reducedMotion}
           visible={visible}
           onOpenDetail={openDetail}
+          onCancelHover={cancel}
         />
       )}
     </div>

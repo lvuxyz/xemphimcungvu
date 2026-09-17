@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import type { Taxonomy } from '@/types/movie';
 import { useScrollLock } from '@/hooks/useScrollLock';
+import { usePresence } from '@/hooks/usePresence';
 import { CloseIcon } from '@/components/ui/icons';
 
 interface MobileMenuProps {
@@ -29,6 +30,9 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+
+  /** Giữ panel lại đủ 300ms để nó trượt ra khỏi màn hình rồi mới tháo. */
+  const { mounted, visible } = usePresence(open, 300);
 
   useScrollLock(open);
 
@@ -67,10 +71,15 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
         </span>
       </button>
 
-      {open && (
+      {mounted && (
         <div className="fixed inset-0 z-modal lg:hidden">
           <div
-            className="absolute inset-0 bg-bg-base/80 backdrop-blur-sm"
+            data-motion="fade"
+            className={cn(
+              'absolute inset-0 bg-bg-base/80 backdrop-blur-sm',
+              'transition-opacity duration-standard ease-standard',
+              visible ? 'opacity-100' : 'opacity-0',
+            )}
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
@@ -84,6 +93,14 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
             className={cn(
               'absolute inset-y-0 right-0 flex w-[min(20rem,88vw)] flex-col bg-bg-elevated shadow-elev-3 outline-none',
               'pb-[max(1rem,var(--safe-bottom))] pt-[max(0.75rem,var(--safe-top))]',
+              /**
+               * Trượt từ mép phải vào. Cả tấm menu che 88% màn hình mà hiện ra
+               * tức thì thì người dùng mất dấu: không biết nó từ đâu tới, đóng
+               * lại thì trang cũ nhảy về cũng đột ngột y hệt. Trượt ngang kể
+               * đúng câu chuyện "menu nằm ngoài mép màn hình" và cho mắt bám theo.
+               */
+              'transition-transform duration-standard ease-standard',
+              visible ? 'translate-x-0' : 'translate-x-full',
             )}
           >
             <div className="flex items-center justify-between px-4 pb-2">
@@ -108,10 +125,7 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
                   </li>
                 ))}
                 <li>
-                  <MenuLink
-                    href="/danh-sach-cua-toi"
-                    active={pathname === '/danh-sach-cua-toi'}
-                  >
+                  <MenuLink href="/danh-sach-cua-toi" active={pathname === '/danh-sach-cua-toi'}>
                     Danh sách của tôi
                   </MenuLink>
                 </li>

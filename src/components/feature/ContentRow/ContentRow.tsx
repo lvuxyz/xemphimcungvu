@@ -97,7 +97,7 @@ export function ContentRow({ title, movies, href, priority = false }: ContentRow
       ref={sectionRef}
       // §12.2 — row ngoài viewport không tốn chi phí layout/paint
       className={cn(
-        'group/row relative py-3 z-0 hover:z-20 focus-within:z-20 transition-[z-index]',
+        'group/row relative z-0 py-3 transition-[z-index] focus-within:z-20 hover:z-20',
         !inView && 'row-offscreen',
       )}
       aria-labelledby={`row-${title}`}
@@ -124,7 +124,7 @@ export function ContentRow({ title, movies, href, priority = false }: ContentRow
         )}
       </div>
 
-      <div className="relative">
+      <div className="row-viewport">
         {/* Mũi tên chỉ có nghĩa khi có chuột — ngón tay thì vuốt (§8.3) */}
         {canHover && (
           <>
@@ -148,7 +148,7 @@ export function ContentRow({ title, movies, href, priority = false }: ContentRow
             <li
               key={`${movie.slug}-${index}`}
               className={cn(
-                'row-item w-[45%] sm:w-[30%] lg:w-[19%] 2xl:w-[16%] relative z-0 hover:z-30 focus-within:z-30',
+                'row-item relative z-0 w-[45%] focus-within:z-30 hover:z-30 sm:w-[30%] lg:w-[19%] 2xl:w-[16%]',
                 hasEntered && 'row-item-enter',
               )}
               // §9.3 — stagger 40ms/item, dừng sau 8 item
@@ -185,18 +185,33 @@ function RowArrow({
   onClick: () => void;
   label: string;
 }) {
-  if (!visible) return null;
-
+  /**
+   * Tháo hẳn nút ra khỏi DOM khi cuộn tới mép là một cú biến mất đột ngột ngay
+   * dưới con trỏ — mà mép row là đúng chỗ con trỏ đang đứng sau cú bấm cuối
+   * cùng. Giữ nút lại và cho nó mờ đi thì cú dừng ở cuối row mềm hẳn.
+   *
+   * `disabled` + `aria-hidden` để bàn phím và trình đọc màn hình không rơi vào
+   * một cái nút vô hình không làm gì.
+   */
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
+      disabled={!visible}
+      aria-hidden={!visible}
+      tabIndex={visible ? undefined : -1}
       className={cn(
-        'absolute top-1/2 z-row hidden h-20 w-[4vw] min-w-[40px] -translate-y-1/2 items-center justify-center md:flex',
+        // `.row-arrow` canh trên/dưới theo đúng dải card (xem globals.css). Cao
+        // hết chiều cao card thay vì 80px lửng giữa: vùng bấm rộng hơn, và mảng
+        // tối chạy trọn mép row nhìn gọn hơn hẳn.
+        'row-arrow absolute z-row hidden w-[4vw] min-w-[40px] items-center justify-center md:flex',
         'bg-bg-base/60 text-2xl text-text-primary backdrop-blur-sm',
-        'opacity-0 transition-opacity duration-standard ease-standard',
-        'hover:bg-bg-base/80 focus-visible:opacity-100 group-hover/row:opacity-100',
+        'transition-[opacity,background-color] duration-standard ease-standard',
+        'hover:bg-bg-base/80',
+        visible
+          ? 'opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100'
+          : 'pointer-events-none opacity-0',
         side === 'left' ? 'left-0 rounded-r-card' : 'right-0 rounded-l-card',
       )}
     >
