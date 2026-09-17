@@ -18,7 +18,9 @@ export const queryKeys = {
     [...queryKeys.lists(), 'quoc-gia', slug, filters] as const,
   listByYear: (year: number, filters: ListFilters = {}) =>
     [...queryKeys.lists(), 'nam', year, filters] as const,
-  newlyUpdated: (page: number) => [...queryKeys.lists(), 'moi-cap-nhat', page] as const,
+  listAll: (filters: ListFilters = {}) => [...queryKeys.lists(), 'tong-hop', filters] as const,
+  newlyUpdated: (filters: ListFilters = {}) =>
+    [...queryKeys.lists(), 'moi-cap-nhat', filters] as const,
 
   search: (keyword: string, filters: ListFilters = {}) =>
     [...queryKeys.all, 'tim-kiem', keyword, filters] as const,

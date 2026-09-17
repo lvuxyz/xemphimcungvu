@@ -5,11 +5,10 @@ Web app xem phim — Next.js 14 App Router · TypeScript · TailwindCSS · Frame
 Dựng theo [`document/TAI-LIEU-KY-THUAT-WEB-XEM-PHIM.md`](document/TAI-LIEU-KY-THUAT-WEB-XEM-PHIM.md).
 Mọi tham chiếu dạng §x trong mã nguồn đều trỏ về mục tương ứng của tài liệu đó.
 
-> **Trạng thái: giao diện đã dựng xong, chạy bằng dữ liệu mock tĩnh — CHƯA nối API.**
+> **Trạng thái: đã nối API thật — toàn bộ màn hình chạy bằng dữ liệu KKPhim.**
 >
-> Toàn bộ màn hình trong §6 đã có UI thật và bấm được. Dữ liệu lấy từ `src/mocks`,
-> không có lời gọi mạng nào lúc chạy. Tầng data (`lib/api.ts`, `lib/endpoints.ts`)
-> đã viết sẵn và có test, chờ cắm vào.
+> Không còn mock nào trong mã nguồn (`src/mocks` đã xoá). Mọi endpoint của §3 đều
+> có nơi dùng thật, xem bảng ["Endpoint nào dùng ở đâu"](#endpoint-nào-dùng-ở-đâu).
 
 ---
 
@@ -48,10 +47,12 @@ LIVE_API=1 npx vitest run tests/live-api.test.ts
 | `/phim/[slug]` | Chi tiết full | §8.5 |
 | `@modal/(.)phim/[slug]` | Modal chi tiết, nền giữ nguyên trang cũ | §6.1 |
 | `/xem/[slug]/[ep]` | Trình phát + sidebar chọn tập | §10 |
-| `/danh-sach/[type]` | Lưới + FilterBar | §8.7 |
+| `/danh-sach/[type]` | Lưới + FilterBar + infinite scroll | §8.7 |
+| `/danh-sach` | Lưới tổng hợp, không bó theo `type_list` | §3.1 |
 | `/the-loai/[slug]`, `/quoc-gia/[slug]`, `/nam/[year]` | Lưới theo taxonomy | §8.7 |
 | `/tim-kiem` | Kết quả tìm kiếm | §8.1 |
 | `/danh-sach-cua-toi` | My List (localStorage) | §1.2 |
+| `/phim/id/[id]`, `/tmdb/[type]/[id]`, `/imdb/title/[ttid]` | Tra phim rồi chuyển về `/phim/{slug}` | §3.2 |
 
 ---
 
@@ -65,8 +66,7 @@ src/
 │  ├─ ui/                Button · Chip · Skeleton · Toast · Dropdown · icons
 │  └─ feature/           Navbar · HeroBillboard · ContentRow · MovieCard
 │                        HoverPreview · DetailModal · CastRow · FilterBar · VideoPlayer
-├─ mocks/                Dữ liệu tĩnh cho giai đoạn dựng UI (xoá khi nối API)
-├─ lib/                  api · endpoints · normalize · image · derive
+├─ lib/                  api · endpoints · normalize · list-source · image · derive
 │                        sanitize · storage · search-params · text · query-*
 ├─ hooks/                useHoverDelay · useRowScroll · useHls · useWatchProgress
 │                        useKeyboardShortcuts · usePrefersReducedMotion
@@ -80,19 +80,54 @@ src/
 
 1. **`types/api-raw.ts` chỉ `lib/normalize.ts` được import** — ESLint `no-restricted-imports` (§15).
 2. **Không component nào chạm raw response** — `lib/endpoints.ts` là bề mặt duy nhất (§2.2 #1).
-3. **Client component không import mock trực tiếp** — Navbar/FilterBar nhận dữ liệu
-   qua props từ RSC, nếu không cả bộ mock lọt vào bundle initial (§12.1).
+3. **Client component không tự dựng URL endpoint** — nó nhận `ListSource`
+   (`lib/list-source.ts`), là object thuần đi qua được ranh giới RSC → client,
+   rồi để `fetchListSource` chọn hàm. Một nguồn danh sách = một query key.
 
-### Nối API thật: đổi ở đúng một chỗ
+### Endpoint nào dùng ở đâu
 
-Component không phải sửa gì. Trong `app/**`, thay:
+Mọi endpoint của §3 đều đi qua `lib/endpoints.ts` — không nơi nào khác được gọi
+`request()`.
 
-| Mock | API thật |
-|---|---|
-| `mockRows` | `getHome()` + fetch lazy theo viewport (§11.2) |
-| `getMockDetail(slug)` | `getMovieDetail` + `getMovieImages` / `getMoviePeoples` / `getMovieKeywords` song song (§11.3) |
-| `mockCategories` / `mockCountries` / `mockYears` | `getCategories()` / `getCountries()` / `getYears()` |
-| `searchMock` | `search(keyword)` |
+| Endpoint §3 | Hàm | Nơi dùng |
+|---|---|---|
+| `/v1/api/home` | `getHome` | RSC trang chủ — lời gọi đầu tiên, chọn hero |
+| `/danh-sach/phim-moi-cap-nhat-v3` | `getNewlyUpdated` | Row "Mới cập nhật" (xem sai lệch #11) |
+| `/v1/api/danh-sach/{type}` | `getListByType` | `/danh-sach/[type]` · row Phim bộ/lẻ/Hoạt hình/TV |
+| `/v1/api/danh-sach` | `getList` | `/danh-sach` |
+| `/v1/api/the-loai/{slug}` | `getByCategory` | `/the-loai/[slug]` · row thể loại · "Có thể bạn thích" |
+| `/v1/api/quoc-gia/{slug}` | `getByCountry` | `/quoc-gia/[slug]` · row quốc gia |
+| `/v1/api/nam/{year}` | `getByYear` | `/nam/[year]` |
+| `/v1/api/tim-kiem` | `search` | `/tim-kiem` · dropdown SearchBox |
+| `/phim/{slug}` | `getMovieDetail` | qua `getDetail` — chi tiết, modal, trang phát |
+| `/v1/api/phim/{slug}` | `getMovieDetailV1` | phao của `getDetail` khi Format 1 hỏng |
+| `/phim/id/{_id}` | `getMovieById` | `/phim/id/[id]` |
+| `/tmdb/{type}/{id}` | `getMovieByTmdb` | `/tmdb/[type]/[id]` |
+| `/imdb/title/{ttid}` | `getMovieByImdb` | `/imdb/title/[ttid]` |
+| `/v1/api/phim/{slug}/images` | `getMovieImages` | backdrop hero + backdrop modal |
+| `/v1/api/phim/{slug}/peoples` | `getMoviePeoples` | CastRow |
+| `/v1/api/phim/{slug}/keywords` | `getMovieKeywords` | keyword chips |
+| `/the-loai` · `/quoc-gia` · `/nam-phat-hanh` | `getTaxonomies` | Navbar, FilterBar, tên trang taxonomy |
+
+Ba hàm gộp ở tầng trên, để page không phải tự ghép:
+
+- `getHeroSpotlight(items)` — soi 3 phim đầu, chọn phim có backdrop (ưu tiên có
+  thêm trailer) làm hero. Tất cả nằm trong MỘT lượt song song, không waterfall.
+- `getMovieBundle(slug)` — 4 endpoint §11.3 trong một lời gọi; ba phần bổ trợ
+  fail thì về rỗng chứ không kéo cả màn xuống.
+- `getRelated(movie)` — "Có thể bạn thích" theo thể loại chính, bỏ chính nó.
+
+### Thứ tự fetch trang chủ (§11.2)
+
+```
+RSC     /v1/api/home  +  /danh-sach/phim-moi-cap-nhat-v3   (song song)
+  └─ rồi images + chi tiết của 3 ứng viên hero            (song song)
+client  10 row còn lại — mỗi row tự gọi khi cuộn gần tới  (LazyRow)
+```
+
+Lúc trang vừa load (`scrollY = 0`) **không có request nào** từ phía client — đo
+trực tiếp trên trình duyệt. Đây chính là thứ §11.2 cấm: bắn 11 request song song
+ngay khi load.
 
 ---
 
@@ -101,18 +136,27 @@ Component không phải sửa gì. Trong `app/**`, thay:
 ```
 ✓ tsc --noEmit    không lỗi
 ✓ next lint       không warning
-✓ vitest          77/77 test xanh (+8 live test, opt-in)
-✓ next build      11/11 route dựng được
+✓ vitest          92/92 test xanh (+16 live test, opt-in)
+✓ next build      17/17 route dựng được
 ```
 
-Đã kiểm tra trực tiếp trên trình duyệt: hero trailer tự phát sau 2500ms và tự
-lặp · hover card phóng to không bị cắt · modal mở đè trang chủ, URL đổi · trình
-phát chạy HLS thật · infinite scroll 24 → 120 phim · roving tabindex đi giữa các
-card bằng `←`/`→` · bố cục mobile 375px.
+Đã kiểm tra trực tiếp trên trình duyệt với dữ liệu thật: trang chủ dựng 11 row
+(row đầu từ RSC, 10 row còn lại lazy) · modal chi tiết có đủ cast 10 người,
+8 keyword, 12 phim liên quan · trình phát chạy HLS thật (`readyState = 4`,
+duration 78 phút) · infinite scroll 18 → 90 phim, tự xin trang tiếp của API ·
+lọc `?country=han-quoc&year=2024` ra đúng 117 phim · gõ "co dau" không dấu ra
+"Cô Dâu…" · slug lạ ở `/phim`, `/the-loai`, `/nam` đều rơi về not-found ·
+`/phim/id/{_id}`, `/tmdb/tv/{id}`, `/imdb/title/{ttid}` chuyển đúng về slug ·
+bố cục mobile 375px.
 
-Bundle initial: **165 kB** trang chủ — dưới ngưỡng 180 KB của §12.1 nhưng không
-còn nhiều dư địa. Phần lớn là Framer Motion (~50 kB), thứ §9.1 yêu cầu. Nếu cần
-cắt thêm: `VideoPlayer` đã code-split sẵn, bước tiếp theo là split `DetailModal`.
+Từ đợt dựng UI (hành vi không đổi ở lần nối API này): hero trailer tự phát sau
+2500ms và tự lặp · hover card phóng to không bị cắt · modal mở đè trang chủ và
+URL đổi · roving tabindex đi giữa các card bằng `←`/`→`.
+
+Bundle initial: **140 kB** trang chủ (trước khi nối API là 165 kB — bỏ chỉ mục
+tìm kiếm tĩnh trả lại 25 kB), dưới ngưỡng 180 KB của §12.1. Phần lớn còn lại là
+Framer Motion (~50 kB), thứ §9.1 yêu cầu. Nếu cần cắt thêm: `VideoPlayer` đã
+code-split sẵn, bước tiếp theo là split `DetailModal`.
 
 ---
 
@@ -227,6 +271,34 @@ và ~30KB — trên 3G là gần nửa giây. `font-medium` rơi về 400; ở c
 của UI thì khác biệt gần như không nhận ra. Muốn lấy lại: thêm `'500'` vào mảng
 `weight` trong `app/layout.tsx`.
 
+### 11. `/v1/api/home` không trả `thumb_url`
+
+§11.2 bảo trang chủ dựng row từ `/v1/api/home`. Nhưng item của endpoint này chỉ
+có `poster_url` (2:3), trong khi ContentRow là card 16:9 — dựng thẳng thì mọi
+card row đầu đều là poster bị cắt ngang mặt.
+
+`/danh-sach/phim-moi-cap-nhat-v3` trả **cùng nội dung, cùng thứ tự** nhưng có cả
+`thumb_url`. Nên trang chủ gọi song song cả hai: `/home` giữ đúng vai "lời gọi
+đầu tiên" và là nguồn chọn hero, v3 là nguồn ảnh cho row "Mới cập nhật".
+
+Adapter vẫn mượn chéo `poster ↔ thumb` khi thiếu một trong hai — ảnh cắt sai tỉ
+lệ còn hơn ô xám.
+
+### 12. `poster_url` có thể trỏ sang host bất kỳ — và điều đó làm SẬP trang
+
+Dữ liệu thật có phim để `poster_url` là link báo chí
+(`i.ex-cdn.com/danviet.vn/...`). `next/image` **ném lỗi render** với hostname
+chưa khai báo trong `images.remotePatterns`, nên đúng một phim như vậy đủ thổi
+bay cả trang `/tim-kiem` — bắt được ngay khi tìm "phu sa".
+
+Không mở `hostname: '**'` (server của mình sẽ đi fetch hộ URL bên thứ ba tuỳ ý).
+Cách xử lý: `lib/image.ts` giữ danh sách host tối ưu được, `SmartImage` thấy host
+lạ thì đặt `unoptimized` — trình duyệt tải thẳng, mất phần resize nhưng ảnh vẫn
+hiện và trang vẫn sống.
+
+Đi kèm: `SmartImage` bắt luôn `onError` → rơi về placeholder nội bộ. §14.1 yêu
+cầu điều đó từ đầu, nhưng với mock thì mọi URL đều sống nên không ai thấy thiếu.
+
 ## Bổ sung ngoài tài liệu
 
 **Tìm kiếm không dấu.** Tài liệu không nói, nhưng người Việt gõ "thien" và mong
@@ -326,7 +398,6 @@ poisoning ở tầng server). Lên Next 16 sẽ sạch nhưng đổi stack so v�
 
 ## Việc tiếp theo
 
-- [ ] Nối API thật theo bảng ở mục "Nối API thật" phía trên
 - [ ] Virtualize item trong row — hiện mới lazy-mount cả row, chưa cắt theo ±1 viewport (§8.3)
 - [ ] Audit Lighthouse a11y ≥ 95 và hiệu năng (Phụ lục B)
 - [ ] Test trên Safari — native HLS đi đường khác Chrome (Phụ lục B)

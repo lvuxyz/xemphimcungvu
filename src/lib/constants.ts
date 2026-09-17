@@ -39,6 +39,21 @@ export const REVALIDATE = {
   home: 300,
 } as const;
 
+/**
+ * §8.3 — số phim mỗi ContentRow xin API.
+ * 18 đủ để cuộn ngang vài trang mà vẫn dưới trần 64 của §3.1.
+ */
+export const ROW_LIMIT = 18;
+
+/** §8.1 — số gợi ý tối đa trong dropdown tìm kiếm của navbar. */
+export const SEARCH_SUGGESTIONS = 8;
+
+/** §8.1 — dưới ngưỡng này thì chưa gọi API: gõ 1 ký tự trả về cả nghìn phim. */
+export const SEARCH_MIN_LENGTH = 2;
+
+/** §8.1 — debounce ô tìm kiếm. */
+export const SEARCH_DEBOUNCE = 350;
+
 /** §9.2 — bảng timing motion, để JS dùng chung số với CSS. */
 export const MOTION = {
   micro: 0.15,

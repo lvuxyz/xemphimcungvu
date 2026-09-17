@@ -1,20 +1,27 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { findMockMovie, getMockDetail } from '@/mocks';
+import { getDetail, nullOn404 } from '@/lib/endpoints';
+import { episodeLabel, resolveEpisode } from '@/lib/derive';
 import { WatchScreen } from './WatchScreen';
 
 interface Props {
   params: { slug: string; ep: string };
 }
 
-export function generateMetadata({ params }: Props): Metadata {
-  const movie = findMockMovie(params.slug);
-  return { title: movie ? `${movie.name} — Tập ${params.ep}` : 'Trình phát' };
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const detail = await nullOn404(() => getDetail(params.slug));
+  if (!detail?.movie.slug) return { title: 'Trình phát' };
+
+  const episode = resolveEpisode(detail.episodes[0]?.episodes ?? [], params.ep);
+  const label = episode ? episodeLabel(episode.name) : `Tập ${params.ep}`;
+
+  return { title: `${detail.movie.name} — ${label}` };
 }
 
-/** Trang phát video (§10). */
-export default function WatchPage({ params }: Props) {
-  if (!findMockMovie(params.slug)) notFound();
+/** Trang phát video (§10). Chỉ cần `/phim/{slug}`: episodes nằm ngay trong đó. */
+export default async function WatchPage({ params }: Props) {
+  const detail = await nullOn404(() => getDetail(params.slug));
+  if (!detail || !detail.movie.slug) notFound();
 
-  return <WatchScreen detail={getMockDetail(params.slug)} episodeSlug={params.ep} />;
+  return <WatchScreen detail={detail} episodeSlug={params.ep} />;
 }

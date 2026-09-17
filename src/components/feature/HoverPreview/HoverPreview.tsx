@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { cn } from '@/lib/cn';
+import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { episodeBadgeLabel, firstEpisodeHref, matchScore, parseEpisodeBadge } from '@/lib/derive';
 import type { Movie } from '@/types/movie';
@@ -69,6 +70,7 @@ export function HoverPreview({
         <div className="relative aspect-backdrop">
           <SmartImage
             src={movie.thumb}
+            fallbackSrc={PLACEHOLDER_BACKDROP}
             alt={`${movie.name} (${movie.year})`}
             fill
             sizes={IMAGE_SIZES.rowCard}

@@ -1,11 +1,21 @@
-import { EmptyState, ListHeader, MovieGrid } from '@/components/feature/FilterBar/MovieGrid';
-import { parseKeyword, type RawSearchParams } from '@/lib/search-params';
-import { searchMock } from '@/mocks';
+import type { Metadata } from 'next';
+import { InfiniteGrid } from '@/components/feature/FilterBar/InfiniteGrid';
+import { EmptyState, ListHeader } from '@/components/feature/FilterBar/MovieGrid';
+import { EMPTY_LIST, search } from '@/lib/endpoints';
+import { parseKeyword, parseListFilters, type RawSearchParams } from '@/lib/search-params';
 
-/** Trang kết quả tìm kiếm — `?keyword=` (§8.1). */
-export default function SearchPage({ searchParams }: { searchParams: RawSearchParams }) {
+interface Props {
+  searchParams: RawSearchParams;
+}
+
+export function generateMetadata({ searchParams }: Props): Metadata {
   const keyword = parseKeyword(searchParams);
-  const results = keyword ? searchMock(keyword) : [];
+  return { title: keyword ? `Tìm kiếm: ${keyword}` : 'Tìm kiếm' };
+}
+
+/** Trang kết quả tìm kiếm — `/v1/api/tim-kiem?keyword=` (§8.1). */
+export default async function SearchPage({ searchParams }: Props) {
+  const keyword = parseKeyword(searchParams);
 
   if (!keyword) {
     return (
@@ -16,11 +26,19 @@ export default function SearchPage({ searchParams }: { searchParams: RawSearchPa
     );
   }
 
+  const filters = parseListFilters(searchParams);
+  /**
+   * §14.1 — tìm kiếm fail thì coi như không có kết quả thay vì ném ra error
+   * page: người dùng còn nguyên ô tìm kiếm để gõ lại từ khoá khác.
+   */
+  const result = await search(keyword, filters).catch(() => EMPTY_LIST);
+
   return (
     <main className="pb-16">
-      <ListHeader title={`Kết quả cho "${keyword}"`} count={results.length} />
-      {results.length > 0 ? (
-        <MovieGrid movies={results} />
+      <ListHeader title={`Kết quả cho "${keyword}"`} count={result.pagination.totalItems} />
+
+      {result.items.length > 0 ? (
+        <InfiniteGrid source={{ kind: 'search', keyword }} filters={filters} initial={result} />
       ) : (
         <EmptyState
           title={`Không tìm thấy phim nào khớp "${keyword}"`}

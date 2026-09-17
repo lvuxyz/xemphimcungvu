@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
-import type { SearchIndexItem } from '@/mocks';
 import type { Taxonomy } from '@/types/movie';
 import { ChevronDownIcon } from '@/components/ui/icons';
 import { MobileMenu } from './MobileMenu';
@@ -29,7 +28,6 @@ interface NavbarProps {
   categories: Taxonomy[];
   countries: Taxonomy[];
   years: number[];
-  searchIndex: SearchIndexItem[];
 }
 
 /**
@@ -37,7 +35,7 @@ interface NavbarProps {
  * danh mục do RSC truyền xuống: import thẳng mock ở đây sẽ kéo cả bộ dữ liệu vào
  * bundle initial và phá ngân sách §12.1.
  */
-export function Navbar({ categories, countries, years, searchIndex }: NavbarProps) {
+export function Navbar({ categories, countries, years }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
 
@@ -120,7 +118,7 @@ export function Navbar({ categories, countries, years, searchIndex }: NavbarProp
         </ul>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-3">
-          <SearchBox index={searchIndex} />
+          <SearchBox />
           <Link
             href="/danh-sach-cua-toi"
             className="hidden text-sm text-text-secondary transition-colors duration-micro ease-standard hover:text-text-primary lg:block"

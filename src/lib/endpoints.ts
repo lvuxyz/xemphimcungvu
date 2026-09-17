@@ -5,7 +5,7 @@
  * Mọi hàm ở đây đã trả về type sau chuẩn hoá, không còn raw response.
  */
 
-import { request, requestOptional, type QueryParams } from './api';
+import { ApiError, request, requestOptional, type QueryParams } from './api';
 import { REVALIDATE, TIMEOUT } from './constants';
 import {
   normalizeDetail,
@@ -16,9 +16,11 @@ import {
   normalizeTaxonomyList,
   normalizeYears,
 } from './normalize';
-import { MAX_LIMIT, type ListFilters, type TypeList } from '@/types/filters';
+import { DEFAULT_LIMIT, MAX_LIMIT, type ListFilters, type TypeList } from '@/types/filters';
 import type {
   Keyword,
+  Movie,
+  MovieDetailBundle,
   MovieDetailResult,
   MovieImages,
   MovieListResult,
@@ -265,4 +267,158 @@ export async function getYears(opts: Fetchable = {}): Promise<number[]> {
     ...opts,
   });
   return normalizeYears(raw);
+}
+
+/* ---------------------- gói dữ liệu dùng chung cho màn --------------------- */
+
+/** Kết quả rỗng an toàn — dùng khi một danh sách phụ fail và UI chỉ cần ẩn đi (§14.1). */
+export const EMPTY_LIST: MovieListResult = {
+  items: [],
+  pagination: { totalItems: 0, itemsPerPage: DEFAULT_LIMIT, currentPage: 1, totalPages: 1 },
+};
+
+/**
+ * Chạy một lời gọi CỐT LÕI, trả `null` khi API nói 404.
+ * Để page phân biệt được "phim không tồn tại" (→ `notFound()`) với "API hỏng"
+ * (→ ném tiếp cho `error.tsx` hiện nút Thử lại) — §14.1, §14.2.
+ */
+export async function nullOn404<T>(fn: () => Promise<T>): Promise<T | null> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof ApiError && error.isNotFound) return null;
+    throw error;
+  }
+}
+
+/**
+ * §3.2 — chi tiết phim, có phao dự phòng.
+ *
+ * `/phim/{slug}` (Format 1) và `/v1/api/phim/{slug}` (Format 2) trả CÙNG nội
+ * dung qua hai shape khác nhau, mà adapter đọc được cả hai. API không cam kết
+ * SLA (§17 rủi ro #9) nên khi đường thứ nhất hỏng vì lý do KHÔNG PHẢI 404 —
+ * hoặc trả 200 với body rỗng — thử nốt đường thứ hai trước khi bỏ cuộc.
+ *
+ * 404 vẫn ném ngay: phim không tồn tại thì hỏi cách khác cũng không có.
+ */
+export async function getDetail(slug: string, opts: Fetchable = {}): Promise<MovieDetailResult> {
+  try {
+    const result = await getMovieDetail(slug, opts);
+    if (result.movie.slug) return result;
+  } catch (error) {
+    if (error instanceof ApiError && error.isNotFound) throw error;
+    // Caller chủ động huỷ thì đừng bắt đầu lời gọi thứ hai.
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+  }
+
+  return getMovieDetailV1(slug, opts);
+}
+
+/**
+ * §11.3 — màn chi tiết gọi SONG SONG 4 endpoint.
+ *
+ * Phần chi tiết là cốt lõi: fail thì ném lên để page xử lý. Ba endpoint bổ trợ
+ * đã tự nuốt lỗi trong `getMovie*` nên chỉ làm nghèo giao diện chứ không chặn.
+ */
+export async function getMovieBundle(
+  slug: string,
+  opts: Fetchable = {},
+): Promise<MovieDetailBundle> {
+  const [detail, images, peoples, keywords] = await Promise.all([
+    getDetail(slug, opts),
+    getMovieImages(slug, opts),
+    getMoviePeoples(slug, opts),
+    getMovieKeywords(slug, opts),
+  ]);
+
+  return { ...detail, images, peoples, keywords };
+}
+
+/**
+ * §8.5 mục 8 — "Có thể bạn thích": cùng thể loại chính, bỏ chính nó.
+ * Phim không có thể loại, hoặc API fail → mảng rỗng, UI ẩn hẳn section (§14.1).
+ */
+export async function getRelated(
+  movie: Pick<Movie, 'slug' | 'categories'>,
+  limit = 12,
+  opts: Fetchable = {},
+): Promise<Movie[]> {
+  const slug = movie.categories[0]?.slug;
+  if (!slug) return [];
+
+  const { items } = await requestOptional(
+    () => getByCategory(slug, { limit: Math.min(limit + 4, MAX_LIMIT) }, opts),
+    EMPTY_LIST,
+  );
+
+  return items.filter((item) => item.slug !== movie.slug).slice(0, limit);
+}
+
+export interface Taxonomies {
+  categories: Taxonomy[];
+  countries: Taxonomy[];
+  years: number[];
+}
+
+/**
+ * §3.4 — ba danh mục cho Navbar và FilterBar, gọi song song, cache 24h.
+ *
+ * Fail thì trả rỗng: menu thiếu một nhánh vẫn hơn là sập cả layout. Ba lời gọi
+ * này đi qua fetch cache của Next nên gọi lại ở từng page gần như không tốn gì.
+ */
+export async function getTaxonomies(opts: Fetchable = {}): Promise<Taxonomies> {
+  const [categories, countries, years] = await Promise.all([
+    requestOptional(() => getCategories(opts), [] as Taxonomy[]),
+    requestOptional(() => getCountries(opts), [] as Taxonomy[]),
+    requestOptional(() => getYears(opts), [] as number[]),
+  ]);
+
+  return { categories, countries, years };
+}
+
+export interface HeroSpotlight {
+  movie: Movie;
+  images: MovieImages;
+  /** §8.2 — link YouTube; rỗng là chuyện thường, hero giữ ảnh tĩnh (§17 rủi ro #5). */
+  trailerUrl: string;
+}
+
+/** Số phim đầu danh sách được đem ra cân nhắc làm hero. */
+export const HERO_CANDIDATES = 3;
+
+/**
+ * Chọn phim cho HeroBillboard (§8.2).
+ *
+ * Hero là ảnh LCP nên chất lượng ảnh quyết định cảm nhận cả trang: phim không có
+ * backdrop trong `/images` buộc phải dùng `thumb_url` độ phân giải thấp (§17 rủi
+ * ro #4). Vì vậy cân nhắc vài ứng viên đầu danh sách thay vì lấy bừa phim đầu
+ * tiên — ưu tiên phim có CẢ backdrop lẫn trailer.
+ *
+ * Toàn bộ lời gọi nằm trong MỘT lượt song song (không phải chuỗi waterfall) và
+ * đều đi qua fetch cache 30 phút, nên không vi phạm tinh thần §11.2.
+ */
+export async function getHeroSpotlight(
+  candidates: Movie[],
+  opts: Fetchable = {},
+): Promise<HeroSpotlight | null> {
+  const pool = candidates.slice(0, HERO_CANDIDATES);
+  if (pool.length === 0) return null;
+
+  const enriched = await Promise.all(
+    pool.map(async (movie): Promise<HeroSpotlight> => {
+      const [images, detail] = await Promise.all([
+        getMovieImages(movie.slug, opts),
+        requestOptional(() => getDetail(movie.slug, opts), null),
+      ]);
+
+      return { movie, images, trailerUrl: detail?.movie.trailerUrl ?? '' };
+    }),
+  );
+
+  return (
+    enriched.find((entry) => entry.images.backdrops.length > 0 && entry.trailerUrl !== '') ??
+    enriched.find((entry) => entry.images.backdrops.length > 0) ??
+    enriched[0] ??
+    null
+  );
 }

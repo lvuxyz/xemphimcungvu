@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import { episodeLabel, resolveEpisode } from '@/lib/derive';
-import type { MockDetail } from '@/mocks';
+import type { MovieDetailResult } from '@/types/movie';
 import { Button } from '@/components/ui/Button';
 import { ArrowLeftIcon } from '@/components/ui/icons';
 import { EpisodePicker } from '@/components/feature/DetailModal/EpisodePicker';
@@ -21,7 +21,7 @@ const VideoPlayer = dynamic(
 );
 
 interface WatchScreenProps {
-  detail: MockDetail;
+  detail: MovieDetailResult;
   episodeSlug: string;
 }
 

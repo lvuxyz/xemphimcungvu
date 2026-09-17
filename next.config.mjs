@@ -19,6 +19,13 @@ const nextConfig = {
    * và bỏ comment hai dòng loader bên dưới.
    */
   images: {
+    /**
+     * ⚠️ Danh sách này được soi lại ở `src/lib/image.ts` (`OPTIMIZABLE_HOSTS`):
+     * `poster_url` của KKPhim đôi khi trỏ sang host lạ, mà `next/image` NÉM LỖI
+     * render với hostname chưa khai báo. SmartImage đọc danh sách kia để cho ảnh
+     * lạ đi thẳng (`unoptimized`) thay vì làm sập trang. Sửa chỗ này thì sửa cả
+     * chỗ đó.
+     */
     remotePatterns: [
       { protocol: 'https', hostname: 'phimimg.com' },
       { protocol: 'https', hostname: 'phimapi.com' },
