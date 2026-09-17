@@ -79,13 +79,10 @@ export function WatchScreen({ detail, episodeSlug, startAt }: WatchScreenProps) 
     return (
       <main className="mx-auto max-w-3xl px-6 py-32 text-center">
         <p className="text-lg text-text-primary">Tập này chưa có nguồn phát.</p>
-        {/* Điều hướng cứng — xem `useLeavesPlayer` về việc modal đè lên player. */}
-        <a
-          href={routes.detail(movie.slug)}
-          className="mt-6 inline-flex h-10 items-center justify-center rounded-pill bg-accent px-5 text-sm font-medium text-[color:var(--accent-contrast)] transition-colors duration-micro ease-standard hover:bg-accent-hover"
-        >
+        {/* `hard` — xem `useLeavesPlayer` về việc modal đè lên player. */}
+        <Button href={routes.detail(movie.slug)} hard variant="accent" className="mt-6">
           Về trang phim
-        </a>
+        </Button>
       </main>
     );
   }

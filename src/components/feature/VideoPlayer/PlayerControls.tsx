@@ -300,14 +300,31 @@ export function PlayerControls(props: PlayerControlsProps) {
             )}
           </div>
 
+          {/**
+           * `whitespace-nowrap` + `shrink-0`: đồng hồ KHÔNG được xuống dòng.
+           * Thêm nút ⏭ vào hàng này làm chỗ còn lại hụt đi 48px, và "0:00 / 19:51"
+           * gãy làm hai dòng — đo ở 375px: cao 33px thay vì 17px, dòng thứ hai
+           * rơi khỏi đáy khung video.
+           *
+           * Nhưng chỉ `nowrap` thì hàng lại tràn (đo: 321 > 319, phim hai tiếng
+           * là 343 > 319). Nên dưới 640px bỏ luôn phần "/ tổng thời lượng": thanh
+           * tiến độ ngay trên đã nói được độ dài, và đây cũng là cách player của
+           * YouTube lẫn Netflix làm trên điện thoại. Đo lại: 319 ≤ 319 kể cả với
+           * phim 2 tiếng.
+           *
+           * Bám BỀ RỘNG chứ không bám `compact`: `compact` là "con trỏ thô",
+           * nên một cái tablet cảm ứng 1024px cũng dính — ở đó nút to thật
+           * nhưng thanh điều khiển thừa mấy trăm pixel, giấu tổng thời lượng đi
+           * là mất thông tin không vì lý do gì.
+           */}
           <span
             className={cn(
-              'ml-1 tabular-nums text-text-secondary',
+              'ml-1 shrink-0 whitespace-nowrap tabular-nums text-text-secondary',
               compact ? 'text-[11px]' : 'text-xs',
             )}
           >
             {formatTime(shownTime)}
-            <span className="text-text-muted"> / {formatTime(duration)}</span>
+            <span className="hidden text-text-muted sm:inline"> / {formatTime(duration)}</span>
           </span>
 
           <div className="relative ml-auto">
