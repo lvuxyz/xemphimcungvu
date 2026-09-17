@@ -33,14 +33,37 @@ interface CommonProps {
 }
 
 type ButtonProps = CommonProps & ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined };
-type LinkProps = CommonProps & { href: string; prefetch?: boolean };
+type LinkProps = CommonProps & {
+  href: string;
+  prefetch?: boolean;
+  /**
+   * Đi bằng `<a>` thường thay vì `<Link>` — điều hướng CỨNG, không qua router.
+   *
+   * Cần cho những link rời trình phát: điều hướng mềm từ `/xem` sang
+   * `/phim/{slug}` khớp intercepting route và mở modal đè lên player đang chạy
+   * (xem `hooks/useLeavesPlayer.ts`). Trước đây chỗ đó phải chép tay lại toàn
+   * bộ class của `Button` vào một thẻ `<a>` — chép thiếu `gap-2`,
+   * `whitespace-nowrap` và `active:scale-[0.97]`, rồi sẽ trôi xa dần mỗi lần
+   * `Button` đổi.
+   */
+  hard?: boolean;
+};
 
 export function Button(props: ButtonProps | LinkProps) {
   const { variant = 'secondary', size = 'md', className, children } = props;
   const classes = cn(base, variants[variant], sizes[size], className);
 
   if ('href' in props && props.href) {
-    const { href, prefetch } = props;
+    const { href, prefetch, hard } = props;
+
+    if (hard) {
+      return (
+        <a href={href} className={classes}>
+          {children}
+        </a>
+      );
+    }
+
     return (
       <Link href={href} prefetch={prefetch} className={classes}>
         {children}
