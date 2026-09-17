@@ -16,18 +16,32 @@ import {
  *   · quay lại → hiện prompt "Tiếp tục xem từ 12:34" / "Xem từ đầu"
  *   · xem đủ 95% → xoá key, đánh dấu đã xem
  */
-export function useWatchProgress(slug: string, ep: string, videoRef: React.RefObject<HTMLVideoElement>) {
+export function useWatchProgress(
+  slug: string,
+  ep: string,
+  videoRef: React.RefObject<HTMLVideoElement>,
+  options?: {
+    /**
+     * URL có `?t=` — người dùng đã nói rõ muốn bắt đầu từ đâu, nên đừng hỏi lại.
+     * Hiện prompt "Tiếp tục xem từ 12:34?" đè lên một mốc vừa được chia sẻ là
+     * hỏi một câu đã có câu trả lời, và bấm nhầm "Xem từ đầu" là mất luôn mốc đó.
+     */
+    skipResumePrompt?: boolean;
+  },
+) {
   const [saved, setSaved] = useState<WatchProgress | null>(null);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const lastWriteRef = useRef(0);
+
+  const skipResumePrompt = options?.skipResumePrompt ?? false;
 
   // Đọc tiến độ đã lưu một lần khi đổi tập.
   useEffect(() => {
     if (!slug || !ep) return;
     const progress = getWatchProgress(slug, ep);
     setSaved(progress);
-    setShowResumePrompt(progress !== null && progress.position > 5);
-  }, [slug, ep]);
+    setShowResumePrompt(!skipResumePrompt && progress !== null && progress.position > 5);
+  }, [slug, ep, skipResumePrompt]);
 
   const persist = useCallback(
     (position: number, duration: number) => {

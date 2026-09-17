@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseListFilters, serializeListFilters, withFilters } from '@/lib/search-params';
+import { parseListFilters, parseStartTime, serializeListFilters, withFilters } from '@/lib/search-params';
+import { routes } from '@/lib/routes';
 import { DEFAULT_LIMIT, MAX_LIMIT } from '@/types/filters';
 import { deaccent, matchesSearch, searchKey } from '@/lib/text';
 
@@ -95,5 +96,54 @@ describe('deaccent / searchKey — tìm kiếm tiếng Việt không dấu (§8.
 
   it('từ khoá rỗng không khớp gì', () => {
     expect(matchesSearch('Bất kỳ', searchKey('   '))).toBe(false);
+  });
+});
+
+
+describe('parseStartTime — §2.4 `?t=` trên trang phát', () => {
+  it('đọc số giây hợp lệ', () => {
+    expect(parseStartTime({ t: '754' })).toBe(754);
+  });
+
+  it('không có `t` thì trả undefined', () => {
+    expect(parseStartTime({})).toBeUndefined();
+  });
+
+  /**
+   * undefined chứ KHÔNG phải 0: 0 là mốc hợp lệ về kiểu dữ liệu nhưng trùng
+   * đúng với "phát từ đầu", lẫn hai thứ là `?t=abc` âm thầm ghi đè tiến độ đã lưu.
+   */
+  it.each([['abc'], ['-5'], ['0'], [''], ['99999999']])('bỏ qua giá trị vô nghĩa %s', (raw) => {
+    expect(parseStartTime({ t: raw })).toBeUndefined();
+  });
+
+  it('lấy giá trị đầu khi `t` bị lặp', () => {
+    expect(parseStartTime({ t: ['120', '900'] })).toBe(120);
+  });
+});
+
+describe('routes.watch — dựng URL trang phát', () => {
+  it('không có tập thì rơi về sentinel tập đầu', () => {
+    expect(routes.watch('abc')).toBe('/xem/abc/1');
+  });
+
+  it('gắn `?t=` khi có mốc thời gian', () => {
+    expect(routes.watch('abc', 'tap-02', { startAt: 754 })).toBe('/xem/abc/tap-02?t=754');
+  });
+
+  it('làm tròn xuống, và bỏ mốc không dương', () => {
+    expect(routes.watch('abc', 'tap-02', { startAt: 12.9 })).toBe('/xem/abc/tap-02?t=12');
+    expect(routes.watch('abc', 'tap-02', { startAt: 0 })).toBe('/xem/abc/tap-02');
+    expect(routes.watch('abc', 'tap-02', { startAt: -3 })).toBe('/xem/abc/tap-02');
+  });
+});
+
+describe('routes.search — §8.1', () => {
+  it('encode từ khoá tiếng Việt có dấu', () => {
+    expect(routes.search('phim hàn')).toBe('/tim-kiem?keyword=phim%20h%C3%A0n');
+  });
+
+  it('từ khoá rỗng không kèm query thừa', () => {
+    expect(routes.search('   ')).toBe('/tim-kiem');
   });
 });

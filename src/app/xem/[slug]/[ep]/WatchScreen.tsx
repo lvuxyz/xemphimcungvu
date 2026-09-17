@@ -23,9 +23,11 @@ const VideoPlayer = dynamic(
 interface WatchScreenProps {
   detail: MovieDetailResult;
   episodeSlug: string;
+  /** Giây lấy từ `?t=` trên URL. */
+  startAt?: number;
 }
 
-export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
+export function WatchScreen({ detail, episodeSlug, startAt }: WatchScreenProps) {
   const { playTitle, goBackOrHome } = useAppNavigation();
   const { movie, episodes } = detail;
 
@@ -99,6 +101,7 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
             linkM3u8={episode.linkM3u8}
             linkEmbed={episode.linkEmbed}
             onEnded={onEnded}
+            startAt={startAt}
             /**
              * §2.3 — thoát player phải về ĐÚNG TRANG TRƯỚC, giữ nguyên scroll và
              * vị trí row. `goBackOrHome` lùi lại khi có lịch sử của app, và chỉ

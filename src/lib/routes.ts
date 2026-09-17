@@ -34,6 +34,9 @@ export const PATH = {
 /** Tham số từ khoá trên `/tim-kiem`. Khai báo một chỗ để parse và build không lệch nhau. */
 export const SEARCH_PARAM = 'keyword';
 
+/** Mốc thời gian (giây) trên `/xem/:slug/:ep` — `?t=754`. */
+export const TIME_PARAM = 't';
+
 export const routes = {
   home: () => PATH.home,
 
@@ -45,9 +48,18 @@ export const routes = {
    *
    * `episodeSlug` bỏ trống thì rơi về sentinel `1` và trang phát tự phân giải về
    * tập đầu (`resolveEpisode`) — cần cho hero và card, nơi chưa fetch tập nào.
+   *
+   * `startAt` (giây) sinh ra `?t=` — mốc thời gian nằm TRONG URL nên F5 không
+   * mất chỗ đang xem và link gửi cho người khác mở đúng ngay phút đó. Số 0 và
+   * số âm bị bỏ qua: `?t=0` chỉ làm bẩn URL chứ không nói thêm điều gì.
    */
-  watch: (slug: string, episodeSlug?: string) =>
-    `${PATH.watch}/${slug}/${episodeSlug ?? FIRST_EPISODE}`,
+  watch: (slug: string, episodeSlug?: string, options?: { startAt?: number }) => {
+    const base = `${PATH.watch}/${slug}/${episodeSlug ?? FIRST_EPISODE}`;
+    const t = options?.startAt;
+    return t !== undefined && Number.isFinite(t) && t > 0
+      ? `${base}?${TIME_PARAM}=${Math.floor(t)}`
+      : base;
+  },
 
   /** Kết quả tìm kiếm. Từ khoá rỗng → trang tìm kiếm trống, không kèm query thừa. */
   search: (keyword: string) => {
