@@ -4,6 +4,7 @@ import { LazyRow } from '@/components/feature/ContentRow/LazyRow';
 import { EMPTY_LIST, getHeroSpotlight, getHome, getNewlyUpdated } from '@/lib/endpoints';
 import { ROW_LIMIT } from '@/lib/constants';
 import type { ListSource } from '@/lib/list-source';
+import { PATH, routes } from '@/lib/routes';
 
 interface HomeRow {
   title: string;
@@ -17,24 +18,24 @@ interface HomeRow {
  * tới (§11.2 — "không được bắn 11 request song song ngay khi load").
  */
 const LAZY_ROWS: HomeRow[] = [
-  { title: 'Phim bộ', source: { kind: 'type', type: 'phim-bo' }, href: '/danh-sach/phim-bo' },
-  { title: 'Phim lẻ', source: { kind: 'type', type: 'phim-le' }, href: '/danh-sach/phim-le' },
-  { title: 'Hoạt hình', source: { kind: 'type', type: 'hoat-hinh' }, href: '/danh-sach/hoat-hinh' },
-  { title: 'TV Shows', source: { kind: 'type', type: 'tv-shows' }, href: '/danh-sach/tv-shows' },
-  { title: 'Hàn Quốc', source: { kind: 'country', slug: 'han-quoc' }, href: '/quoc-gia/han-quoc' },
+  { title: 'Phim bộ', source: { kind: 'type', type: 'phim-bo' }, href: routes.listByType('phim-bo') },
+  { title: 'Phim lẻ', source: { kind: 'type', type: 'phim-le' }, href: routes.listByType('phim-le') },
+  { title: 'Hoạt hình', source: { kind: 'type', type: 'hoat-hinh' }, href: routes.listByType('hoat-hinh') },
+  { title: 'TV Shows', source: { kind: 'type', type: 'tv-shows' }, href: routes.listByType('tv-shows') },
+  { title: 'Hàn Quốc', source: { kind: 'country', slug: 'han-quoc' }, href: routes.country('han-quoc') },
   {
     title: 'Trung Quốc',
     source: { kind: 'country', slug: 'trung-quoc' },
-    href: '/quoc-gia/trung-quoc',
+    href: routes.country('trung-quoc'),
   },
-  { title: 'Nhật Bản', source: { kind: 'country', slug: 'nhat-ban' }, href: '/quoc-gia/nhat-ban' },
+  { title: 'Nhật Bản', source: { kind: 'country', slug: 'nhat-ban' }, href: routes.country('nhat-ban') },
   {
     title: 'Hành động',
     source: { kind: 'category', slug: 'hanh-dong' },
-    href: '/the-loai/hanh-dong',
+    href: routes.category('hanh-dong'),
   },
-  { title: 'Tình cảm', source: { kind: 'category', slug: 'tinh-cam' }, href: '/the-loai/tinh-cam' },
-  { title: 'Kinh dị', source: { kind: 'category', slug: 'kinh-di' }, href: '/the-loai/kinh-di' },
+  { title: 'Tình cảm', source: { kind: 'category', slug: 'tinh-cam' }, href: routes.category('tinh-cam') },
+  { title: 'Kinh dị', source: { kind: 'category', slug: 'kinh-di' }, href: routes.category('kinh-di') },
 ];
 
 /**
@@ -80,7 +81,7 @@ export default async function HomePage() {
         <ContentRow
           title="Mới cập nhật"
           movies={firstRow.slice(0, ROW_LIMIT)}
-          href="/danh-sach"
+          href={PATH.list}
           priority
         />
 

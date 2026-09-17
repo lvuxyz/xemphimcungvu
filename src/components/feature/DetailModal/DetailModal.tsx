@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/cn';
 import { MOTION } from '@/lib/constants';
@@ -11,6 +11,7 @@ import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { IconButton } from '@/components/ui/Button';
 import { CloseIcon } from '@/components/ui/icons';
 import { DetailContent } from './DetailContent';
+import { InTitleModalContext } from './modal-context';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -35,7 +36,7 @@ export function DetailModal({
   detail: MovieDetailBundle;
   related?: Movie[];
 }) {
-  const router = useRouter();
+  const { goBackOrHome } = useAppNavigation();
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const reducedMotion = usePrefersReducedMotion();
@@ -62,11 +63,16 @@ export function DetailModal({
 
   const close = useCallback(() => setClosing(true), []);
 
+  /**
+   * §1.4 L4 — `router.back()` trần ném người mở link chia sẻ ra khỏi site: họ
+   * bấm ✕ và rơi về đúng nơi vừa đến từ đó. `goBackOrHome` chỉ lùi khi app thật
+   * sự có entry ở phía sau, còn lại thì đưa về trang chủ.
+   */
   useEffect(() => {
     if (!closing) return;
-    const timer = setTimeout(() => router.back(), EXIT_MS);
+    const timer = setTimeout(goBackOrHome, EXIT_MS);
     return () => clearTimeout(timer);
-  }, [closing, router]);
+  }, [closing, goBackOrHome]);
 
   // ESC đóng + focus trap bằng Tab.
   useEffect(() => {
@@ -157,7 +163,9 @@ export function DetailModal({
           <CloseIcon />
         </IconButton>
 
-        <DetailContent detail={detail} related={related} />
+        <InTitleModalContext.Provider value={true}>
+          <DetailContent detail={detail} related={related} />
+        </InTitleModalContext.Provider>
       </motion.div>
     </motion.div>
   );

@@ -6,15 +6,16 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import type { Taxonomy } from '@/types/movie';
 import { ChevronDownIcon } from '@/components/ui/icons';
+import { PATH, routes } from '@/lib/routes';
 import { usePresence } from '@/hooks/usePresence';
 import { MobileMenu } from './MobileMenu';
 import { SearchBox } from './SearchBox';
 
 const MENU = [
-  { label: 'Phim bộ', href: '/danh-sach/phim-bo' },
-  { label: 'Phim lẻ', href: '/danh-sach/phim-le' },
-  { label: 'Hoạt hình', href: '/danh-sach/hoat-hinh' },
-  { label: 'TV Shows', href: '/danh-sach/tv-shows' },
+  { label: 'Phim bộ', href: routes.listByType('phim-bo') },
+  { label: 'Phim lẻ', href: routes.listByType('phim-le') },
+  { label: 'Hoạt hình', href: routes.listByType('hoat-hinh') },
+  { label: 'TV Shows', href: routes.listByType('tv-shows') },
 ] as const;
 
 /**
@@ -100,7 +101,7 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
 
       <nav className="relative flex h-16 items-center gap-6 px-row" aria-label="Điều hướng chính">
         <Link
-          href="/"
+          href={routes.home()}
           className="shrink-0 text-lg font-extrabold tracking-[-0.03em] text-accent-hover"
         >
           xemphim<span className="text-text-primary">cùngvũ</span>
@@ -123,15 +124,15 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
 
           <MegaMenu
             label="Thể loại"
-            items={categories.map((c) => ({ label: c.name, href: `/the-loai/${c.slug}` }))}
+            items={categories.map((c) => ({ label: c.name, href: routes.category(c.slug) }))}
           />
           <MegaMenu
             label="Quốc gia"
-            items={countries.map((c) => ({ label: c.name, href: `/quoc-gia/${c.slug}` }))}
+            items={countries.map((c) => ({ label: c.name, href: routes.country(c.slug) }))}
           />
           <MegaMenu
             label="Năm"
-            items={years.slice(0, 24).map((y) => ({ label: String(y), href: `/nam/${y}` }))}
+            items={years.slice(0, 24).map((y) => ({ label: String(y), href: routes.year(y) }))}
             columns={4}
           />
         </ul>
@@ -139,7 +140,7 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
         <div className="ml-auto flex items-center gap-1 sm:gap-3">
           <SearchBox />
           <Link
-            href="/danh-sach-cua-toi"
+            href={PATH.myList}
             className="hidden text-sm text-text-secondary transition-colors duration-micro ease-standard hover:text-text-primary lg:block"
           >
             Danh sách của tôi

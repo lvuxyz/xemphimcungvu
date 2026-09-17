@@ -7,8 +7,10 @@ import { PLAYER } from '@/lib/constants';
 import type { HlsQualityLevel } from '@/hooks/useHls';
 import { IconButton } from '@/components/ui/Button';
 import {
+  ArrowLeftIcon,
   ExitFullscreenIcon,
   FullscreenIcon,
+  NextEpisodeIcon,
   PauseIcon,
   PipIcon,
   PlayIcon,
@@ -49,6 +51,16 @@ interface PlayerControlsProps {
   onLevel: (index: number) => void;
   /** Bất kỳ tương tác nào cũng hoãn auto-hide. */
   onInteract: () => void;
+  /**
+   * Thoát trình phát. §1.4 L3 — trước đây lối ra duy nhất là một link nằm DƯỚI
+   * khung video, tức là ở chế độ toàn màn hình thì không tồn tại: người xem hết
+   * đường ra ngoài phím Esc của trình duyệt.
+   */
+  onBack?: () => void;
+  /** Sang tập kế. Bỏ trống ở phim lẻ / tập cuối → nút tự ẩn. */
+  onNext?: () => void;
+  /** Nhãn cho screen reader, ví dụ "Tập 02". */
+  nextLabel?: string;
 }
 
 /**
@@ -174,7 +186,12 @@ export function PlayerControls(props: PlayerControlsProps) {
       data-motion="fade"
       onPointerDown={onInteract}
     >
-      <div className="pointer-events-auto bg-gradient-to-b from-bg-base/80 to-transparent p-4 pb-8">
+      <div className="pointer-events-auto flex items-center gap-3 bg-gradient-to-b from-bg-base/80 to-transparent p-4 pb-8">
+        {props.onBack && (
+          <IconButton label="Thoát trình phát" size={compact ? 'lg' : 'md'} onClick={props.onBack}>
+            <ArrowLeftIcon />
+          </IconButton>
+        )}
         <p className="truncate text-sm font-medium text-text-primary drop-shadow">{title}</p>
       </div>
 
@@ -236,6 +253,16 @@ export function PlayerControls(props: PlayerControlsProps) {
           >
             {playing ? <PauseIcon /> : <PlayIcon />}
           </IconButton>
+
+          {props.onNext && (
+            <IconButton
+              label={props.nextLabel ? `Sang ${props.nextLabel.toLowerCase()}` : 'Tập tiếp theo'}
+              size={compact ? 'lg' : 'md'}
+              onClick={props.onNext}
+            >
+              <NextEpisodeIcon />
+            </IconButton>
+          )}
 
           {/* Màn cảm ứng đã có chạm đôi để tua — bớt hai nút cho thoáng */}
           {!compact && (

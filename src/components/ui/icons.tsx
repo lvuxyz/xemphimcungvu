@@ -152,6 +152,14 @@ export const SkipForwardIcon = (props: IconProps) => (
   </Icon>
 );
 
+/** Tập tiếp theo (⏭). Cố ý khác `SkipForwardIcon` — nút kia là "tiến 10 giây". */
+export const NextEpisodeIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M5 5l9 7-9 7V5z" fill="currentColor" stroke="none" />
+    <path d="M19 5v14" />
+  </Icon>
+);
+
 export const ArrowLeftIcon = (props: IconProps) => (
   <Icon {...props}>
     <path d="M19 12H5M11 6l-6 6 6 6" />

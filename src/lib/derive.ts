@@ -4,6 +4,10 @@
  */
 
 import type { Movie, RatingSource } from '@/types/movie';
+import { FIRST_EPISODE, routes } from '@/lib/routes';
+
+/** Giữ lại để không phá các import cũ; định nghĩa thật nằm ở `lib/routes.ts`. */
+export { FIRST_EPISODE };
 
 /**
  * Một nguồn chỉ dùng được khi có CẢ lượt vote lẫn điểm.
@@ -128,10 +132,8 @@ export function episodeLabel(name: string): string {
  * Nơi nào đã có danh sách tập thì truyền `episodeSlug` để link đúng ngay;
  * nơi chưa có (hero, card) dùng sentinel `1` và trang phát tự phân giải về tập đầu.
  */
-export const FIRST_EPISODE = '1';
-
 export function firstEpisodeHref(slug: string, episodeSlug?: string): string {
-  return `/xem/${slug}/${episodeSlug ?? FIRST_EPISODE}`;
+  return routes.watch(slug, episodeSlug);
 }
 
 /**

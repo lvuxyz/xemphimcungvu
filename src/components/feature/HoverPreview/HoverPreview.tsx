@@ -12,6 +12,7 @@ import { IconButton } from '@/components/ui/Button';
 import { CheckIcon, ChevronDownIcon, PlayIcon, PlusIcon, ThumbUpIcon } from '@/components/ui/icons';
 import { useMyListStore } from '@/store/useMyListStore';
 import { useUIStore } from '@/store/useUIStore';
+import { routes } from '@/lib/routes';
 
 interface HoverPreviewProps {
   movie: Movie;
@@ -99,7 +100,7 @@ export function HoverPreview({
            * tiết" ở dưới, thêm một điểm dừng Tab trùng chức năng chỉ tổ rườm rà.
            */}
           <Link
-            href={`/phim/${movie.slug}`}
+            href={routes.detail(movie.slug)}
             prefetch={false}
             aria-hidden="true"
             tabIndex={-1}

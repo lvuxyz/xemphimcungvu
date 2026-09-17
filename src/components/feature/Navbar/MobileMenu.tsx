@@ -8,6 +8,7 @@ import type { Taxonomy } from '@/types/movie';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { usePresence } from '@/hooks/usePresence';
 import { CloseIcon } from '@/components/ui/icons';
+import { PATH, routes } from '@/lib/routes';
 
 interface MobileMenuProps {
   menu: ReadonlyArray<{ label: string; href: string }>;
@@ -125,7 +126,7 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
                   </li>
                 ))}
                 <li>
-                  <MenuLink href="/danh-sach-cua-toi" active={pathname === '/danh-sach-cua-toi'}>
+                  <MenuLink href={PATH.myList} active={pathname === PATH.myList}>
                     Danh sách của tôi
                   </MenuLink>
                 </li>
@@ -133,7 +134,7 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
 
               <Section title="Thể loại">
                 {categories.map((c) => (
-                  <TagLink key={c.slug} href={`/the-loai/${c.slug}`}>
+                  <TagLink key={c.slug} href={routes.category(c.slug)}>
                     {c.name}
                   </TagLink>
                 ))}
@@ -141,7 +142,7 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
 
               <Section title="Quốc gia">
                 {countries.map((c) => (
-                  <TagLink key={c.slug} href={`/quoc-gia/${c.slug}`}>
+                  <TagLink key={c.slug} href={routes.country(c.slug)}>
                     {c.name}
                   </TagLink>
                 ))}
@@ -149,7 +150,7 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
 
               <Section title="Năm phát hành">
                 {years.slice(0, 16).map((year) => (
-                  <TagLink key={year} href={`/nam/${year}`}>
+                  <TagLink key={year} href={routes.year(year)}>
                     {year}
                   </TagLink>
                 ))}

@@ -13,6 +13,8 @@ import { useHoverDelay } from '@/hooks/useHoverDelay';
 import { usePresence } from '@/hooks/usePresence';
 import { useDevice } from '@/hooks/useDevice';
 import { MatchScore } from '@/components/ui/Chip';
+import { routes } from '@/lib/routes';
+import { useInTitleModal } from '../DetailModal/modal-context';
 import { HoverPreview } from '../HoverPreview/HoverPreview';
 
 interface MovieCardProps {
@@ -41,12 +43,17 @@ export function MovieCard({
   onFocusCard,
 }: MovieCardProps) {
   const router = useRouter();
+  /**
+   * Card "Có thể bạn thích" bên trong modal thì ĐỔI nội dung modal tại chỗ thay
+   * vì chồng thêm một entry lịch sử. Xem `DetailModal/modal-context.ts`.
+   */
+  const inModal = useInTitleModal();
   const { canHover, reducedMotion, budget, tier } = useDevice();
   const { isHovered, onMouseEnter, onMouseLeave, cancel } = useHoverDelay();
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefetchedRef = useRef(false);
 
-  const href = `/phim/${movie.slug}`;
+  const href = routes.detail(movie.slug);
   const isRow = variant === 'row';
 
   /**
@@ -91,9 +98,20 @@ export function MovieCard({
 
   useEffect(() => clearPrefetchTimer, []);
 
+  /**
+   * §1.4 L7 — cùng một ý định "mở chi tiết" mà trước đây có hai đường: ảnh card
+   * là `<Link>`, còn nút ⌄ của HoverPreview là `router.push()`. Hai đường đó
+   * khác nhau ở những chỗ thấy được: `<Link>` cho ctrl/cmd + bấm để mở tab mới,
+   * `router.push` thì không; và chỉ một trong hai được prefetch.
+   *
+   * Giờ nút ⌄ bấm hộ đúng cái link của card, nên mọi lối vào chi tiết đi chung
+   * một đường duy nhất.
+   */
+  const linkRef = useRef<HTMLAnchorElement>(null);
+
   const openDetail = () => {
     cancel();
-    router.push(href);
+    linkRef.current?.click();
   };
 
   const badgeLabel = episodeBadgeLabel(parseEpisodeBadge(movie.episodeCurrent));
@@ -107,7 +125,9 @@ export function MovieCard({
       onBlur={handleLeave}
     >
       <Link
+        ref={linkRef}
         href={href}
+        replace={inModal}
         prefetch={false}
         data-card=""
         tabIndex={tabIndex}

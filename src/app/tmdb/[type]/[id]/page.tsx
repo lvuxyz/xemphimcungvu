@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { routes } from '@/lib/routes';
 import { getMovieByTmdb, nullOn404 } from '@/lib/endpoints';
 
 /** §3.2 — `/tmdb/{movie|tv}/{id}`: tra theo TMDB ID rồi đưa về `/phim/{slug}`. */
@@ -12,5 +13,5 @@ export default async function MovieByTmdbPage({
   const detail = await nullOn404(() => getMovieByTmdb(params.type as 'movie' | 'tv', params.id));
   if (!detail?.movie.slug) notFound();
 
-  redirect(`/phim/${detail.movie.slug}`);
+  redirect(routes.detail(detail.movie.slug));
 }

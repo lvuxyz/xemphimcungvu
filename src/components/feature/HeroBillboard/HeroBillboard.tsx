@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn';
 import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { firstEpisodeHref, matchScore, metaLine } from '@/lib/derive';
+import { routes } from '@/lib/routes';
 import type { Movie, MovieImages } from '@/types/movie';
 import { useDevice } from '@/hooks/useDevice';
 import { Button } from '@/components/ui/Button';
@@ -131,7 +132,7 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
               <PlayIcon />
               Phát
             </Button>
-            <Button href={`/phim/${movie.slug}`} variant="secondary" size="lg">
+            <Button href={routes.detail(movie.slug)} variant="secondary" size="lg">
               <InfoIcon />
               Thông tin khác
             </Button>

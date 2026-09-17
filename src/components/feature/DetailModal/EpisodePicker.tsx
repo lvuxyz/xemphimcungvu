@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { episodeLabel } from '@/lib/derive';
 import { getWatchProgress } from '@/lib/storage';
+import { routes } from '@/lib/routes';
 import type { EpisodeServer } from '@/types/movie';
 
 interface EpisodePickerProps {
@@ -14,6 +15,13 @@ interface EpisodePickerProps {
   currentEpisode?: string;
   /** Bố cục dọc cho sidebar trang phát, ngang cho modal */
   layout?: 'grid' | 'list';
+  /**
+   * Trong trang phát, đổi tập là đổi trạng thái của CÙNG một điểm dừng, không
+   * phải một đích đến mới (§2.3) — nếu không, xem hết bộ 40 tập là 40 entry
+   * giống nhau trong lịch sử. Ở modal chi tiết thì ngược lại: bấm vào một tập là
+   * rời trang, nên vẫn `push`.
+   */
+  replaceOnSelect?: boolean;
 }
 
 /**
@@ -25,6 +33,7 @@ export function EpisodePicker({
   servers,
   currentEpisode,
   layout = 'grid',
+  replaceOnSelect = false,
 }: EpisodePickerProps) {
   const [serverIndex, setServerIndex] = useState(0);
   const active = servers[serverIndex];
@@ -92,7 +101,8 @@ export function EpisodePicker({
           return (
             <li key={episode.slug}>
               <Link
-                href={`/xem/${slug}/${episode.slug}`}
+                href={routes.watch(slug, episode.slug)}
+                replace={replaceOnSelect}
                 aria-current={isCurrent ? 'true' : undefined}
                 className={cn(
                   'relative block overflow-hidden truncate rounded-card px-2 py-2 text-center text-xs',

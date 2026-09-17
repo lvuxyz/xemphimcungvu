@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { routes } from '@/lib/routes';
 import { getMovieById, nullOn404 } from '@/lib/endpoints';
 
 /**
@@ -9,5 +10,5 @@ export default async function MovieByIdPage({ params }: { params: { id: string }
   const detail = await nullOn404(() => getMovieById(params.id));
   if (!detail?.movie.slug) notFound();
 
-  redirect(`/phim/${detail.movie.slug}`);
+  redirect(routes.detail(detail.movie.slug));
 }

@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation';
+import { routes } from '@/lib/routes';
 
 interface Props {
   params: { slug: string };
 }
 
 export default function WatchRedirectPage({ params }: Props) {
-  redirect(`/xem/${params.slug}/1`);
+  redirect(routes.watch(params.slug));
 }

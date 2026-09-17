@@ -1,12 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import { episodeLabel, resolveEpisode } from '@/lib/derive';
+import { routes } from '@/lib/routes';
 import type { MovieDetailResult } from '@/types/movie';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { Button } from '@/components/ui/Button';
 import { ArrowLeftIcon } from '@/components/ui/icons';
 import { EpisodePicker } from '@/components/feature/DetailModal/EpisodePicker';
@@ -26,7 +26,7 @@ interface WatchScreenProps {
 }
 
 export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
-  const router = useRouter();
+  const { playTitle, goBackOrHome } = useAppNavigation();
   const { movie, episodes } = detail;
 
   const server = episodes[0];
@@ -43,23 +43,47 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
     if (next) setCountdown(PLAYER.autoNextCountdown);
   }, [next]);
 
+  /**
+   * Đổi tập là `replace`, KHÔNG phải `push` (§2.3).
+   *
+   * Xem hết một bộ 40 tập bằng `push` thì lịch sử có 40 entry giống hệt nhau:
+   * bấm Back từ tập 40 là lùi về tập 39 chứ không ra được trang phim, và người
+   * xem phải bấm đúng 40 lần mới thoát khỏi nhánh này. Một bộ phim là MỘT điểm
+   * dừng trong lịch sử, tập nào đang xem là trạng thái bên trong nó.
+   */
+  const goToEpisode = useCallback(
+    (slug: string) => playTitle(movie.slug, { episodeSlug: slug, replace: true }),
+    [playTitle, movie.slug],
+  );
+
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
-      if (next) router.push(`/xem/${movie.slug}/${next.slug}`);
+      if (next) goToEpisode(next.slug);
       return;
     }
     const timer = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
     return () => clearTimeout(timer);
-  }, [countdown, next, router, movie.slug]);
+  }, [countdown, next, goToEpisode]);
+
+  // Đổi tập xong thì phải dẹp countdown của tập cũ, nếu không nó đếm tiếp trên tập mới.
+  useEffect(() => setCountdown(null), [episodeSlug]);
+
+  const onNext = useCallback(() => {
+    if (next) goToEpisode(next.slug);
+  }, [next, goToEpisode]);
 
   if (!episode) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-32 text-center">
         <p className="text-lg text-text-primary">Tập này chưa có nguồn phát.</p>
-        <Button href={`/phim/${movie.slug}`} variant="accent" className="mt-6">
+        {/* Điều hướng cứng — xem `useLeavesPlayer` về việc modal đè lên player. */}
+        <a
+          href={routes.detail(movie.slug)}
+          className="mt-6 inline-flex h-10 items-center justify-center rounded-pill bg-accent px-5 text-sm font-medium text-[color:var(--accent-contrast)] transition-colors duration-micro ease-standard hover:bg-accent-hover"
+        >
           Về trang phim
-        </Button>
+        </a>
       </main>
     );
   }
@@ -75,6 +99,14 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
             linkM3u8={episode.linkM3u8}
             linkEmbed={episode.linkEmbed}
             onEnded={onEnded}
+            /**
+             * §2.3 — thoát player phải về ĐÚNG TRANG TRƯỚC, giữ nguyên scroll và
+             * vị trí row. `goBackOrHome` lùi lại khi có lịch sử của app, và chỉ
+             * rơi về trang chủ khi người dùng mở thẳng link này trong tab mới.
+             */
+            onBack={goBackOrHome}
+            onNext={next ? onNext : undefined}
+            nextLabel={next ? episodeLabel(next.name) : undefined}
           />
 
           {countdown !== null && next && (
@@ -82,7 +114,7 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
               <span className="text-text-secondary">
                 Tự động chuyển sang {episodeLabel(next.name).toLowerCase()} sau {countdown}s
               </span>
-              <Button size="sm" variant="accent" href={`/xem/${movie.slug}/${next.slug}`}>
+              <Button size="sm" variant="accent" onClick={onNext}>
                 Xem ngay
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setCountdown(null)}>
@@ -92,13 +124,18 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
           )}
 
           <div className="space-y-1">
-            <Link
-              href={`/phim/${movie.slug}`}
+            {/*
+              `<a>` chứ không phải `<Link>`: điều hướng mềm từ đây sẽ khớp
+              intercepting route và mở modal ĐÈ LÊN player đang chạy (§1.4 L1).
+              Xem `hooks/useLeavesPlayer.ts`.
+            */}
+            <a
+              href={routes.detail(movie.slug)}
               className="inline-flex items-center gap-2 text-sm text-text-muted transition-colors duration-micro ease-standard hover:text-text-primary"
             >
               <ArrowLeftIcon />
               Về trang phim
-            </Link>
+            </a>
             <h1 className="text-xl font-bold tracking-[-0.01em]">
               {movie.name} — {episodeLabel(episode.name)}
             </h1>
@@ -113,6 +150,8 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
             servers={episodes}
             currentEpisode={episode.slug}
             layout="list"
+            /** Trong player, đổi tập là đổi trạng thái tại chỗ — xem `goToEpisode`. */
+            replaceOnSelect
           />
         </aside>
       </div>
