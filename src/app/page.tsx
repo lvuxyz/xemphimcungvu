@@ -70,8 +70,13 @@ export default async function HomePage() {
         <HeroBillboard movie={hero.movie} images={hero.images} trailerUrl={hero.trailerUrl} />
       )}
 
-      {/* Row đầu chồng lên đáy hero, tạo cảm giác liền mạch (§8.2 layer 3) */}
-      <div className="relative z-row -mt-[8vw] pb-16">
+      {/*
+        §8.2 layer 3 — row đầu chồng lên đáy hero cho liền mạch, nhưng KHÔNG
+        được chồng lên chữ: `-8vw` ở màn 1920 là 154px, nuốt luôn 62px cuối của
+        khối tiêu đề + nút Phát. Kẹp lại còn tối đa 4.5rem — vẫn đủ để gradient
+        đáy hero nối vào row, mà mọi khổ màn đều còn khoảng hở dưới nút.
+      */}
+      <div className="relative z-row -mt-[clamp(0.5rem,4vw,4.5rem)] pb-16">
         <ContentRow
           title="Mới cập nhật"
           movies={firstRow.slice(0, ROW_LIMIT)}

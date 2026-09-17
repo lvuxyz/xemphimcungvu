@@ -122,6 +122,14 @@
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
+    /**
+     * BẮT BUỘC đi kèm `mandatory`: điểm snap của card đầu nằm sau `padding-left`,
+     * mà snapport mặc định lại bắt đầu ở mép scrollport — trình duyệt vì thế kéo
+     * row sang phải đúng bằng gutter, card đầu dán sát mép màn hình trong khi
+     * tiêu đề row vẫn thụt vào (thấy rõ ở 1920: card ở x=0, chữ ở x=77).
+     * Đẩy snapport vào đúng gutter thì điểm snap trùng với bố cục.
+     */
+    scroll-padding-inline: var(--row-padding-x);
     scroll-behavior: smooth;
     scrollbar-width: none;
     /**
