@@ -7,8 +7,10 @@ import { PLAYER } from '@/lib/constants';
 import type { HlsQualityLevel } from '@/hooks/useHls';
 import { IconButton } from '@/components/ui/Button';
 import {
+  ArrowLeftIcon,
   ExitFullscreenIcon,
   FullscreenIcon,
+  NextEpisodeIcon,
   PauseIcon,
   PipIcon,
   PlayIcon,
@@ -49,6 +51,16 @@ interface PlayerControlsProps {
   onLevel: (index: number) => void;
   /** Bất kỳ tương tác nào cũng hoãn auto-hide. */
   onInteract: () => void;
+  /**
+   * Thoát trình phát. §1.4 L3 — trước đây lối ra duy nhất là một link nằm DƯỚI
+   * khung video, tức là ở chế độ toàn màn hình thì không tồn tại: người xem hết
+   * đường ra ngoài phím Esc của trình duyệt.
+   */
+  onBack?: () => void;
+  /** Sang tập kế. Bỏ trống ở phim lẻ / tập cuối → nút tự ẩn. */
+  onNext?: () => void;
+  /** Nhãn cho screen reader, ví dụ "Tập 02". */
+  nextLabel?: string;
 }
 
 /**
@@ -174,7 +186,12 @@ export function PlayerControls(props: PlayerControlsProps) {
       data-motion="fade"
       onPointerDown={onInteract}
     >
-      <div className="pointer-events-auto bg-gradient-to-b from-bg-base/80 to-transparent p-4 pb-8">
+      <div className="pointer-events-auto flex items-center gap-3 bg-gradient-to-b from-bg-base/80 to-transparent p-4 pb-8">
+        {props.onBack && (
+          <IconButton label="Thoát trình phát" size={compact ? 'lg' : 'md'} onClick={props.onBack}>
+            <ArrowLeftIcon />
+          </IconButton>
+        )}
         <p className="truncate text-sm font-medium text-text-primary drop-shadow">{title}</p>
       </div>
 
@@ -196,10 +213,7 @@ export function PlayerControls(props: PlayerControlsProps) {
           onPointerLeave={() => setHoverTime(null)}
           onKeyDown={onBarKeyDown}
           // touch-none: không để trình duyệt hiểu nhầm cú kéo ngang là cuộn trang
-          className={cn(
-            'group/bar relative cursor-pointer touch-none',
-            compact ? 'h-8' : 'h-6',
-          )}
+          className={cn('group/bar relative cursor-pointer touch-none', compact ? 'h-8' : 'h-6')}
         >
           <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-pill bg-white/25">
             <div
@@ -240,6 +254,16 @@ export function PlayerControls(props: PlayerControlsProps) {
             {playing ? <PauseIcon /> : <PlayIcon />}
           </IconButton>
 
+          {props.onNext && (
+            <IconButton
+              label={props.nextLabel ? `Sang ${props.nextLabel.toLowerCase()}` : 'Tập tiếp theo'}
+              size={compact ? 'lg' : 'md'}
+              onClick={props.onNext}
+            >
+              <NextEpisodeIcon />
+            </IconButton>
+          )}
+
           {/* Màn cảm ứng đã có chạm đôi để tua — bớt hai nút cho thoáng */}
           {!compact && (
             <>
@@ -271,7 +295,7 @@ export function PlayerControls(props: PlayerControlsProps) {
                 value={muted ? 0 : volume}
                 onChange={(e) => props.onVolume(Number(e.target.value))}
                 aria-label="Âm lượng"
-                className="h-1 w-0 cursor-pointer appearance-none rounded-pill bg-white/30 opacity-0 transition-[width,opacity] duration-standard ease-standard accent-[color:var(--accent)] focus-visible:w-20 focus-visible:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100"
+                className="h-1 w-0 cursor-pointer appearance-none rounded-pill bg-white/30 accent-[color:var(--accent)] opacity-0 transition-[width,opacity] duration-standard ease-standard focus-visible:w-20 focus-visible:opacity-100 group-hover/vol:w-20 group-hover/vol:opacity-100"
               />
             )}
           </div>
@@ -301,7 +325,7 @@ export function PlayerControls(props: PlayerControlsProps) {
             {menuOpen && (
               <div
                 role="menu"
-                className="absolute bottom-full right-0 mb-2 max-h-[60vh] w-48 overflow-y-auto overscroll-contain rounded-card bg-bg-elevated/98 p-2 text-sm shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md"
+                className="absolute bottom-full right-0 mb-2 max-h-[60vh] w-48 overflow-y-auto overscroll-contain rounded-card bg-bg-elevated/95 p-2 text-sm shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md"
               >
                 <p className="px-2 pb-1 text-[10px] uppercase tracking-wider text-text-muted">
                   Tốc độ

@@ -20,6 +20,11 @@ interface VideoPlayerProps {
   linkM3u8: string;
   linkEmbed: string;
   onEnded?: () => void;
+  /** Thoát trình phát — nút ← ở thanh trên (§1.4 L3). */
+  onBack?: () => void;
+  /** Sang tập kế. Bỏ trống ở phim lẻ / tập cuối → nút tự ẩn. */
+  onNext?: () => void;
+  nextLabel?: string;
 }
 
 type FullscreenVideo = HTMLVideoElement & {
@@ -55,6 +60,9 @@ export function VideoPlayer({
   linkM3u8,
   linkEmbed,
   onEnded,
+  onBack,
+  onNext,
+  nextLabel,
 }: VideoPlayerProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -535,6 +543,9 @@ export function VideoPlayer({
         onRate={changeRate}
         onLevel={selectLevel}
         onInteract={bumpControls}
+        onBack={onBack}
+        onNext={onNext}
+        nextLabel={nextLabel}
       />
     </div>
   );

@@ -14,6 +14,16 @@
   html {
     color-scheme: dark;
     -webkit-text-size-adjust: 100%;
+    /**
+     * Modal khoá scroll bằng `overflow: hidden` → thanh cuộn biến mất → viewport
+     * rộng thêm đúng 10px, và mọi phần tử `fixed` (navbar, toast) nhảy ngang
+     * theo. Đo thật ở 1440: header 1430 → 1440 ngay khi modal mở.
+     *
+     * Giữ sẵn chỗ cho thanh cuộn thì cú nhảy đó biến mất — kể cả khi đi từ trang
+     * dài sang trang ngắn. Đặt ở `html`, KHÔNG phải `body`: body đang là phần tử
+     * truyền overflow cho viewport, đặt ở đó thì lúc khoá scroll gutter lại mất.
+     */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -89,6 +99,40 @@
 
 @layer components {
   /**
+   * Khung bao của row: track + hai mũi tên.
+   *
+   * Hai biến `--row-overflow-*` khai báo ở ĐÂY chứ không ở `.row-track`, vì mũi
+   * tên là anh em của track chứ không phải con — nó cũng cần biết track đã chừa
+   * ra bao nhiêu để tự canh cho đúng dải card. Xem `.row-arrow` ở dưới.
+   */
+  .row-viewport {
+    --row-overflow-top: 6rem;
+    --row-overflow-bottom: 14rem;
+
+    position: relative;
+  }
+
+  @media (hover: none) {
+    .row-viewport {
+      --row-overflow-top: 0.25rem;
+      --row-overflow-bottom: 0.25rem;
+    }
+  }
+
+  /**
+   * Mũi tên phải ôm đúng DẢI CARD, không phải cả vùng cuộn.
+   *
+   * Vùng cuộn cao hơn dải card rất nhiều và lệch hẳn về một phía (96px chừa
+   * trên, 224px chừa dưới cho card phóng to), nên `top: 50%` của nó rơi xuống
+   * dưới mép card 64px — mũi tên nằm hẳn ngoài hàng ảnh. Trừ đúng hai khoảng đã
+   * chừa thì còn lại đúng dải card.
+   */
+  .row-arrow {
+    top: var(--row-overflow-top, 0px);
+    bottom: var(--row-overflow-bottom, 0px);
+  }
+
+  /**
    * §8.3 — track cuộn ngang của ContentRow.
    *
    * §8.3 yêu cầu row cha `overflow: visible` để card hover phóng to 1.35 không bị
@@ -108,17 +152,14 @@
    *   dưới  = 0.175 × chiều cao ảnh + ~126px
    */
   .row-track {
-    --row-overflow-top: 6rem;
-    --row-overflow-bottom: 14rem;
-
     display: flex;
     gap: var(--row-gap);
     padding-inline: var(--row-padding-x);
-    padding-top: var(--row-overflow-top);
-    padding-bottom: var(--row-overflow-bottom);
+    padding-top: var(--row-overflow-top, 6rem);
+    padding-bottom: var(--row-overflow-bottom, 14rem);
     /* Kéo row sát lại, bù đúng phần padding vừa chừa ra */
-    margin-top: calc(var(--row-overflow-top) * -1 + 0.25rem);
-    margin-bottom: calc(var(--row-overflow-bottom) * -1 + 0.25rem);
+    margin-top: calc(var(--row-overflow-top, 6rem) * -1 + 0.25rem);
+    margin-bottom: calc(var(--row-overflow-bottom, 14rem) * -1 + 0.25rem);
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
@@ -142,17 +183,15 @@
   /**
    * Màn cảm ứng: `mandatory` đánh nhau với quán tính vuốt — ngón tay thả ra là
    * row bị giật về điểm snap. `proximity` giữ được cảm giác trôi tự nhiên.
+   *
+   * Phần chừa chỗ cho card phóng to thì đã được `.row-viewport` rút xuống
+   * 0.25rem ở cùng breakpoint này: không hover thì không có gì tràn ra, mà vùng
+   * cuộn ngang nhỏ lại đúng bằng hàng card thì ngón tay cuộn dọc không còn bị
+   * row nuốt mất cú vuốt.
    */
   @media (hover: none) {
     .row-track {
       scroll-snap-type: x proximity;
-      /**
-       * Không có hover thì không có card phóng to, nên cũng không cần chừa
-       * 6rem/11rem cho nó tràn ra. Bỏ đi thì vùng cuộn ngang nhỏ lại đúng bằng
-       * hàng card — ngón tay cuộn dọc không còn bị row nuốt mất cú vuốt.
-       */
-      --row-overflow-top: 0.25rem;
-      --row-overflow-bottom: 0.25rem;
     }
   }
 
@@ -357,4 +396,26 @@
 .row-item-enter {
   animation: rowItemIn var(--duration-standard) var(--ease-standard) both;
   animation-delay: calc(var(--stagger, 0) * 40ms);
+}
+
+/**
+ * Chuyển trang (app/template.tsx). Chỉ fade, KHÔNG dịch chuyển: hero là ảnh
+ * full-bleed chạy lên tận dưới navbar, dịch nó xuống vài pixel là lòi ra một
+ * vệt nền tối ở mép trên suốt thời gian animation.
+ *
+ * `backwards` chứ không `both`: giữ trạng thái đầu trước khi animation chạy,
+ * nhưng trả quyền lại cho `opacity` thường ngay khi xong — nếu giữ luôn
+ * trạng thái cuối thì cả cây trang nằm mãi trên một layer riêng của compositor.
+ */
+@keyframes pageIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-enter {
+  animation: pageIn var(--duration-standard) var(--ease-standard) backwards;
 }

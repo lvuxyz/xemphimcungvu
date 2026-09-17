@@ -10,6 +10,9 @@ import { CACHE, SEARCH_DEBOUNCE, SEARCH_MIN_LENGTH, SEARCH_SUGGESTIONS } from '@
 import { search } from '@/lib/endpoints';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { queryKeys } from '@/lib/query-keys';
+import { routes } from '@/lib/routes';
+import { useLeavesPlayer } from '@/hooks/useLeavesPlayer';
+import { usePresence } from '@/hooks/usePresence';
 import { CloseIcon, SearchIcon } from '@/components/ui/icons';
 
 /**
@@ -27,6 +30,11 @@ const SEARCH_FILTERS = { limit: SEARCH_SUGGESTIONS };
 
 export function SearchBox() {
   const router = useRouter();
+  /**
+   * Navbar có mặt cả trên trang phát, nên gợi ý tìm kiếm cũng là một lối đi tới
+   * `/phim/{slug}` từ trong player — cùng cái bẫy modal-đè-player ở §1.4 L1.
+   */
+  const leavesPlayer = useLeavesPlayer();
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   /** Từ khoá đã qua debounce — chỉ giá trị này được đem đi gọi API. */
@@ -60,6 +68,11 @@ export function SearchBox() {
   /** Chưa có kết quả nào trong tay thì vẽ skeleton, không dùng spinner (§12.2). */
   const pending = enabled && isFetching && results.length === 0;
 
+  const { mounted: suggestionsMounted, visible: suggestionsVisible } = usePresence(
+    open && keyword.trim() !== '',
+    150,
+  );
+
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
@@ -78,7 +91,7 @@ export function SearchBox() {
     const trimmed = keyword.trim();
     if (!trimmed) return;
     setOpen(false);
-    router.push(`/tim-kiem?keyword=${encodeURIComponent(trimmed)}`);
+    router.push(routes.search(trimmed));
   };
 
   return (
@@ -135,9 +148,18 @@ export function SearchBox() {
         )}
       </div>
 
-      {open && keyword.trim() !== '' && (
+      {suggestionsMounted && (
         <div
-          className="absolute right-0 top-full mt-2 w-[320px] overflow-hidden rounded-card bg-bg-elevated/98 shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md"
+          data-motion="fade"
+          className={cn(
+            'absolute right-0 top-full mt-2 w-[320px] overflow-hidden rounded-card bg-bg-elevated/95 shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md',
+            // Ô input mở ra trong 300ms; bảng gợi ý bám theo cùng nhịp thay vì
+            // đập vào giữa chừng.
+            'transition-[opacity,transform] duration-micro ease-standard',
+            suggestionsVisible
+              ? 'translate-y-0 opacity-100'
+              : 'pointer-events-none -translate-y-1 opacity-0',
+          )}
           role="listbox"
           aria-label="Kết quả tìm kiếm"
         >
@@ -168,8 +190,15 @@ export function SearchBox() {
               {results.map((movie) => (
                 <li key={movie.slug}>
                   <Link
-                    href={`/phim/${movie.slug}`}
-                    onClick={() => setOpen(false)}
+                    href={routes.detail(movie.slug)}
+                    prefetch={leavesPlayer ? false : undefined}
+                    onClick={(event) => {
+                      setOpen(false);
+                      if (!leavesPlayer) return;
+                      // Rời trình phát thì phải đi cứng, không qua router.
+                      event.preventDefault();
+                      window.location.assign(routes.detail(movie.slug));
+                    }}
                     className="flex items-center gap-3 px-3 py-2 transition-colors duration-micro ease-standard hover:bg-bg-hover"
                   >
                     {/* §8.1 — poster thumbnail 40×60 */}

@@ -6,14 +6,16 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import type { Taxonomy } from '@/types/movie';
 import { ChevronDownIcon } from '@/components/ui/icons';
+import { PATH, routes } from '@/lib/routes';
+import { usePresence } from '@/hooks/usePresence';
 import { MobileMenu } from './MobileMenu';
 import { SearchBox } from './SearchBox';
 
 const MENU = [
-  { label: 'Phim bộ', href: '/danh-sach/phim-bo' },
-  { label: 'Phim lẻ', href: '/danh-sach/phim-le' },
-  { label: 'Hoạt hình', href: '/danh-sach/hoat-hinh' },
-  { label: 'TV Shows', href: '/danh-sach/tv-shows' },
+  { label: 'Phim bộ', href: routes.listByType('phim-bo') },
+  { label: 'Phim lẻ', href: routes.listByType('phim-le') },
+  { label: 'Hoạt hình', href: routes.listByType('hoat-hinh') },
+  { label: 'TV Shows', href: routes.listByType('tv-shows') },
 ] as const;
 
 /**
@@ -64,24 +66,42 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
   }, []);
 
   return (
-    <header
-      className={cn(
-        'fixed inset-x-0 top-0 z-navbar pt-[var(--safe-top)]',
-        'transition-colors duration-standard ease-standard',
-        scrolled ? 'bg-bg-base/95 backdrop-blur-[12px]' : 'bg-transparent',
-      )}
-    >
+    <header className="fixed inset-x-0 top-0 z-navbar pt-[var(--safe-top)]">
+      {/**
+       * Hai lớp nền CHỒNG nhau và mờ chéo, thay vì tháo lớp này ra lắp lớp kia.
+       *
+       * Bản cũ tháo hẳn lớp gradient ở ngưỡng scrollY = 60 trong khi màu nền lại
+       * mờ dần 300ms: đúng lúc vượt ngưỡng, gradient biến mất tức thì còn nền
+       * mới thì chưa kịp hiện → chữ nav nháy một cái trên nền hero sáng. Blur
+       * cũng bật/tắt tức thì vì `transition-colors` không đụng tới backdrop-filter.
+       *
+       * Để cả hai lớp luôn có mặt và chỉ đổi `opacity` thì mọi thứ đi cùng một
+       * nhịp, cả lúc cuộn xuống lẫn lúc cuộn ngược lên.
+       */}
+      <div
+        aria-hidden="true"
+        data-motion="fade"
+        className={cn(
+          'pointer-events-none absolute inset-0 bg-bg-base/95 backdrop-blur-[12px]',
+          'transition-opacity duration-standard ease-standard',
+          scrolled ? 'opacity-100' : 'opacity-0',
+        )}
+      />
       {/* Gradient mềm khi chưa scroll, để chữ nav đọc được trên nền hero sáng */}
-      {!scrolled && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-bg-base/90 via-bg-base/60 to-transparent"
-        />
-      )}
+      <div
+        aria-hidden="true"
+        data-motion="fade"
+        className={cn(
+          'pointer-events-none absolute inset-x-0 top-0 h-32',
+          'bg-gradient-to-b from-bg-base/95 via-bg-base/55 to-transparent',
+          'transition-opacity duration-standard ease-standard',
+          scrolled ? 'opacity-0' : 'opacity-100',
+        )}
+      />
 
       <nav className="relative flex h-16 items-center gap-6 px-row" aria-label="Điều hướng chính">
         <Link
-          href="/"
+          href={routes.home()}
           className="shrink-0 text-lg font-extrabold tracking-[-0.03em] text-accent-hover"
         >
           xemphim<span className="text-text-primary">cùngvũ</span>
@@ -104,15 +124,15 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
 
           <MegaMenu
             label="Thể loại"
-            items={categories.map((c) => ({ label: c.name, href: `/the-loai/${c.slug}` }))}
+            items={categories.map((c) => ({ label: c.name, href: routes.category(c.slug) }))}
           />
           <MegaMenu
             label="Quốc gia"
-            items={countries.map((c) => ({ label: c.name, href: `/quoc-gia/${c.slug}` }))}
+            items={countries.map((c) => ({ label: c.name, href: routes.country(c.slug) }))}
           />
           <MegaMenu
             label="Năm"
-            items={years.slice(0, 24).map((y) => ({ label: String(y), href: `/nam/${y}` }))}
+            items={years.slice(0, 24).map((y) => ({ label: String(y), href: routes.year(y) }))}
             columns={4}
           />
         </ul>
@@ -120,7 +140,7 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
         <div className="ml-auto flex items-center gap-1 sm:gap-3">
           <SearchBox />
           <Link
-            href="/danh-sach-cua-toi"
+            href={PATH.myList}
             className="hidden text-sm text-text-secondary transition-colors duration-micro ease-standard hover:text-text-primary lg:block"
           >
             Danh sách của tôi
@@ -155,6 +175,13 @@ function MegaMenu({
   const hovering = useRef(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  /**
+   * Giữ panel sống thêm 150ms để nó kịp mờ dần khi đóng. Không có nó thì menu
+   * bung ra và tắt phụt như một cái đèn — chỗ duy nhất trong app còn đóng/mở
+   * không có chuyển tiếp.
+   */
+  const { mounted, visible } = usePresence(open, 150);
+
   if (items.length === 0) return null;
 
   return (
@@ -188,25 +215,44 @@ function MegaMenu({
       >
         {label}
         <ChevronDownIcon
-          className={cn('text-xs transition-transform duration-micro ease-standard', open && 'rotate-180')}
+          className={cn(
+            'text-xs transition-transform duration-micro ease-standard',
+            open && 'rotate-180',
+          )}
         />
       </button>
 
-      {open && (
+      {mounted && (
+        /**
+         * `pt-2` là CẦU NỐI cho con trỏ. Panel phải hở ra khỏi chữ một chút mới
+         * không dính vào nav, nhưng khoảng hở đó nếu nằm ngoài cây DOM của `li`
+         * thì đi chuột qua nó là `mouseleave` bắn ra và menu sập ngay trước khi
+         * tay kịp tới. Cho khoảng hở thành padding của chính panel thì nó vẫn là
+         * con của `li`, chuột đi qua vẫn coi như đang ở trong menu.
+         */
         <div
-          className="absolute left-0 top-full w-max max-w-[min(90vw,44rem)] rounded-card bg-bg-elevated/98 p-4 shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md"
-          style={{ columnCount: columns, columnGap: '1.5rem' }}
+          className={cn(
+            'absolute left-0 top-full pt-2',
+            'transition-[opacity,transform] duration-micro ease-standard',
+            visible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-1 opacity-0',
+          )}
+          data-motion="fade"
         >
-          {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className="block break-inside-avoid py-1 text-sm text-text-secondary transition-colors duration-micro ease-standard hover:text-accent-hover"
-            >
-              {item.label}
-            </Link>
-          ))}
+          <div
+            className="w-max max-w-[min(90vw,44rem)] rounded-card bg-bg-elevated/95 p-4 shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md"
+            style={{ columnCount: columns, columnGap: '1.5rem' }}
+          >
+            {items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className="block break-inside-avoid py-1 text-sm text-text-secondary transition-colors duration-micro ease-standard hover:text-accent-hover"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
     </li>

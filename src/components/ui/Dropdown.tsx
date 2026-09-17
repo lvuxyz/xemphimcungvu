@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
+import { usePresence } from '@/hooks/usePresence';
 import { ChevronDownIcon } from './icons';
 
 export interface DropdownOption {
@@ -29,9 +30,10 @@ export function Dropdown({ label, value, options, onChange, allLabel, className 
   const rootRef = useRef<HTMLDivElement>(null);
   const listId = useId();
 
-  const items: DropdownOption[] = allLabel
-    ? [{ value: '', label: allLabel }, ...options]
-    : options;
+  /** Bung ra / thu lại trong 150ms thay vì hiện tắt tức thì. */
+  const { mounted, visible } = usePresence(open, 150);
+
+  const items: DropdownOption[] = allLabel ? [{ value: '', label: allLabel }, ...options] : options;
 
   const selected = items.find((o) => o.value === (value ?? ''));
 
@@ -58,7 +60,12 @@ export function Dropdown({ label, value, options, onChange, allLabel, className 
     if (!open && (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault();
       setOpen(true);
-      setActiveIndex(Math.max(0, items.findIndex((o) => o.value === (value ?? ''))));
+      setActiveIndex(
+        Math.max(
+          0,
+          items.findIndex((o) => o.value === (value ?? '')),
+        ),
+      );
       return;
     }
     if (!open) return;
@@ -97,16 +104,24 @@ export function Dropdown({ label, value, options, onChange, allLabel, className 
           {selected?.label ?? allLabel ?? '—'}
         </span>
         <ChevronDownIcon
-          className={cn('shrink-0 transition-transform duration-micro ease-standard', open && 'rotate-180')}
+          className={cn(
+            'shrink-0 transition-transform duration-micro ease-standard',
+            open && 'rotate-180',
+          )}
         />
       </button>
 
-      {open && (
+      {mounted && (
         <ul
           id={listId}
           role="listbox"
           aria-label={label}
-          className="absolute left-0 top-full z-navbar mt-1 max-h-72 w-full min-w-[12rem] overflow-y-auto rounded-card bg-bg-elevated py-1 shadow-elev-2 ring-1 ring-white/10"
+          data-motion="fade"
+          className={cn(
+            'absolute left-0 top-full z-navbar mt-1 max-h-72 w-full min-w-[12rem] overflow-y-auto rounded-card bg-bg-elevated py-1 shadow-elev-2 ring-1 ring-white/10',
+            'transition-[opacity,transform] duration-micro ease-standard',
+            visible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-1 opacity-0',
+          )}
         >
           {items.map((option, index) => {
             const isSelected = option.value === (value ?? '');

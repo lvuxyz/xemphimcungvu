@@ -7,6 +7,7 @@ import { EmptyState, ListHeader } from '@/components/feature/FilterBar/MovieGrid
 import { IconButton } from '@/components/ui/Button';
 import { CloseIcon } from '@/components/ui/icons';
 import { useMyListHydrated, useMyListStore } from '@/store/useMyListStore';
+import { routes } from '@/lib/routes';
 
 /** My List — đọc localStorage qua zustand persist, không có backend (§1.2). */
 export default function MyListPage() {
@@ -45,7 +46,7 @@ export default function MyListPage() {
           {entries.map((entry) => (
             <li key={entry.slug} className="group relative">
               <Link
-                href={`/phim/${entry.slug}`}
+                href={routes.detail(entry.slug)}
                 className="block overflow-hidden rounded-card bg-bg-elevated"
               >
                 <div className="relative aspect-poster">

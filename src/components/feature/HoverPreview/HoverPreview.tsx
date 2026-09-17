@@ -12,6 +12,7 @@ import { IconButton } from '@/components/ui/Button';
 import { CheckIcon, ChevronDownIcon, PlayIcon, PlusIcon, ThumbUpIcon } from '@/components/ui/icons';
 import { useMyListStore } from '@/store/useMyListStore';
 import { useUIStore } from '@/store/useUIStore';
+import { routes } from '@/lib/routes';
 
 interface HoverPreviewProps {
   movie: Movie;
@@ -21,6 +22,8 @@ interface HoverPreviewProps {
   /** Đã qua một khung hình kể từ lúc mount → bật trạng thái phóng to. */
   visible: boolean;
   onOpenDetail: () => void;
+  /** Đóng ngay lớp phóng to khi rời card bằng chuột (click vào ảnh preview). */
+  onCancelHover: () => void;
 }
 
 /**
@@ -36,6 +39,7 @@ export function HoverPreview({
   reducedMotion,
   visible,
   onOpenDetail,
+  onCancelHover,
 }: HoverPreviewProps) {
   const inMyList = useMyListStore((s) => s.entries.some((e) => e.slug === movie.slug));
   const toggleMyList = useMyListStore((s) => s.toggle);
@@ -81,6 +85,27 @@ export function HoverPreview({
           <div
             aria-hidden="true"
             className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-bg-elevated to-transparent"
+          />
+
+          {/**
+           * Bấm vào ảnh preview phải MỞ ĐƯỢC phim.
+           *
+           * Lớp phóng to che kín card gốc, mà bản thân nó lại không có chỗ nào
+           * bấm được ngoài mấy nút tròn nhỏ ở dưới — nên phản xạ tự nhiên nhất
+           * (rê chuột vào, bấm luôn vào ảnh) rơi vào khoảng không. Bắt được lúc
+           * rà: bấm hai lần vào giữa card đang phóng to, URL không đổi.
+           *
+           * Là `Link` thật để còn ctrl/cmd + bấm mở tab mới. `aria-hidden` +
+           * `tabIndex={-1}`: bàn phím và trình đọc màn hình đã có nút "Xem chi
+           * tiết" ở dưới, thêm một điểm dừng Tab trùng chức năng chỉ tổ rườm rà.
+           */}
+          <Link
+            href={routes.detail(movie.slug)}
+            prefetch={false}
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={onCancelHover}
+            className="absolute inset-0"
           />
         </div>
 

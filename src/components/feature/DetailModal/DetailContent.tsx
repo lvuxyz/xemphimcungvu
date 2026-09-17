@@ -3,6 +3,7 @@ import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { firstEpisodeHref, matchScore, metaLine, statusLabel } from '@/lib/derive';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { routes } from '@/lib/routes';
 import type { Movie, MovieDetailBundle } from '@/types/movie';
 import { Button } from '@/components/ui/Button';
 import { Chip, MatchScore } from '@/components/ui/Chip';
@@ -103,7 +104,7 @@ export function DetailContent({ detail, related = [] }: DetailContentProps) {
                 <Chip
                   key={keyword}
                   variant="outline"
-                  href={`/tim-kiem?keyword=${encodeURIComponent(keyword)}`}
+                  href={routes.search(keyword)}
                 >
                   {keyword}
                 </Chip>

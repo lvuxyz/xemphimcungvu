@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { routes } from '@/lib/routes';
 
 export default function NotFound() {
   return (
@@ -8,7 +9,7 @@ export default function NotFound() {
         Phim bạn tìm có thể đã bị gỡ hoặc đường dẫn không đúng.
       </p>
       <Link
-        href="/"
+        href={routes.home()}
         className="mt-8 rounded-pill bg-accent px-6 py-3 font-medium text-[color:var(--accent-contrast)] transition-colors duration-micro ease-standard hover:bg-accent-hover"
       >
         Về trang chủ

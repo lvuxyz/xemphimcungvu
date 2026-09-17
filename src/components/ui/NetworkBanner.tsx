@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { useDevice } from '@/hooks/useDevice';
+import { usePresence } from '@/hooks/usePresence';
 
 /**
  * Dải báo mất mạng (§14.1).
@@ -31,7 +32,14 @@ export function NetworkBanner() {
     return () => clearTimeout(timer);
   }, [online, everOffline]);
 
-  if (online && !showRestored) return null;
+  /**
+   * Dải báo trượt lên / trượt xuống thay vì hiện ra rồi biến mất phụt. Nó nằm ở
+   * mép dưới màn hình, đúng chỗ ngón tay đang thao tác — xuất hiện đột ngột ở đó
+   * vừa giật vừa dễ bị bấm nhầm.
+   */
+  const { mounted, visible } = usePresence(!online || showRestored, 300);
+
+  if (!mounted) return null;
 
   return (
     <div
@@ -43,10 +51,13 @@ export function NetworkBanner() {
       )}
     >
       <p
+        data-motion="fade"
         className={cn(
           'rounded-pill px-4 py-2 text-sm shadow-elev-2 backdrop-blur-md',
+          'transition-[opacity,transform] duration-standard ease-standard',
+          visible ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0',
           online
-            ? 'bg-[color:var(--success)]/15 text-[color:var(--success)] ring-1 ring-[color:var(--success)]/30'
+            ? 'bg-success/15 text-success ring-1 ring-success/30'
             : 'bg-bg-elevated/95 text-text-secondary ring-1 ring-white/10',
         )}
       >

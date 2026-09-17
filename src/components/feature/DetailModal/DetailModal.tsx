@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/cn';
 import { MOTION } from '@/lib/constants';
 import type { Movie, MovieDetailBundle } from '@/types/movie';
 import { useScrollLock } from '@/hooks/useScrollLock';
@@ -10,9 +11,13 @@ import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { IconButton } from '@/components/ui/Button';
 import { CloseIcon } from '@/components/ui/icons';
 import { DetailContent } from './DetailContent';
+import { InTitleModalContext } from './modal-context';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/** Ngắn hơn lúc mở (§9.2): đóng phải dứt khoát, không bắt người dùng chờ. */
+const EXIT_MS = 200;
 
 /**
  * §8.5 — DetailModal.
@@ -31,10 +36,20 @@ export function DetailModal({
   detail: MovieDetailBundle;
   related?: Movie[];
 }) {
-  const router = useRouter();
+  const { goBackOrHome } = useAppNavigation();
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
   const reducedMotion = usePrefersReducedMotion();
+
+  /**
+   * Đóng modal đi hai nhịp: chạy animation thoát trước, `router.back()` sau.
+   *
+   * `AnimatePresence` ở đây không cứu được: modal là một route song song, khi
+   * `router.back()` chạy thì cả cây này bị tháo cùng route — không còn ai ở lại
+   * để chạy `exit`. Kết quả là modal mở ra có 450ms bung mượt mà rồi TẮT PHỤT
+   * lúc bấm ESC. Tự giữ 200ms rồi mới lùi route thì hai đầu cân nhau.
+   */
+  const [closing, setClosing] = useState(false);
 
   useScrollLock(true);
 
@@ -46,7 +61,18 @@ export function DetailModal({
     };
   }, []);
 
-  const close = useCallback(() => router.back(), [router]);
+  const close = useCallback(() => setClosing(true), []);
+
+  /**
+   * §1.4 L4 — `router.back()` trần ném người mở link chia sẻ ra khỏi site: họ
+   * bấm ✕ và rơi về đúng nơi vừa đến từ đó. `goBackOrHome` chỉ lùi khi app thật
+   * sự có entry ở phía sau, còn lại thì đưa về trang chủ.
+   */
+  useEffect(() => {
+    if (!closing) return;
+    const timer = setTimeout(goBackOrHome, EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [closing, goBackOrHome]);
 
   // ESC đóng + focus trap bằng Tab.
   useEffect(() => {
@@ -87,46 +113,60 @@ export function DetailModal({
   }, []);
 
   return (
-    <AnimatePresence>
+    <motion.div
+      className={cn(
+        'fixed inset-0 z-modal overflow-y-auto overscroll-contain bg-bg-base/70 backdrop-blur-[8px]',
+        // Đang thoát thì không nhận thêm cú bấm nào nữa — tránh `router.back()` hai lần.
+        closing && 'pointer-events-none',
+      )}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: closing ? 0 : 1 }}
+      transition={{ duration: closing ? EXIT_MS / 1000 : MOTION.standard }}
+      onClick={close}
+      data-motion="fade"
+    >
       <motion.div
-        className="fixed inset-0 z-modal overflow-y-auto overscroll-contain bg-bg-base/70 backdrop-blur-[8px]"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: MOTION.standard }}
-        onClick={close}
-        data-motion="fade"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={detail.movie.name}
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
+        className="relative mx-auto my-8 w-[min(56rem,92vw)] overflow-hidden rounded-modal bg-bg-elevated shadow-elev-3 outline-none"
+        /**
+         * §8.5 — shared element: card ở row biến hình thành modal.
+         * `layoutId` khớp với card nguồn; khi chưa khớp được (mở trực tiếp
+         * bằng URL) Framer Motion tự rơi về scale — vẫn không phải fade trần.
+         */
+        layoutId={reducedMotion ? undefined : `movie-card-${detail.movie.slug}`}
+        initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
+        animate={
+          closing
+            ? reducedMotion
+              ? { opacity: 0 }
+              : { opacity: 0, scale: 0.96 }
+            : { opacity: 1, scale: 1 }
+        }
+        transition={
+          closing
+            ? { duration: EXIT_MS / 1000 }
+            : reducedMotion
+              ? { duration: MOTION.micro }
+              : MOTION.spring
+        }
       >
-        <motion.div
-          ref={panelRef}
-          role="dialog"
-          aria-modal="true"
-          aria-label={detail.movie.name}
-          tabIndex={-1}
-          onClick={(event) => event.stopPropagation()}
-          className="relative mx-auto my-8 w-[min(56rem,92vw)] overflow-hidden rounded-modal bg-bg-elevated shadow-elev-3 outline-none"
-          /**
-           * §8.5 — shared element: card ở row biến hình thành modal.
-           * `layoutId` khớp với card nguồn; khi chưa khớp được (mở trực tiếp
-           * bằng URL) Framer Motion tự rơi về scale — vẫn không phải fade trần.
-           */
-          layoutId={reducedMotion ? undefined : `movie-card-${detail.movie.slug}`}
-          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-          transition={reducedMotion ? { duration: MOTION.micro } : MOTION.spring}
+        <IconButton
+          label="Đóng"
+          onClick={close}
+          className="absolute right-4 top-4 z-10 bg-bg-base/80"
         >
-          <IconButton
-            label="Đóng"
-            onClick={close}
-            className="absolute right-4 top-4 z-10 bg-bg-base/80"
-          >
-            <CloseIcon />
-          </IconButton>
+          <CloseIcon />
+        </IconButton>
 
+        <InTitleModalContext.Provider value={true}>
           <DetailContent detail={detail} related={related} />
-        </motion.div>
+        </InTitleModalContext.Provider>
       </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 }

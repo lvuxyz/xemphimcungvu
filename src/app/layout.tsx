@@ -52,6 +52,15 @@ export const viewport: Viewport = {
 /**
  * `modal` là parallel route slot của `app/@modal` — nền tảng của intercepting
  * route tạo trải nghiệm mở modal mà không rời trang (§6.1).
+ *
+ * ⚠️ Slot này bao trùm MỌI route, kể cả `/xem`. Thử tách nó xuống một nested
+ * layout `(browse)` để trang phát nằm ngoài tầm: KHÔNG được — Next 14 vẫn khớp
+ * `(.)phim/[slug]` khi điều hướng mềm từ `/xem` (log dev in đúng dòng
+ * `Compiling /(.)phim/[slug]`), và vì `children` của group không khớp gì nên
+ * trang ra 404. Route group trong suốt với bộ khớp interception.
+ *
+ * Cách chặn thật sự là ở phía nơi gọi: điều hướng từ trang phát sang
+ * `/phim/{slug}` phải là điều hướng CỨNG. Xem `useLeavesPlayer()`.
  */
 export default async function RootLayout({
   children,
