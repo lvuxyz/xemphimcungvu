@@ -6,6 +6,6 @@ export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { usePrefersReducedMotion } from './usePrefersReducedMotion';
 export { useScrollLock } from './useScrollLock';
 export { useInView } from './useInView';
-export { useDevice, useCanHover, useImageQuality, useIsOnline } from './useDevice';
+export { useDevice, useCanHover, useIsOnline } from './useDevice';
 export { usePresence } from './usePresence';
 export { useWakeLock } from './useWakeLock';

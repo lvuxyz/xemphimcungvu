@@ -82,7 +82,19 @@ export const ASPECT = {
  * phổ biến nhất khiến trình duyệt tải ảnh lớn gấp 2–3 lần cần thiết.
  */
 export const IMAGE_SIZES = {
-  hero: '100vw',
+  /**
+   * `66vw` ở khổ điện thoại KHÔNG phải mô tả sai bố cục — hero vẫn tràn 100vw.
+   * Đó là cách duy nhất `sizes` cho phép chặn trần DPR.
+   *
+   * Trình duyệt nhân bề rộng khai báo với DPR để chọn trong srcset, nên máy
+   * 414px DPR 3 đang xin 1242px và nhận bản **1280w** cho một khung rộng 414px —
+   * ảnh nặng nhất của cả trang, lại chính là phần tử LCP. Khai 66vw đẩy nó về
+   * bản 828w, tức khoảng 2x thay vì 3x: mức mà hầu hết ảnh chụp đều được coi là
+   * đủ, và ở đây còn bị gradient trái + gradient đáy phủ lên quá nửa.
+   *
+   * Từ 640px trở lên giữ nguyên 100vw — desktop DPR 1–2 không có vấn đề này.
+   */
+  hero: '(max-width: 640px) 66vw, 100vw',
   rowCard: '(max-width: 640px) 45vw, (max-width: 1024px) 30vw, (max-width: 1536px) 22vw, 16vw',
   gridCard: '(max-width: 640px) 45vw, (max-width: 1024px) 30vw, (max-width: 1536px) 16vw, 12vw',
   searchThumb: '40px',

@@ -24,11 +24,6 @@ export function useCanHover(): boolean {
   return useDevice().canHover;
 }
 
-/** `quality` cho next/image theo mạng hiện tại. */
-export function useImageQuality(): number {
-  return useDevice().imageQuality;
-}
-
 export function useIsOnline(): boolean {
   return useDevice().network.online;
 }
