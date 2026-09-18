@@ -28,6 +28,11 @@ import type {
   Taxonomy,
 } from '@/types/movie';
 
+/**
+ * Mỗi endpoint tự khai ngân sách mặc định của nó, nhưng NƠI GỌI mới biết lời gọi
+ * này cốt lõi hay chỉ là trang trí — cùng một `/phim/{slug}` là xương sống của
+ * trang chi tiết mà lại chỉ để lấy link trailer khi đứng trong bộ chọn hero.
+ */
 type Fetchable = {
   signal?: AbortSignal;
   /**
@@ -39,6 +44,10 @@ type Fetchable = {
    * theo nó.
    */
   revalidate?: number;
+  /** ms. Mặc định theo `TIMEOUT` của từng endpoint. */
+  timeout?: number;
+  /** Số lần thử lại, không tính lần đầu. Mặc định 2 (§14.2). */
+  retries?: number;
 };
 
 /** Ép `limit` về trần 64 mà API chấp nhận (§3.1, §17 rủi ro #11). */
@@ -447,7 +456,25 @@ export async function getHeroSpotlight(
     pool.map(async (movie): Promise<HeroSpotlight> => {
       const [images, detail] = await Promise.all([
         getMovieImages(movie.slug, opts),
-        requestOptional(() => getDetail(movie.slug, opts), null),
+        /**
+         * Ngân sách BỔ TRỢ, không phải ngân sách chi tiết — đây là chỗ duy nhất
+         * gọi `getDetail` mà không cần chi tiết: thứ lấy ra chỉ là `trailerUrl`,
+         * một đoạn trang trí chỉ chạy sau 2500ms và chỉ ở tier cao.
+         *
+         * Mặc định của nó (`timeout` 8s, `retries` 2) cộng thêm việc `getDetail`
+         * còn có phao `/v1/api/phim/{slug}` đứng sau, cho ra đuôi xấu nhất
+         * (8+1+8+2+8) × 2 ≈ 54 giây — chặn ngay giữa lượt dựng trang chủ, tức là
+         * chặn cả `next build`. Một link YouTube không đáng chỗ đó.
+         */
+        requestOptional(
+          () =>
+            getDetail(movie.slug, {
+              timeout: TIMEOUT.supplementary,
+              retries: 0,
+              ...opts,
+            }),
+          null,
+        ),
       ]);
 
       return { movie, images, trailerUrl: detail?.movie.trailerUrl ?? '' };
