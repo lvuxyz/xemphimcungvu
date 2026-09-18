@@ -204,7 +204,22 @@ export async function getMovieByImdb(ttid: string, opts: Fetchable = {}): Promis
 
 /* ---------------------------- §3.3 bổ trợ chi tiết ----------------------------- */
 /* Ba endpoint này quyết định chất lượng thị giác nhưng KHÔNG cốt lõi:
-   fail thì trả rỗng để UI ẩn im lặng (§14.1).                                    */
+   fail thì trả rỗng để UI ẩn im lặng (§14.1).
+
+   `retries: 0` — KHÔNG thử lại, và đây là chỗ khác biệt so với endpoint cốt lõi.
+
+   Cả ba nằm trong `Promise.all` của `getMovieBundle`, nghĩa là trang chi tiết
+   không render được cho tới khi cả ba xong. Với `retries: 1` cũ, một endpoint
+   chết lặng lẽ tốn:
+
+       timeout 5s  +  backoff 1s  +  timeout 5s  =  11 giây
+
+   mười một giây chờ để rồi hiện đúng cái giao diện mà `requestOptional` vốn đã
+   sẵn sàng hiện ngay từ giây thứ năm. Không thử lại thì trần rơi về 5s.
+
+   Cái giá: một cú chớp mạng làm mất dàn diễn viên trong suốt `REVALIDATE.detail`
+   (30 phút, vì trang đã được cache). Đổi lại là phần cốt lõi — `getDetail` —
+   vẫn giữ nguyên 2 lần thử; thứ đáng chờ thì vẫn được chờ.                      */
 
 export async function getMovieImages(slug: string, opts: Fetchable = {}): Promise<MovieImages> {
   return requestOptional(
@@ -213,7 +228,7 @@ export async function getMovieImages(slug: string, opts: Fetchable = {}): Promis
         await request(`/v1/api/phim/${slug}/images`, {
           timeout: TIMEOUT.supplementary,
           revalidate: REVALIDATE.detail,
-          retries: 1,
+          retries: 0,
           ...opts,
         }),
       ),
@@ -228,7 +243,7 @@ export async function getMoviePeoples(slug: string, opts: Fetchable = {}): Promi
         await request(`/v1/api/phim/${slug}/peoples`, {
           timeout: TIMEOUT.supplementary,
           revalidate: REVALIDATE.detail,
-          retries: 1,
+          retries: 0,
           ...opts,
         }),
       ),
@@ -243,7 +258,7 @@ export async function getMovieKeywords(slug: string, opts: Fetchable = {}): Prom
         await request(`/v1/api/phim/${slug}/keywords`, {
           timeout: TIMEOUT.supplementary,
           revalidate: REVALIDATE.detail,
-          retries: 1,
+          retries: 0,
           ...opts,
         }),
       ),
