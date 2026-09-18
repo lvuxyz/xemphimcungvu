@@ -33,7 +33,7 @@ interface ContentRowProps {
 export function ContentRow({ title, movies, href, priority = false }: ContentRowProps) {
   const { ref, canScrollPrev, canScrollNext, scrollNext, scrollPrev, originFor } =
     useRowScroll<HTMLUListElement>();
-  const { cols, canHover, budget } = useDevice();
+  const { cols, canHover } = useDevice();
 
   /**
    * Hai thứ khác nhau, cố ý tách:
@@ -47,7 +47,20 @@ export function ContentRow({ title, movies, href, priority = false }: ContentRow
     rootMargin: '100% 0px',
     once: false,
   });
-  const [hasEntered, setHasEntered] = useState(false);
+  /**
+   * Row `priority` khởi tạo THẲNG ở `true`, không chờ IntersectionObserver.
+   *
+   * Khởi tạo `false` cho mọi row nghĩa là không card nào có mặt trong HTML server
+   * render — đếm thật trên trang chủ đã build: đúng MỘT thẻ `<img>` (ảnh hero) và
+   * 113 chỗ `skeleton`. Row đầu chỉ bắt đầu tải ảnh sau khi ~152 kB JS về và
+   * hydrate xong; trên 3G đó là vài giây nhìn ô xám, và `priority` truyền xuống
+   * card cũng vô nghĩa vì lúc preload scanner quét HTML thì card chưa tồn tại.
+   *
+   * Chỉ row đầu được hưởng: 10 row lazy của trang chủ vẫn phải chờ viewport, đó
+   * mới là thứ §11.2 muốn chặn. Row đầu thì luôn nằm ngay dưới hero — nó KHÔNG
+   * phải thứ cần tiết kiệm.
+   */
+  const [hasEntered, setHasEntered] = useState(priority);
 
   useEffect(() => {
     if (inView) setHasEntered(true);
@@ -155,10 +168,22 @@ export function ContentRow({ title, movies, href, priority = false }: ContentRow
               style={{ '--stagger': Math.min(index, MOTION.staggerMax) } as React.CSSProperties}
             >
               {hasEntered ? (
+                /*
+                  Cố ý KHÔNG truyền `priority` xuống card, kể cả ở row đầu.
+                  `priority` sinh ra `<link rel=preload>` + `fetchpriority=high`,
+                  mà từ khi row đầu có mặt trong HTML server render thì 4 thẻ đó
+                  đứng tranh băng thông với đúng ảnh hero — phần tử LCP, và là thứ
+                  duy nhất trên trang chủ có thể là LCP: không card nào nằm trên nó.
+                  Đo trên HTML đã build: 5 thẻ preload ảnh thay vì 1.
+
+                  Bỏ `priority` không có nghĩa là card tải muộn: thẻ <img> đã nằm
+                  sẵn trong HTML nên trình duyệt tự lo, `loading=lazy` fetch ngay
+                  sau layout với card nào lọt viewport. Chỗ `priority` thật sự có
+                  ích là grid trang danh sách (`MovieGrid`) — ở đó không có hero.
+                */
                 <MovieCard
                   movie={movie}
                   transformOrigin={originFor(index, movies.length, cols)}
-                  priority={priority && index < budget.priorityImages}
                   tabIndex={index === rovingIndex ? 0 : -1}
                   onFocusCard={() => setRovingIndex(index)}
                 />
