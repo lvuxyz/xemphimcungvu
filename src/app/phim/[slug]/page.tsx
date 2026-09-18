@@ -29,6 +29,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/**
+ * Không prerender slug nào lúc build — nhưng SỰ CÓ MẶT của hàm này mới là thứ
+ * quyết định.
+ *
+ * Thiếu nó, Next xếp route vào nhóm dynamic và trả
+ * `Cache-Control: private, no-cache, no-store`: mọi lượt xem đều phải đi tới tận
+ * origin và render lại, CDN không giữ được gì.
+ *
+ * Có nó, route thành SSG với `dynamicParams` mặc định true — slug lạ vẫn render
+ * on-demand rồi được cache lại — và header thành
+ * `s-maxage=…, stale-while-revalidate`. Đo trên build prod: TTFB 150–330ms
+ * (cache lạnh) / 70ms (ấm) → 11ms khi `x-nextjs-cache: HIT`. Khoản lớn hơn nằm
+ * ở chỗ edge trả thẳng được HTML, tiết kiệm nguyên một vòng RTT từ VN tới origin.
+ */
+export async function generateStaticParams() {
+  return [];
+}
+
 /** Trang chi tiết FULL — dùng khi reload hoặc mở link chia sẻ (§6.1). */
 export default async function MovieDetailPage({ params }: Props) {
   // §11.3 — 4 endpoint song song; ba phần bổ trợ fail thì ẩn im lặng (§14.1).

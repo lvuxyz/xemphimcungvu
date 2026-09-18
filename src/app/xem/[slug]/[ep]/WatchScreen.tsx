@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import { episodeLabel, resolveEpisode } from '@/lib/derive';
 import { routes } from '@/lib/routes';
+import { readStartTime } from '@/lib/search-params';
 import type { MovieDetailResult } from '@/types/movie';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { Button } from '@/components/ui/Button';
@@ -23,13 +24,26 @@ const VideoPlayer = dynamic(
 interface WatchScreenProps {
   detail: MovieDetailResult;
   episodeSlug: string;
-  /** Giây lấy từ `?t=` trên URL. */
-  startAt?: number;
 }
 
-export function WatchScreen({ detail, episodeSlug, startAt }: WatchScreenProps) {
+export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
   const { playTitle, goBackOrHome } = useAppNavigation();
   const { movie, episodes } = detail;
+
+  /**
+   * §2.4 — giây lấy từ `?t=`, đọc một lần lúc mount.
+   *
+   * Đọc ở đây chứ không nhận từ props server: xem chú thích trong `page.tsx` về
+   * chuyện `searchParams` làm mất cache CDN của cả trang.
+   *
+   * Lazy initializer chứ không phải `useEffect`: `VideoPlayer` cần giá trị này
+   * ngay ở lần render ĐẦU của nó (`skipResumePrompt`), muộn hơn là hộp thoại
+   * "xem tiếp" đã kịp hiện rồi mới bị mốc `?t=` ghi đè.
+   *
+   * Cố ý KHÔNG đọc lại khi đổi tập: `goToEpisode` dùng `replace` nên URL tập mới
+   * không còn `?t=`, mà mốc thời gian của tập cũ thì không có nghĩa gì ở tập mới.
+   */
+  const [startAt] = useState(readStartTime);
 
   const server = episodes[0];
   const list = server?.episodes ?? [];

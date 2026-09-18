@@ -104,3 +104,20 @@ export function parseStartTime(searchParams: RawSearchParams = {}): number | und
   if (!Number.isFinite(seconds) || seconds <= 0 || seconds > MAX_START_AT) return undefined;
   return seconds;
 }
+
+/**
+ * Cùng một `?t=`, nhưng đọc từ `window.location` thay vì từ `searchParams` của
+ * Server Component.
+ *
+ * Lý do đổi chỗ đọc nằm ở `app/xem/[slug]/[ep]/page.tsx`: chạm vào `searchParams`
+ * phía server làm cả trang phát mất khả năng cache ở CDN. Quy tắc parse thì
+ * KHÔNG đổi — vẫn đi qua `parseStartTime` ở trên, để `?t=abc` hay `?t=-5` được
+ * xử lý giống hệt nhau ở cả hai đường.
+ *
+ * Trả `undefined` phía server: nơi gọi duy nhất là trình phát `ssr: false`, nên
+ * giá trị này không bao giờ lọt vào HTML server render.
+ */
+export function readStartTime(): number | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return parseStartTime(Object.fromEntries(new URLSearchParams(window.location.search)));
+}

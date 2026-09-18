@@ -28,7 +28,18 @@ import type {
   Taxonomy,
 } from '@/types/movie';
 
-type Fetchable = { signal?: AbortSignal };
+type Fetchable = {
+  signal?: AbortSignal;
+  /**
+   * Ghi đè `revalidate` mặc định của endpoint.
+   *
+   * Cần thiết vì `revalidate` của MỘT lời gọi quyết định `s-maxage` của CẢ trang:
+   * Next lấy giá trị NHỎ NHẤT trong toàn bộ fetch của lượt render. Xem
+   * `getRelated` — một danh sách phụ 300s từng kéo trang chi tiết 1800s xuống
+   * theo nó.
+   */
+  revalidate?: number;
+};
 
 /** Ép `limit` về trần 64 mà API chấp nhận (§3.1, §17 rủi ro #11). */
 function toParams(filters: ListFilters = {}): QueryParams {
@@ -347,7 +358,20 @@ export async function getRelated(
   if (!slug) return [];
 
   const { items } = await requestOptional(
-    () => getByCategory(slug, { limit: Math.min(limit + 4, MAX_LIMIT) }, opts),
+    () =>
+      getByCategory(
+        slug,
+        { limit: Math.min(limit + 4, MAX_LIMIT) },
+        /**
+         * `REVALIDATE.detail` chứ không phải `.list` mặc định của endpoint danh sách.
+         *
+         * Không phải vì dữ liệu này tươi lâu hơn, mà vì nó là fetch NGẮN HẠN NHẤT
+         * của trang chi tiết: để nguyên 300s thì cả trang chỉ sống được 300s ở CDN
+         * dù phần cốt lõi khai 1800s. Một hàng "Có thể bạn thích" cũ hơn nửa tiếng
+         * là thứ không ai nhận ra.
+         */
+        { revalidate: REVALIDATE.detail, ...opts },
+      ),
     EMPTY_LIST,
   );
 
