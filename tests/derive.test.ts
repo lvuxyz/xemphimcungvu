@@ -8,6 +8,7 @@ import {
   parseEpisodeBadge,
   resolveEpisode,
   youtubeId,
+  movieTitle,
 } from '@/lib/derive';
 import type { Movie } from '@/types/movie';
 
@@ -173,5 +174,16 @@ describe('episodeLabel / resolveEpisode — lệch giữa §5.1, §8.2 và API t
   it('firstEpisodeHref dùng slug tập khi biết, sentinel khi chưa biết', () => {
     expect(firstEpisodeHref('phim-abc')).toBe('/xem/phim-abc/1');
     expect(firstEpisodeHref('phim-abc', 'tap-01')).toBe('/xem/phim-abc/tap-01');
+  });
+});
+
+describe('movieTitle', () => {
+  it('ghép năm vào sau tên', () => {
+    expect(movieTitle({ name: 'Độc Kiếm Cửu Thiên', year: 2026 })).toBe('Độc Kiếm Cửu Thiên (2026)');
+  });
+
+  /** API trả `year: 0` khi không biết — không được đẻ ra "Tên (0)". */
+  it('bỏ phần năm khi API không trả', () => {
+    expect(movieTitle({ name: 'Phim Không Rõ Năm', year: 0 })).toBe('Phim Không Rõ Năm');
   });
 });

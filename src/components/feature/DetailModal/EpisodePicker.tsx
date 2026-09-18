@@ -69,7 +69,14 @@ export function EpisodePicker({
 
         {servers.map((server, index) => (
           <button
-            key={server.serverName}
+            /**
+             * Key theo VỊ TRÍ chứ không theo tên: tên server do API đặt và
+             * không có gì bảo đảm là duy nhất (đúng nguồn ấy đã từng trả hai
+             * tập cùng slug — xem `dedupeEpisodes`). Danh sách này không bao
+             * giờ bị chèn, xoá hay đảo thứ tự ở phía client, và bản thân
+             * `serverIndex` cũng đang định danh server bằng vị trí.
+             */
+            key={index}
             type="button"
             onClick={() => setServerIndex(index)}
             aria-pressed={index === serverIndex}

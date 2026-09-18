@@ -479,105 +479,117 @@ export function VideoPlayer({
   const waiting = !isReady || stalled || recovering;
 
   return (
-    <div
-      ref={shellRef}
-      onMouseMove={coarsePointer ? undefined : bumpControls}
-      className="player-shell relative aspect-backdrop w-full overflow-hidden rounded-card bg-black"
-    >
-      <video
-        ref={videoRef}
-        playsInline
-        // Mạng yếu: chỉ lấy metadata, đừng nuốt data khi người dùng còn chưa bấm phát.
-        preload={tier === 'low' ? 'metadata' : 'auto'}
-        className="h-full w-full object-contain"
-        // §10.3 — KHÔNG dùng controls mặc định
-      />
-
-      {/* Lớp nhận cử chỉ: nằm dưới control layer, phủ kín mặt video */}
+    <div className="space-y-2">
       <div
-        className="absolute inset-0 z-[1]"
-        onPointerUp={onSurfacePointerUp}
-        onClick={onSurfaceClick}
-        onDoubleClick={onSurfaceDoubleClick}
-      />
+        ref={shellRef}
+        onMouseMove={coarsePointer ? undefined : bumpControls}
+        className="player-shell relative aspect-backdrop w-full overflow-hidden rounded-card bg-black"
+      >
+        <video
+          ref={videoRef}
+          playsInline
+          // Mạng yếu: chỉ lấy metadata, đừng nuốt data khi người dùng còn chưa bấm phát.
+          preload={tier === 'low' ? 'metadata' : 'auto'}
+          className="h-full w-full object-contain"
+          // §10.3 — KHÔNG dùng controls mặc định
+        />
 
-      {/* Chờ dữ liệu — vòng xoay, KHÔNG phải màn lỗi */}
-      {waiting && (
-        <div className="pointer-events-none absolute inset-0 z-[2] flex flex-col items-center justify-center gap-3">
-          <span className="player-spinner" aria-hidden="true" />
-          {(recovering || !network.online) && (
-            <span className="rounded-pill bg-bg-base/80 px-3 py-1 text-xs text-text-secondary backdrop-blur-sm">
-              {network.online ? 'Mạng chập chờn, đang kết nối lại…' : 'Mất mạng — sẽ tự phát tiếp'}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Phản hồi cử chỉ tua trên màn cảm ứng */}
-      {seekFlash && (
+        {/* Lớp nhận cử chỉ: nằm dưới control layer, phủ kín mặt video */}
         <div
-          key={seekFlash.key}
-          className={`pointer-events-none absolute top-1/2 z-[2] -translate-y-1/2 rounded-pill bg-bg-base/75 px-4 py-2 text-sm font-medium text-text-primary backdrop-blur-sm ${
-            seekFlash.dir === 1 ? 'right-[12%]' : 'left-[12%]'
-          }`}
-        >
-          {seekFlash.dir === 1 ? `+${PLAYER.seekStep}s` : `−${PLAYER.seekStep}s`}
-        </div>
-      )}
+          className="absolute inset-0 z-[1]"
+          onPointerUp={onSurfacePointerUp}
+          onClick={onSurfaceClick}
+          onDoubleClick={onSurfaceDoubleClick}
+        />
 
-      {/* §13.3 — thông báo trạng thái cho screen reader */}
-      <p aria-live="polite" className="sr-only">
-        {playing ? 'Đang phát' : 'Đã tạm dừng'} {title}
-      </p>
-
-      {/* §10.5 — prompt tiếp tục xem */}
-      {showResumePrompt && saved && (
-        <div className="absolute inset-x-0 bottom-20 z-[3] flex justify-center px-4">
-          <div className="flex flex-wrap items-center justify-center gap-3 rounded-pill bg-bg-elevated/95 px-4 py-2 shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md">
-            <span className="text-sm text-text-secondary">
-              Tiếp tục xem từ {formatTime(saved.position)}?
-            </span>
-            <Button size="sm" variant="accent" onClick={resume}>
-              Tiếp tục
-            </Button>
-            <Button size="sm" variant="ghost" onClick={restart}>
-              Xem từ đầu
-            </Button>
+        {/* Chờ dữ liệu — vòng xoay, KHÔNG phải màn lỗi */}
+        {waiting && (
+          <div className="pointer-events-none absolute inset-0 z-[2] flex flex-col items-center justify-center gap-3">
+            <span className="player-spinner" aria-hidden="true" />
+            {(recovering || !network.online) && (
+              <span className="rounded-pill bg-bg-base/80 px-3 py-1 text-xs text-text-secondary backdrop-blur-sm">
+                {network.online
+                  ? 'Mạng chập chờn, đang kết nối lại…'
+                  : 'Mất mạng — sẽ tự phát tiếp'}
+              </span>
+            )}
           </div>
+        )}
+
+        {/* Phản hồi cử chỉ tua trên màn cảm ứng */}
+        {seekFlash && (
+          <div
+            key={seekFlash.key}
+            className={`pointer-events-none absolute top-1/2 z-[2] -translate-y-1/2 rounded-pill bg-bg-base/75 px-4 py-2 text-sm font-medium text-text-primary backdrop-blur-sm ${
+              seekFlash.dir === 1 ? 'right-[12%]' : 'left-[12%]'
+            }`}
+          >
+            {seekFlash.dir === 1 ? `+${PLAYER.seekStep}s` : `−${PLAYER.seekStep}s`}
+          </div>
+        )}
+
+        {/* §13.3 — thông báo trạng thái cho screen reader */}
+        <p aria-live="polite" className="sr-only">
+          {playing ? 'Đang phát' : 'Đã tạm dừng'} {title}
+        </p>
+
+        <PlayerControls
+          playing={playing}
+          currentTime={currentTime}
+          duration={duration}
+          buffered={buffered}
+          volume={volume}
+          muted={muted}
+          fullscreen={fullscreen}
+          pip={pip}
+          playbackRate={playbackRate}
+          levels={levels}
+          currentLevel={currentLevel}
+          autoLevel={autoLevel}
+          title={title}
+          visible={controlsShown}
+          compact={coarsePointer}
+          saveData={network.saveData}
+          onTogglePlay={togglePlay}
+          onSeek={seek}
+          onSkip={skip}
+          onVolume={changeVolume}
+          onToggleMute={toggleMute}
+          onToggleFullscreen={toggleFullscreen}
+          onTogglePip={togglePip}
+          onRate={changeRate}
+          onLevel={selectLevel}
+          onInteract={bumpControls}
+          onBack={onBack}
+          onNext={onNext}
+          nextLabel={nextLabel}
+        />
+      </div>
+
+      {/*
+        §10.5 — prompt tiếp tục xem, DƯỚI player chứ không đè lên mặt video.
+        Sai lệch có chủ đích so với §10.5, lý do là số đo: player 16:9 ở khổ 375
+        cao 193px, hai thanh điều khiển đã ăn gần hết, phần trống còn lại không
+        đủ cho một dải hỏi hai nút — bản cũ đặt `bottom-20` và nằm chồng lên
+        thanh tiêu đề (đo được: prompt 101→193, tiêu đề 110→130, hai khối chữ đè
+        nhau). Thu nhỏ hay dời chỗ đều chỉ đẩy va chạm sang chỗ khác vì chỗ
+        trống thật sự không có.
+
+        Ra ngoài khung thì hết va chạm ở MỌI khổ màn, và dùng lại đúng hình dạng
+        của dải đếm ngược auto-next ngay bên dưới (`WatchScreen`) — cùng một loại
+        thông báo thì trông giống nhau.
+      */}
+      {showResumePrompt && saved && (
+        <div className="flex flex-wrap items-center gap-3 rounded-card bg-bg-elevated p-3 text-sm">
+          <span className="text-text-secondary">Tiếp tục xem từ {formatTime(saved.position)}?</span>
+          <Button size="sm" variant="accent" onClick={resume}>
+            Tiếp tục
+          </Button>
+          <Button size="sm" variant="ghost" onClick={restart}>
+            Xem từ đầu
+          </Button>
         </div>
       )}
-
-      <PlayerControls
-        playing={playing}
-        currentTime={currentTime}
-        duration={duration}
-        buffered={buffered}
-        volume={volume}
-        muted={muted}
-        fullscreen={fullscreen}
-        pip={pip}
-        playbackRate={playbackRate}
-        levels={levels}
-        currentLevel={currentLevel}
-        autoLevel={autoLevel}
-        title={title}
-        visible={controlsShown}
-        compact={coarsePointer}
-        saveData={network.saveData}
-        onTogglePlay={togglePlay}
-        onSeek={seek}
-        onSkip={skip}
-        onVolume={changeVolume}
-        onToggleMute={toggleMute}
-        onToggleFullscreen={toggleFullscreen}
-        onTogglePip={togglePip}
-        onRate={changeRate}
-        onLevel={selectLevel}
-        onInteract={bumpControls}
-        onBack={onBack}
-        onNext={onNext}
-        nextLabel={nextLabel}
-      />
     </div>
   );
 }

@@ -207,6 +207,57 @@ describe('normalizeTaxonomyList / normalizeYears — §3.4', () => {
   });
 });
 
+/**
+ * Nguồn thật đã trả hai tập cùng `slug` (`tap-03` ở
+ * `nguoi-chay-xuyen-khong-gian-phan-2`) — React cảnh báo trùng key và danh sách
+ * chọn tập hiện đúng một tập hai lần.
+ */
+describe('normalizeDetail — tập trùng slug', () => {
+  const detailWith = (serverData: unknown[]) =>
+    normalizeDetail({
+      movie: { slug: 'phim-test', name: 'Phim test' },
+      episodes: [{ server_name: 'Vietsub', server_data: serverData }],
+    });
+
+  const ep = (name: string, slug: string, m3u8 = `https://cdn.test/${slug}.m3u8`) => ({
+    name,
+    slug,
+    link_m3u8: m3u8,
+    link_embed: '',
+  });
+
+  it('bỏ mục trùng, giữ mục ĐẦU', () => {
+    const { episodes } = detailWith([
+      ep('Tập 01', 'tap-01'),
+      ep('Tập 03', 'tap-03', 'https://cdn.test/dung.m3u8'),
+      ep('Tập 03', 'tap-03', 'https://cdn.test/trung.m3u8'),
+    ]);
+
+    expect(episodes[0]?.episodes.map((e) => e.slug)).toEqual(['tap-01', 'tap-03']);
+    expect(episodes[0]?.episodes[1]?.linkM3u8).toBe('https://cdn.test/dung.m3u8');
+  });
+
+  it('slug là thứ duy nhất tính trùng — tên khác nhau không cứu được', () => {
+    const { episodes } = detailWith([ep('Tập 03', 'tap-03'), ep('Tập 04', 'tap-03')]);
+    expect(episodes[0]?.episodes).toHaveLength(1);
+  });
+
+  /** `/xem/{phim}/` không phải một địa chỉ, và mọi mục rỗng slug đụng chung key. */
+  it('bỏ mục không có slug', () => {
+    const { episodes } = detailWith([ep('Tập 01', 'tap-01'), ep('Không tên', '')]);
+    expect(episodes[0]?.episodes.map((e) => e.slug)).toEqual(['tap-01']);
+  });
+
+  it('server chỉ còn mục rỗng slug thì biến mất luôn', () => {
+    expect(detailWith([ep('Không tên', '')]).episodes).toEqual([]);
+  });
+
+  it('danh sách không trùng thì giữ nguyên thứ tự', () => {
+    const { episodes } = detailWith([ep('Tập 01', 'tap-01'), ep('Tập 02', 'tap-02')]);
+    expect(episodes[0]?.episodes.map((e) => e.slug)).toEqual(['tap-01', 'tap-02']);
+  });
+});
+
 describe('fail mềm — §4.2 "field thiếu → mặc định an toàn, KHÔNG throw"', () => {
   const garbage = [null, undefined, 0, '', 'text', [], {}, { data: null }, { items: 'not-array' }];
 

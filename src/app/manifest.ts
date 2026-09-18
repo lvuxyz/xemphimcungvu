@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { SITE_NAME } from '@/lib/constants';
 
 /**
  * Web App Manifest — cho phép "Thêm vào màn hình chính" trên Android/iOS.
@@ -9,7 +10,7 @@ import type { MetadataRoute } from 'next';
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Xem phim cùng vũ',
+    name: SITE_NAME,
     short_name: 'XemPhim',
     description: 'Xem phim trực tuyến — phim bộ, phim lẻ, hoạt hình, TV shows.',
     start_url: '/',

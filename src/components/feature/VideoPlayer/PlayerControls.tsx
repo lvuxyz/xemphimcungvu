@@ -186,7 +186,17 @@ export function PlayerControls(props: PlayerControlsProps) {
       data-motion="fade"
       onPointerDown={onInteract}
     >
-      <div className="pointer-events-auto flex items-center gap-3 bg-gradient-to-b from-bg-base/80 to-transparent p-4 pb-8">
+      {/*
+        Đệm hẹp lại dưới `sm`. Player 16:9 ở khổ 375 chỉ cao 193px, mà hai thanh
+        với đệm của desktop cộng lại là 224px — phần thừa bị `overflow-hidden`
+        của khung xén mất, và thứ bị xén là ĐÁY HÀNG NÚT: đo được nút Phát /
+        Toàn màn hình nằm ở 164→212 trong khung cao 193, tức vùng chạm 48px chỉ
+        còn 29px, dưới mức 44px mà chính app này ép ở mọi chỗ khác.
+
+        `pb-8` / `pt-8` là quãng chạy của gradient cho chữ đọc được — giữ từ
+        `sm` trở lên, nơi player đủ cao để có chỗ cho nó.
+      */}
+      <div className="pointer-events-auto flex items-center gap-3 bg-gradient-to-b from-bg-base/80 to-transparent p-2 sm:p-4 sm:pb-8">
         {props.onBack && (
           <IconButton label="Thoát trình phát" size={compact ? 'lg' : 'md'} onClick={props.onBack}>
             <ArrowLeftIcon />
@@ -195,7 +205,7 @@ export function PlayerControls(props: PlayerControlsProps) {
         <p className="truncate text-sm font-medium text-text-primary drop-shadow">{title}</p>
       </div>
 
-      <div className="player-bar pointer-events-auto space-y-1 bg-gradient-to-t from-bg-base/90 to-transparent p-3 pt-8 sm:p-4">
+      <div className="player-bar pointer-events-auto space-y-1 bg-gradient-to-t from-bg-base/90 to-transparent p-2 sm:p-4 sm:pt-8">
         {/* Progress bar — buffered range riêng, kéo được, có tooltip thời gian */}
         <div
           ref={barRef}

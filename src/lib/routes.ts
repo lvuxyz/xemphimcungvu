@@ -78,6 +78,22 @@ export const routes = {
 } as const;
 
 /**
+ * URL này có đang đứng ở trang chi tiết một phim không?
+ *
+ * Chặt hơn `startsWith('/phim/')` một bậc: đúng MỘT đoạn sau `/phim`.
+ * `/phim/id/{id}`, `/phim/{slug}/gì-đó` cũng khớp tiền tố nhưng không phải
+ * trang chi tiết — cái đầu là route tra cứu rồi redirect.
+ *
+ * Dùng để modal chi tiết tự biết lúc nào mình hết phần (xem `DetailModal`).
+ */
+export function isDetailPath(pathname: string): boolean {
+  const prefix = `${PATH.detail}/`;
+  if (!pathname.startsWith(prefix)) return false;
+  const rest = pathname.slice(prefix.length);
+  return rest.length > 0 && !rest.includes('/');
+}
+
+/**
  * Trang để quay về khi không có lịch sử trong app để lùi lại (mở thẳng link chia
  * sẻ, hoặc tab mới). §2.3 — "nếu vào thẳng thì về /browse".
  */

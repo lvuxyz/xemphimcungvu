@@ -194,19 +194,46 @@ export function normalizeList(raw: unknown): MovieListResult {
 
 /* ---------------------------- public: detail ----------------------------- */
 
+/**
+ * Bỏ tập trùng slug trong cùng một server, giữ mục ĐẦU.
+ *
+ * API có lúc trả hai mục cùng `slug`: bắt được `tap-03` hai lần ở
+ * `nguoi-chay-xuyen-khong-gian-phan-2` (hôm sau nguồn tự sửa mục thứ hai thành
+ * `tap-04`). Hậu quả không dừng ở một dòng thừa trong danh sách chọn tập —
+ * React cảnh báo trùng key và được phép bỏ hoặc nhân đôi node.
+ *
+ * Giữ mục đầu vì không mất gì: slug là thứ duy nhất đi vào URL, nên hai mục
+ * trùng slug trỏ về đúng một trang, và `resolveEpisode` dù sao cũng chỉ trả về
+ * mục đầu. Mục thứ hai không có đường nào bấm tới được, chỉ để hiển thị sai.
+ *
+ * Mục không có slug cũng bỏ: `/xem/{phim}/` không phải một địa chỉ, và mọi mục
+ * rỗng slug sẽ đụng chung một key y hệt trường hợp trên.
+ */
+function dedupeEpisodes<T extends { slug: string }>(episodes: T[]): T[] {
+  const seen = new Set<string>();
+
+  return episodes.filter((ep) => {
+    if (ep.slug === '' || seen.has(ep.slug)) return false;
+    seen.add(ep.slug);
+    return true;
+  });
+}
+
 function normalizeEpisodes(raw: unknown): EpisodeServer[] {
   return arr<RawEpisodeServer>(raw)
     .map((server) => ({
       serverName: str(server?.server_name, 'Server'),
-      episodes: arr<RawEpisodeItem>(server?.server_data)
-        .map((ep) => ({
-          name: str(ep?.name),
-          slug: str(ep?.slug),
-          filename: str(ep?.filename),
-          linkEmbed: str(ep?.link_embed),
-          linkM3u8: str(ep?.link_m3u8),
-        }))
-        .filter((ep) => ep.linkM3u8 !== '' || ep.linkEmbed !== ''),
+      episodes: dedupeEpisodes(
+        arr<RawEpisodeItem>(server?.server_data)
+          .map((ep) => ({
+            name: str(ep?.name),
+            slug: str(ep?.slug),
+            filename: str(ep?.filename),
+            linkEmbed: str(ep?.link_embed),
+            linkM3u8: str(ep?.link_m3u8),
+          }))
+          .filter((ep) => ep.linkM3u8 !== '' || ep.linkEmbed !== ''),
+      ),
     }))
     .filter((server) => server.episodes.length > 0);
 }

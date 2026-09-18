@@ -1,5 +1,19 @@
 /** Hằng số dùng chung cho tầng data access (§3, §11, §14). */
 
+/**
+ * Tên site, và cách ghép nó vào `<title>`.
+ *
+ * Phải để một chỗ vì có HAI nơi dựng title và chúng BẮT BUỘC ra cùng kết quả:
+ * `metadata.title.template` của layout gốc (đường tải cứng) và modal chi tiết
+ * tự set `document.title` (đường điều hướng mềm — metadata của Next không với
+ * tới được parallel slot, xem `DetailModal`). Lệch nhau thì cùng một URL cho ra
+ * hai cái tên khác nhau tuỳ người dùng đến bằng đường nào.
+ */
+export const SITE_NAME = 'Xem phim cùng vũ';
+
+/** Ghép theo đúng `template: '%s · <site>'` của layout gốc. */
+export const pageTitle = (title: string) => `${title} · ${SITE_NAME}`;
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://phimapi.com';
 
 /** CDN ảnh mặc định khi response không trả `APP_DOMAIN_CDN_IMAGE` (§4.2). */

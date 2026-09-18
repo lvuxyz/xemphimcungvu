@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { DetailContent } from '@/components/feature/DetailModal/DetailContent';
 import { getDetail, getMovieBundle, getRelated, nullOn404 } from '@/lib/endpoints';
 import { toPlainText } from '@/lib/sanitize';
+import { movieTitle } from '@/lib/derive';
 
 interface Props {
   params: { slug: string };
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = toPlainText(movie.content, 160);
 
   return {
-    title: `${movie.name}${movie.year > 0 ? ` (${movie.year})` : ''}`,
+    title: movieTitle(movie),
     description,
     openGraph: {
       title: movie.name,

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Be_Vietnam_Pro } from 'next/font/google';
-import { IMAGE_CDN } from '@/lib/constants';
+import { IMAGE_CDN, SITE_NAME } from '@/lib/constants';
 import type { ReactNode } from 'react';
 import { Navbar } from '@/components/feature/Navbar/Navbar';
 import { ToastViewport } from '@/components/ui/Toast';
@@ -30,8 +30,8 @@ const beVietnamPro = Be_Vietnam_Pro({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Xem phim cùng vũ',
-    template: '%s · Xem phim cùng vũ',
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
   },
   description: 'Xem phim trực tuyến — phim bộ, phim lẻ, hoạt hình, TV shows.',
   metadataBase: new URL('https://xemphimcungvu.local'),

@@ -155,6 +155,17 @@ export function resolveEpisode<T extends { slug: string; name: string }>(
   return list[0];
 }
 
+/**
+ * Tên phim dùng cho `<title>` — `Tên (2026)`, bỏ phần năm khi API không trả.
+ *
+ * Dùng chung cho `generateMetadata` của trang full và cho modal tự set title:
+ * `/phim/{slug}` phải cho ra đúng một cái tên, dù người dùng F5 vào thẳng hay
+ * bấm từ một card ở trang chủ.
+ */
+export function movieTitle(m: Pick<Movie, 'name' | 'year'>): string {
+  return m.year > 0 ? `${m.name} (${m.year})` : m.name;
+}
+
 /** Trích video id từ link YouTube trong `trailerUrl`; `null` nếu không nhận ra. */
 export function youtubeId(url: string): string | null {
   if (!url) return null;

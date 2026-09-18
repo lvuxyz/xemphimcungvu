@@ -278,6 +278,139 @@ trước khi nối API là 165 kB, bỏ chỉ mục tìm kiếm tĩnh trả lạ
 Framer Motion (~50 kB), thứ §9.1 yêu cầu. Nếu cần cắt thêm: `VideoPlayer` đã
 code-split sẵn, bước tiếp theo là split `DetailModal`.
 
+### Modal chi tiết dính lại trên trang phát
+
+Mở modal một phim từ trang chủ rồi bấm **Phát**: URL đổi sang `/xem/{slug}/{ep}`,
+`<title>` đổi thành "— Tập 01", `<video>` đã có trong DOM và đang chạy — nhưng
+modal chi tiết vẫn nằm nguyên trên cùng, che kín màn hình xem phim. Đo lúc đứng ở
+trang phát: `document.querySelectorAll('[role=dialog]').length === 1`,
+`document.body.style.overflow === 'hidden'` (scroll vẫn bị khoá).
+
+Không riêng nút Phát. Mọi lối ra khỏi modal bằng điều hướng mềm đều dính: bấm một
+tập ở "Chọn tập", bấm chip từ khoá sang `/tim-kiem`. Nguyên nhân là hành vi có
+ghi trong tài liệu Next (Parallel Routes, mục *Soft Navigation*): điều hướng mềm
+sang route mà một slot không khớp thì slot đó **giữ nguyên** nội dung đang hoạt
+động. `children` đổi sang trang phát, `@modal` thì vẫn là `(.)phim/[slug]`.
+
+Hai cách thường được mách nhau đều không ăn:
+
+| Thử | Kết quả |
+|---|---|
+| `@modal/default.tsx` trả null | Đã có sẵn từ đầu — chỉ được hỏi tới ở lần tải CỨNG |
+| `@modal/[...catchAll]/page.tsx` trả null | Dev log in `Compiling /[...catchAll]`, modal vẫn dính — client không hỏi lại slot |
+
+Nên chặn ở chính component: `DetailModal` đọc `usePathname()`, không còn là
+đường dẫn chi tiết thì trả null. Tháo cả cây chứ không phải ẩn đi — effect dọn
+dẹp chạy theo nên scroll lock nhả ra, bẫy focus và phím ESC gỡ đi. Bấm Back từ
+trang phát thì slot được khôi phục, `pathname` khớp lại, modal hiện ra như cũ.
+
+Phép so nằm ở `isDetailPath()` trong `lib/routes.ts` chứ không phải
+`startsWith('/phim/')` rải trong component: `/phim/id/{id}` cũng khớp tiền tố mà
+lại là route tra cứu rồi redirect. Đúng MỘT đoạn sau `/phim` mới tính.
+
+Đo lại sau khi sửa, đứng ở `/xem/{slug}/tap-01`: `dialog 0`, `video 1`,
+`body.style.overflow` rỗng.
+
+#### Rà lại toàn bộ lối ra vào modal
+
+Lỗi trên chỉ lộ ở nút Phát, nhưng nguyên nhân nằm ở tầng route nên phải đi hết
+mọi cặp (điều hướng mềm) × (màn nền). Đo bằng
+`document.querySelectorAll('[role=dialog]').length` ngay sau khi điều hướng xong:
+
+| Lối đi | Trước | Sau |
+|---|---|---|
+| modal → **Phát** → `/xem/{slug}/{ep}` | dialog 1 đè player | dialog 0 |
+| modal → chọn một tập → `/xem/…` | dialog 1 | dialog 0 |
+| modal → chip từ khoá → `/tim-kiem` | dialog 1 | dialog 0 |
+| modal → phim liên quan → `/phim/{khác}` | đổi nội dung tại chỗ | giữ nguyên |
+| modal → ESC / ✕ / bấm nền | về trang nền | giữ nguyên |
+| Back từ trang phát → `/phim/{slug}` | modal hiện lại | giữ nguyên |
+| Forward trở lại modal | modal hiện lại | giữ nguyên |
+| tải cứng `/phim/{slug}` | trang full | giữ nguyên |
+| trang phát → navbar → `/danh-sach/{type}` | player tháo sạch | giữ nguyên |
+| trang phát → gợi ý tìm kiếm → `/phim/{slug}` | đi cứng, ra trang full | giữ nguyên |
+
+Đi hết trên bốn màn nền — trang chủ, `/danh-sach/{type}`, `/tim-kiem`, và màn
+375×812 — cùng một kết quả. `body.style.overflow` nhả về rỗng ở mọi lối ra.
+
+### `<title>` không đi theo modal
+
+Rà cái trên thì lộ ra người anh em cùng gốc: URL đổi mà phần đầu trang thì không.
+Đứng ở `/phim/te-cong-hang-long-tru-yeu` với modal đang mở, tab vẫn đề
+`Phim bộ · Xem phim cùng vũ` — tên của trang NỀN. Mục lịch sử của URL đó cũng
+được ghi bằng cái tên sai ấy, và F5 thì lại ra tên đúng: cùng một URL, hai cái
+tên, tuỳ người dùng đến bằng đường nào.
+
+Cùng một nguyên nhân: metadata của Next chỉ đọc theo nhánh `children`, slot
+không có phần. Thử `generateMetadata` trong `@modal/(.)phim/[slug]/page.tsx` thì
+còn tệ hơn — MỌI route slot không khớp lăn ra 404 (`/danh-sach/phim-bo` trả 404
+ngay ở lần tải cứng). Đã gỡ.
+
+Nên modal tự set `document.title`, và lúc tháo chỉ trả lại tên cũ khi KHÔNG ai
+đổi title sau mình — bấm Phát thì Next đã kịp đặt tên trang phát trước khi
+cleanup chạy, trả về lúc đó là dán ngược tên cũ đè lên tên đúng.
+
+Hai nơi dựng title phải ra cùng kết quả, nên phần chung tách ra dùng lại:
+`SITE_NAME` + `pageTitle()` (`lib/constants.ts`) và `movieTitle()`
+(`lib/derive.ts`) — cái sau dùng luôn cho `generateMetadata` của trang full.
+
+| Đứng ở | Trước | Sau |
+|---|---|---|
+| modal mở từ `/danh-sach/phim-bo` | `Phim bộ · …` | `Người Chạy Xuyên Không Gian (Phần 2) (2026) · …` |
+| đổi sang phim liên quan | không đổi | đổi theo phim mới |
+| bấm Phát sang trang phát | `— Tập 01 · …` | `— Tập 01 · …` (không bị đè) |
+| ESC về trang nền | `Phim bộ · …` | `Phim bộ · …` |
+| tải cứng `/phim/{slug}` | đúng sẵn | giữ nguyên, cùng một chuỗi |
+
+---
+
+## Ba lỗi trên màn hình xem phim
+
+Rà lỗi modal thì đi qua trang phát ở khổ 375 và nhặt thêm được ba thứ.
+
+### 1. Danh sách tập hiện một tập hai lần
+
+`Tập 01 · Tập 02 · Tập 03 · Tập 03`, kèm cảnh báo trong console: *"Encountered
+two children with the same key … tap-03"*. Nguồn trả hai mục cùng `slug` — hôm
+sau chính nguồn tự sửa mục thứ hai thành `tap-04`, nên đây là lỗi dữ liệu thoáng
+qua, loại sẽ còn quay lại.
+
+Không chỉ là một dòng thừa: React được phép bỏ hoặc nhân đôi node khi key trùng.
+`normalizeEpisodes` giờ lọc trùng theo slug, giữ mục ĐẦU — không mất gì, vì slug
+là thứ duy nhất đi vào URL nên hai mục trùng trỏ về đúng một trang, và
+`resolveEpisode` dù sao cũng chỉ trả mục đầu. Mục rỗng slug cũng bỏ:
+`/xem/{phim}/` không phải một địa chỉ. Tab chọn server đổi sang key theo vị trí,
+vì tên server cũng do API đặt và cũng không có gì bảo đảm là duy nhất.
+
+### 2. Nút điều khiển bị xén cụt ở khổ điện thoại
+
+Player 16:9 ở khổ 375 chỉ cao **193px**, mà hai thanh điều khiển với đệm của
+desktop cộng lại là **224px**. Phần thừa rơi ra ngoài và bị `overflow-hidden` của
+khung cắt mất — thứ bị cắt là đáy hàng nút: đo được nút Phát / Toàn màn hình nằm
+ở `164→212` trong khung cao `193`, tức vùng chạm 48px **chỉ còn 29px**, dưới mức
+44px mà chính app này ép ở mọi chỗ khác.
+
+Đệm hẹp lại dưới `sm` (`p-2`), giữ nguyên `pb-8`/`pt-8` từ `sm` trở lên nơi
+player đủ cao cho quãng chạy gradient. Đo lại: 375 → nút thấp nhất cách đáy 8px;
+768 và desktop → 16px.
+
+### 3. Prompt "Tiếp tục xem" đè lên thanh tiêu đề
+
+Cùng gốc với lỗi trên: `bottom-20` là con số chọn cho player cao của desktop. Ở
+375, prompt chiếm `101→193` còn thanh tiêu đề `110→130` — hai khối chữ nằm chồng
+lên nhau.
+
+Thu nhỏ hay dời chỗ đều chỉ đẩy va chạm sang chỗ khác: trừ hai thanh ra, khoảng
+trống thật sự trong một player cao 193px không đủ cho một dải hỏi kèm hai nút.
+Nên prompt ra hẳn ngoài khung, nằm **dưới** player — hết va chạm ở mọi khổ màn,
+và dùng lại đúng hình dạng của dải đếm ngược auto-next ngay bên dưới nó.
+
+⚠️ Đây là **sai lệch có chủ đích so với §10.5** (spec mô tả prompt đè lên mặt
+video). Đổi lại: trong chế độ toàn màn hình prompt không hiện — chấp nhận được,
+vì nó chỉ xuất hiện lúc mới vào tập, trước khi người xem bật toàn màn hình.
+
+---
+
 ---
 
 ## Sai lệch so với tài liệu
