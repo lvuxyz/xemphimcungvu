@@ -154,8 +154,26 @@ interface WatchIndex {
 }
 
 let indexCache: WatchIndex | null = null;
+let listeningAcrossTabs = false;
 
 const emptyIndex = (): WatchIndex => ({ v: WATCH_INDEX_VERSION, entries: [] });
+
+/**
+ * Tab khác ghi index thì bản trong RAM ở tab này thành SAI — và lượt ghi kế tiếp
+ * của tab này lấy bản cũ ghi đè lên, làm bay entry vừa thêm ở tab kia. Xem hai
+ * tập song song trên hai tab là chuyện thường ở phim bộ.
+ *
+ * `storage` chỉ bắn ở những tab KHÁC tab vừa ghi, nên nghe nó rồi bỏ cache là đủ:
+ * lượt đọc sau tự nạp lại. `key === null` là `localStorage.clear()`.
+ */
+function listenAcrossTabs(): void {
+  if (listeningAcrossTabs || typeof window === 'undefined') return;
+  listeningAcrossTabs = true;
+
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || event.key === PREFIX.watchIndex) indexCache = null;
+  });
+}
 
 /** Mới nhất trước — thứ tự này là ý nghĩa của index, không phải chi tiết hiển thị. */
 const byRecency = (entries: WatchIndexEntry[]): WatchIndexEntry[] =>
@@ -305,11 +323,23 @@ function rebuildIndex(cutoff: number): WatchIndex {
 }
 
 function writeIndex(index: WatchIndex): void {
-  if (safeStorage()) indexCache = index;
-  writeJson(PREFIX.watchIndex, index);
+  if (!safeStorage()) return;
+  indexCache = index;
+
+  /**
+   * Ghi trượt (hết quota) thì RAM không được phép tin là đã ghi: bỏ cache để lượt
+   * đọc sau nạp lại đúng thứ đang có trong storage. Cache "lạc quan" ở đây nghĩa
+   * là index nhớ một phim mà storage không có, và key `watch:` của phim đó thành
+   * mồ côi — không entry nào trỏ tới để mà dọn.
+   */
+  if (!writeJson(PREFIX.watchIndex, index)) indexCache = null;
 }
 
 function readIndex(): WatchIndex {
+  // Storage không dùng được thì không có gì để đọc, mà cũng không có gì để nhớ.
+  if (!safeStorage()) return emptyIndex();
+
+  listenAcrossTabs();
   if (indexCache) return indexCache;
 
   const raw = readJson<Partial<WatchIndex> | null>(PREFIX.watchIndex, null);
@@ -321,7 +351,7 @@ function readIndex(): WatchIndex {
         raw.entries.map(sanitizeEntry).filter((e): e is WatchIndexEntry => e !== null),
       ),
     };
-    if (safeStorage()) indexCache = index;
+    indexCache = index;
     return index;
   }
 
@@ -332,42 +362,41 @@ function readIndex(): WatchIndex {
   return rebuilt;
 }
 
-/** Cắt bớt tập cũ nhất khi một phim có quá nhiều tập dở dang. */
-function capEps(entry: WatchIndexEntry): void {
-  const eps = Object.entries(entry.eps);
-  if (eps.length <= WATCH_EPS_LIMIT) return;
+/**
+ * Giữ `WATCH_EPS_LIMIT` tập mới nhất, xoá key của những tập bị cắt. Trả về một
+ * record MỚI, không sửa cái được truyền vào — xem chú thích ở `upsertIndex`.
+ */
+function capEps(slug: string, eps: Record<string, WatchTuple>): Record<string, WatchTuple> {
+  const sorted = Object.entries(eps).sort((a, b) => b[1][2] - a[1][2]);
+  if (sorted.length <= WATCH_EPS_LIMIT) return eps;
 
-  eps
-    .sort((a, b) => b[1][2] - a[1][2])
-    .slice(WATCH_EPS_LIMIT)
-    .forEach(([ep]) => {
-      delete entry.eps[ep];
-      removeKey(watchKey(entry.slug, ep));
-    });
+  sorted.slice(WATCH_EPS_LIMIT).forEach(([ep]) => removeKey(watchKey(slug, ep)));
+  return Object.fromEntries(sorted.slice(0, WATCH_EPS_LIMIT));
 }
 
 function upsertIndex(slug: string, ep: string, tuple: WatchTuple, snapshot?: WatchSnapshot): void {
   const index = readIndex();
   const current = index.entries.find((e) => e.slug === slug);
 
-  const entry: WatchIndexEntry = current ?? {
+  /**
+   * Entry MỚI chứ không sửa tại chỗ.
+   *
+   * `readWatchIndex()` trả ra đúng những object đang nằm trong cache, và nơi gọi
+   * là React (row "Tiếp tục xem" giữ chúng trong state, so sánh bằng tham chiếu).
+   * Sửa tại chỗ thì nội dung đổi mà tham chiếu không đổi: màn hình giữ nguyên số
+   * cũ, hoặc đổi lặng lẽ ở một lượt render sau vì lý do không liên quan.
+   *
+   * `snapshot` không có thì GIỮ cái cũ: xem tiếp tập 2 vẫn còn poster đã lưu từ
+   * tập 1, và entry dựng lại từ key cũ (`snapshot: null`) được bù ngay lượt ghi
+   * đầu tiên từ trang phát.
+   */
+  const entry: WatchIndexEntry = {
     slug,
     lastEp: ep,
-    eps: {},
+    eps: capEps(slug, { ...current?.eps, [ep]: tuple }),
     updatedAt: tuple[2],
-    snapshot: null,
+    snapshot: sanitizeSnapshot(snapshot) ?? current?.snapshot ?? null,
   };
-
-  entry.eps[ep] = tuple;
-  entry.lastEp = ep;
-  entry.updatedAt = tuple[2];
-  /**
-   * Không có snapshot mới thì GIỮ cái cũ: xem tiếp tập 2 vẫn còn poster đã lưu
-   * từ tập 1, và entry dựng lại từ key cũ (`snapshot: null`) tự được bù ngay lần
-   * ghi đầu tiên từ trang phát.
-   */
-  if (snapshot) entry.snapshot = snapshot;
-  capEps(entry);
 
   const rest = index.entries.filter((e) => e.slug !== slug);
   const ordered = [entry, ...rest];
@@ -410,9 +439,14 @@ export function getMovieProgress(slug: string): Record<string, number> {
   return ratios;
 }
 
-/** Danh sách phim đang xem, mới nhất trước — nguồn cho row "Tiếp tục xem". */
+/**
+ * Danh sách phim đang xem, mới nhất trước — nguồn cho row "Tiếp tục xem".
+ *
+ * Trả mảng copy: nơi gọi `sort`/`splice` trên kết quả sẽ đảo luôn cache trong RAM
+ * nếu trả thẳng mảng gốc.
+ */
 export function readWatchIndex(): WatchIndexEntry[] {
-  return readIndex().entries;
+  return [...readIndex().entries];
 }
 
 export function setWatchProgress(
@@ -500,7 +534,12 @@ export function pruneWatchProgress(ttlDays: number = WATCH_PROGRESS_TTL_DAYS): n
       kept.push({ ...entry, eps: fresh, lastEp: newest[0], updatedAt: newest[1][2] });
     }
 
-    writeIndex({ v: WATCH_INDEX_VERSION, entries: kept });
+    /**
+     * Sắp lại: `updatedAt` của một entry có thể TỤT khi đúng tập mới nhất của nó
+     * là tập hết hạn, nên thứ tự "mới nhất trước" mà cả index dựa vào không còn
+     * đúng sau vòng lặp trên.
+     */
+    writeIndex({ v: WATCH_INDEX_VERSION, entries: byRecency(kept) });
     return removed;
   } finally {
     pruning = false;

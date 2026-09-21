@@ -50,12 +50,24 @@ async function freshModule(seed: Record<string, unknown> = {}) {
   const fake = fakeStorage();
   for (const [key, value] of Object.entries(seed)) fake.data.set(key, JSON.stringify(value));
 
-  vi.stubGlobal('window', { localStorage: fake.store });
+  const listeners: Record<string, ((event: { key: string | null }) => void)[]> = {};
+
+  vi.stubGlobal('window', {
+    localStorage: fake.store,
+    addEventListener(type: string, fn: (event: { key: string | null }) => void) {
+      (listeners[type] ??= []).push(fn);
+    },
+  });
   vi.resetModules();
   const storage = await import('@/lib/storage');
 
   fake.reset();
-  return { storage, ...fake };
+
+  /** Giả lập một tab KHÁC vừa ghi vào storage. */
+  const emitStorage = (key: string | null) =>
+    (listeners['storage'] ?? []).forEach((fn) => fn({ key }));
+
+  return { storage, emitStorage, ...fake };
 }
 
 const progress = (position: number, duration: number, ageDays = 0) => ({
@@ -261,6 +273,54 @@ describe('clearWatchProgress', () => {
 
     expect(storage.readWatchIndex()).toHaveLength(0);
     expect(data.has('watch:phim-a:tap-01')).toBe(false);
+  });
+});
+
+describe('cache trong RAM', () => {
+  /**
+   * Hai tab cùng xem: tab kia ghi index, tab này phải bỏ bản cũ. Không bỏ thì
+   * lượt ghi kế tiếp của tab này ghi đè, và phim tab kia vừa xem biến mất khỏi
+   * "Tiếp tục xem".
+   */
+  it('bỏ cache khi tab khác ghi index', async () => {
+    const { storage, data, emitStorage } = await freshModule();
+
+    storage.setWatchProgress('phim-a', 'tap-01', 10, 1400);
+    expect(storage.readWatchIndex().map((e) => e.slug)).toEqual(['phim-a']);
+
+    // Tab khác thêm phim B rồi phát tín hiệu.
+    const other = JSON.parse(data.get('watch-index') as string);
+    other.entries.unshift({
+      slug: 'phim-b',
+      lastEp: 'tap-01',
+      eps: { 'tap-01': [20, 1400, Date.now() + 1000] },
+      updatedAt: Date.now() + 1000,
+      snapshot: null,
+    });
+    data.set('watch-index', JSON.stringify(other));
+    emitStorage('watch-index');
+
+    expect(storage.readWatchIndex().map((e) => e.slug)).toEqual(['phim-b', 'phim-a']);
+
+    // Và lượt ghi sau của tab này KHÔNG được xoá phim B.
+    storage.setWatchProgress('phim-a', 'tap-02', 30, 1400);
+    expect(storage.readWatchIndex().map((e) => e.slug)).toContain('phim-b');
+  });
+
+  /** Row "Tiếp tục xem" giữ entry trong React state và so bằng tham chiếu. */
+  it('không sửa entry đã trả ra trước đó', async () => {
+    const { storage } = await freshModule();
+
+    storage.setWatchProgress('phim-a', 'tap-01', 100, 1400);
+    const before = storage.readWatchIndex()[0];
+
+    storage.setWatchProgress('phim-a', 'tap-02', 200, 1400);
+    const after = storage.readWatchIndex()[0];
+
+    expect(before).not.toBe(after);
+    expect(before?.lastEp).toBe('tap-01');
+    expect(Object.keys(before?.eps ?? {})).toEqual(['tap-01']);
+    expect(after?.lastEp).toBe('tap-02');
   });
 });
 
