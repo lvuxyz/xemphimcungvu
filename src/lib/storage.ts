@@ -490,6 +490,22 @@ export function clearWatchProgress(slug: string, ep: string): void {
 }
 
 /**
+ * Gỡ hẳn một phim khỏi "đang xem": xoá entry và mọi key tập của nó.
+ *
+ * Người xem phải gỡ được thứ họ không muốn thấy nữa — máy dùng chung trong gia
+ * đình là chuyện thường, và một phim bỏ giữa chừng không có nghĩa là muốn bị hỏi
+ * lại mãi. Đây là hành động một chiều, khác `clearWatchProgress` (một tập).
+ */
+export function forgetMovie(slug: string): void {
+  const index = readIndex();
+  const entry = index.entries.find((e) => e.slug === slug);
+  if (!entry) return;
+
+  dropEntryKeys(entry);
+  writeIndex({ v: WATCH_INDEX_VERSION, entries: index.entries.filter((e) => e.slug !== slug) });
+}
+
+/**
  * `writeJson` gọi `pruneWatchProgress` khi hết quota, mà `writeIndex` lại đi qua
  * `writeJson` — thiếu cờ này thì một lần hết quota là đệ quy không đáy.
  */

@@ -566,6 +566,68 @@ iframe load, nếu không YouTube không bao giờ gửi message về.
 
 ---
 
+## Cá nhân hoá cho người xem
+
+Nguyên tắc nền: **HTML từ server vẫn là một bản dùng chung cho mọi người.** Trang
+chủ là ISR 300s và cả CDN dùng chung một bản; chạm `cookies()` trong RSC để biết
+người nào đang xem là mất full-route cache cho *mọi* khách, kể cả người mới. Còn
+PPR — cách của Next cho đúng chuyện "vỏ tĩnh, lỗ động" — thì bản 14.2.35 đang pin
+ném lỗi, nó chỉ bật được trên canary. Nên mọi thứ mang tính cá nhân chạy ở client,
+sau paint, và chỉ ở những chỗ HTML đó vốn còn trống.
+
+**Index tiến độ xem** (`lib/storage.ts`). Một key `watch-index` giữ danh sách phim
+đang xem: tập nào, tới đâu, kèm ảnh chụp đủ để vẽ card (tên, poster, thumb, tập).
+Đọc một lần rồi giữ trong RAM cho cả phiên.
+
+| | Trước | Sau |
+|---|---|---|
+| Khởi động app, đã xem 200 tập | 200 `getItem` + 200 `JSON.parse` đồng bộ | 1 + 1 |
+| Mở sidebar một bộ 40 tập | 40 `getItem` (mỗi lần đổi server thêm 40) | 0 |
+| Mỗi `readJson` | 1 `setItem` + 1 `removeItem` thăm dò | 0 |
+
+Index là CACHE, không phải nguồn sự thật: `watch:{slug}:{ep}` vẫn là bản ghi bền
+của từng tập và index dựng lại được từ chúng. Mất index thì mất thứ tự "gần đây" và
+snapshot, không mất vị trí đang xem của ai. Người đã dùng app từ trước chịu đúng
+MỘT lượt quét localStorage, ở lần mở đầu tiên sau khi cập nhật, để gom key cũ vào.
+
+⚠️ Key tên `watch-index` chứ không `watch:index`: mọi vòng quét theo tiền tố
+`watch:` sẽ coi nó là một key tiến độ, thấy `updatedAt` không hợp lệ rồi xoá sạch.
+
+**Row "Tiếp tục xem"** — dựng hoàn toàn từ localStorage, KHÔNG một request nào. Đây
+là phần thu lãi của snapshot: không có nó thì row phải gọi `/phim/{slug}` cho từng
+phim, mấy request nối tiếp ngay trên màn hình đầu — đúng thứ §11.2 cấm.
+
+**Chống CLS bằng một script đồng bộ.** Row chỉ dựng được ở client, nên chèn nó lúc
+hydrate là đẩy cả "Mới cập nhật" xuống — mà row đó đang trong viewport. Cách đi:
+một script ~200 byte đứng TRƯỚC chỗ chừa trong HTML, đọc `watch-index` và đánh dấu
+`<html data-continue-watching>`; CSS `.continue-slot` lấy dấu đó để chừa sẵn chiều
+cao ngay lượt vẽ đầu. Khách mới không có dấu → không chừa gì, không thấy khoảng
+trống nào. Điều kiện trong script phải khớp CHÍNH XÁC bộ lọc của row (cùng ngưỡng
+`PLAYER.resumeMinPosition`), nếu không chỗ chừa hiện ra rồi xẹp lại.
+
+Vì script đặt attribute trước khi React hydrate, `<html>` phải có
+`suppressHydrationWarning` — cùng cách next-themes chống nháy theme.
+
+**Nút hero đổi nhãn** "Phát" → "Tiếp tục", href mang theo `?t=`. Nhãn dài hơn thì
+đẩy nút bên cạnh, nên: `sm:min-w` chừa sẵn cho nhãn dài từ 640px lên, và nhãn phụ
+ngắn lại ở khổ điện thoại để cả hai nhãn còn chỗ trên một dòng. Đo ở 360px: khối
+nút chỉ rộng 331px mà "Phát" + "Thông tin khác" đã chiếm 303px — thiếu hai việc đó
+là nút thứ hai rơi xuống dòng, dịch 60px. Nhãn cũng KHÔNG mang số tập vì
+"Tiếp tục Tập 12" rộng gần gấp đôi "Phát"; số tập và thời gian còn lại nằm ở row.
+
+**Vạch tiến độ trên card** (`MovieCard`) đọc từ store dùng chung chứ không tự đọc
+storage: trang chủ hơn trăm card, mỗi card tự đọc là hơn trăm lượt chạm đồng bộ
+ngay lúc hydrate. Vạch `absolute` ở đáy ảnh nên xuất hiện mà không dịch gì.
+
+Đo thật trên dev server, trang chủ ở 360px và 1280px, cả hai trạng thái (có và
+không có phim đang xem): **CLS 0 – 0.001**, và ở `scrollY = 0` vẫn KHÔNG có request
+nào từ client — mốc của §11.2 còn nguyên.
+
+Chưa làm: ngưỡng trọng số sở thích để đổi thứ tự 10 row lazy và row
+"Vì bạn đã xem X" (xem "Việc tiếp theo").
+
+---
+
 ## Thích ứng mạng và thiết bị
 
 Toàn bộ phần "nặng" của app tự co giãn theo hoàn cảnh chạy thật, thay vì phục vụ
@@ -651,6 +713,9 @@ poisoning ở tầng server). Lên Next 16 sẽ sạch nhưng đổi stack so v�
 
 ## Việc tiếp theo
 
+- [ ] Cá nhân hoá bước 3: trọng số sở thích (`profile:v1`) → đổi thứ tự 10 row lazy,
+      row "Vì bạn đã xem X" bằng `ListSource` sẵn có, prefetch idle một route
+- [ ] Toggle tắt cá nhân hoá + nút xoá dữ liệu (máy dùng chung trong gia đình)
 - [ ] Virtualize item trong row — hiện mới lazy-mount cả row, chưa cắt theo ±1 viewport (§8.3)
 - [ ] Audit Lighthouse a11y ≥ 95 và hiệu năng (Phụ lục B)
 - [ ] Test trên Safari — native HLS đi đường khác Chrome (Phụ lục B)

@@ -99,7 +99,19 @@ export default async function RootLayout({
   const { categories, countries, years } = await getTaxonomies();
 
   return (
-    <html lang="vi" className={beVietnamPro.variable}>
+    /**
+     * `suppressHydrationWarning` ở ĐÂY, và chỉ ở đây.
+     *
+     * Script chừa chỗ cho row "Tiếp tục xem" (`continue-probe.ts`) đặt
+     * `data-continue-watching` lên `<html>` TRƯỚC khi React hydrate — đó là mục
+     * đích của nó: chỗ chừa phải có mặt ngay lượt vẽ đầu. React thấy một attribute
+     * mà HTML từ server không có, và cảnh báo "Extra attributes from the server"
+     * ở mọi lần tải trang.
+     *
+     * Cờ này chỉ tắt cảnh báo cho đúng thẻ `<html>` (cách next-themes và mọi bản
+     * chống nháy theme đều dùng), không lan xuống cây con.
+     */
+    <html lang="vi" className={beVietnamPro.variable} suppressHydrationWarning>
       <head>
         {/*
           Bắt tay TLS với CDN ảnh tốn 2 vòng round-trip. Mở sẵn ngay khi HTML về

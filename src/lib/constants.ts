@@ -89,6 +89,18 @@ export const PLAYER = {
   volumeStep: 0.05,
   controlsAutoHide: 3_000,
   progressSaveInterval: 5_000,
+  /**
+   * Giây — dưới mốc này thì coi như chưa xem gì.
+   *
+   * Dùng ở BA chỗ và bắt buộc phải là một số: prompt "Tiếp tục xem từ…" của trình
+   * phát, row "Tiếp tục xem", và script chừa chỗ chạy trước lượt vẽ đầu. Lệch nhau
+   * thì trang chủ mời "Tiếp tục" xong trình phát mở từ đầu mà không hỏi gì, hoặc
+   * chỗ chừa xuất hiện rồi xẹp lại vì row quyết định không hiện.
+   *
+   * Lượt ghi đầu tiên của mỗi tập rơi vào khoảng 0.2s (trình phát ghi ngay ở
+   * `timeupdate` đầu), nên KHÔNG có mốc này thì mọi tập từng mở đều thành "đang xem".
+   */
+  resumeMinPosition: 5,
   /** Xem đủ 95% coi như đã hoàn tất (§10.5). */
   completedThreshold: 0.95,
   autoNextCountdown: 10,

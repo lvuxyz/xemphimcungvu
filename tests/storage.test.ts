@@ -230,6 +230,30 @@ describe('setWatchProgress', () => {
   });
 });
 
+describe('forgetMovie', () => {
+  it('xoá cả entry và mọi key tập của phim đó', async () => {
+    const { storage, data } = await freshModule({
+      'watch:phim-a:tap-01': progress(700, 1400),
+      'watch:phim-a:tap-05': progress(100, 1400),
+      'watch:phim-b:tap-01': progress(100, 1400),
+    });
+
+    storage.forgetMovie('phim-a');
+
+    expect(storage.readWatchIndex().map((e) => e.slug)).toEqual(['phim-b']);
+    expect(data.has('watch:phim-a:tap-01')).toBe(false);
+    expect(data.has('watch:phim-a:tap-05')).toBe(false);
+    expect(data.has('watch:phim-b:tap-01')).toBe(true);
+  });
+
+  it('phim không có trong index thì không làm gì', async () => {
+    const { storage } = await freshModule({ 'watch:phim-a:tap-01': progress(700, 1400) });
+
+    expect(() => storage.forgetMovie('khong-ton-tai')).not.toThrow();
+    expect(storage.readWatchIndex()).toHaveLength(1);
+  });
+});
+
 describe('getMovieProgress', () => {
   it('trả tỉ lệ của mọi tập đã xem trong phim, không chạm storage ở lượt sau', async () => {
     const { storage, calls } = await freshModule({

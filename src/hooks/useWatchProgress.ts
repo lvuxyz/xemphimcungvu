@@ -56,7 +56,9 @@ export function useWatchProgress(
     if (!slug || !ep) return;
     const progress = getWatchProgress(slug, ep);
     setSaved(progress);
-    setShowResumePrompt(!skipResumePrompt && progress !== null && progress.position > 5);
+    setShowResumePrompt(
+      !skipResumePrompt && progress !== null && progress.position > PLAYER.resumeMinPosition,
+    );
   }, [slug, ep, skipResumePrompt]);
 
   const persist = useCallback(
