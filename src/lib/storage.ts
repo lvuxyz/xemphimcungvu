@@ -6,6 +6,7 @@
  */
 
 import { WATCH_EPS_LIMIT, WATCH_INDEX_LIMIT, WATCH_PROGRESS_TTL_DAYS } from './constants';
+import type { MovieType } from '@/types/movie';
 
 const PREFIX = {
   watch: 'watch:',
@@ -112,6 +113,18 @@ export interface WatchSnapshot {
   episodeCurrent: string;
   /** `episode.name` thô của tập đang xem — nơi hiển thị tự chạy qua `episodeLabel`. */
   episodeName: string;
+  /**
+   * Ba field dưới đây KHÔNG để vẽ card, mà để tính sở thích (`lib/taste.ts`).
+   *
+   * Chúng phải nằm ở đây vì đây là lúc duy nhất biết được: index chỉ giữ slug, mà
+   * tra ngược slug → thể loại là một lời gọi `/phim/{slug}` cho mỗi phim. Chép
+   * mấy chuỗi slug vào lúc ghi thì trọng số sở thích tính được mà không chạm mạng.
+   */
+  type: MovieType;
+  /** Slug thể loại, ví dụ `['hanh-dong', 'phieu-luu']`. */
+  categories: string[];
+  /** Slug quốc gia. */
+  countries: string[];
 }
 
 /** `[position, duration, updatedAt]` — dạng tuple cho index đỡ phình. */
@@ -124,6 +137,16 @@ export interface WatchIndexEntry {
   /** CHỈ những tập đã có tiến độ, không phải toàn bộ tập của phim. */
   eps: Record<string, WatchTuple>;
   updatedAt: number;
+  /**
+   * Số tập đã xem hết (≥ 95%).
+   *
+   * Nếu không đếm, tín hiệu sở thích MẠNH NHẤT sẽ tự xoá chính nó: xem xong một
+   * tập là key tiến độ của tập đó bị dọn (§10.5), nên xem hết một bộ 12 tập là bộ
+   * đó biến mất sạch khỏi index — đúng những người xem nhiều nhất lại là những
+   * người app không biết gì về sở thích. Entry ở lại với `eps` rỗng: nó không còn
+   * là "đang xem" (`resumePoint` trả null) nhưng vẫn còn là "đã xem".
+   */
+  finished: number;
   snapshot: WatchSnapshot | null;
 }
 
@@ -200,12 +223,17 @@ function newestEp(eps: Record<string, WatchTuple>): [ep: string, tuple: WatchTup
   return best;
 }
 
+const MOVIE_TYPES: readonly MovieType[] = ['single', 'series', 'hoathinh', 'tvshows'];
+
 function sanitizeSnapshot(raw: unknown): WatchSnapshot | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const s = raw as Partial<WatchSnapshot>;
   if (typeof s.name !== 'string' || s.name === '') return null;
 
   const str = (value: unknown): string => (typeof value === 'string' ? value : '');
+  const slugs = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v !== '') : [];
+
   return {
     name: s.name,
     originName: str(s.originName),
@@ -215,6 +243,10 @@ function sanitizeSnapshot(raw: unknown): WatchSnapshot | null {
     quality: str(s.quality),
     episodeCurrent: str(s.episodeCurrent),
     episodeName: str(s.episodeName),
+    // Snapshot ghi trước khi có ba field này thì về mặc định, không phải bỏ cả entry.
+    type: MOVIE_TYPES.includes(s.type as MovieType) ? (s.type as MovieType) : 'single',
+    categories: slugs(s.categories),
+    countries: slugs(s.countries),
   };
 }
 
@@ -233,18 +265,30 @@ function sanitizeEntry(raw: unknown): WatchIndexEntry | null {
     if (ep !== '' && isTuple(tuple)) eps[ep] = tuple;
   }
 
-  // Không còn tập nào thì entry hết nghĩa — nó chỉ tồn tại vì các tập của nó.
   const newest = newestEp(eps);
-  if (!newest) return null;
+  const finished =
+    typeof entry.finished === 'number' && entry.finished > 0 ? Math.floor(entry.finished) : 0;
+
+  // Không còn tập dở dang mà cũng chưa xem xong tập nào thì entry hết nghĩa.
+  if (!newest && finished === 0) return null;
+
+  const updatedAt =
+    typeof entry.updatedAt === 'number' && Number.isFinite(entry.updatedAt)
+      ? entry.updatedAt
+      : (newest?.[1][2] ?? 0);
+
+  // Không biết entry này cũ tới đâu thì không dọn được — thà bỏ ngay.
+  if (updatedAt === 0) return null;
 
   return {
     slug: entry.slug,
-    lastEp: typeof entry.lastEp === 'string' && eps[entry.lastEp] ? entry.lastEp : newest[0],
+    lastEp:
+      typeof entry.lastEp === 'string' && (eps[entry.lastEp] || !newest)
+        ? entry.lastEp
+        : (newest?.[0] ?? ''),
     eps,
-    updatedAt:
-      typeof entry.updatedAt === 'number' && Number.isFinite(entry.updatedAt)
-        ? entry.updatedAt
-        : newest[1][2],
+    updatedAt,
+    finished,
     snapshot: sanitizeSnapshot(entry.snapshot),
   };
 }
@@ -299,6 +343,8 @@ function rebuildIndex(cutoff: number): WatchIndex {
         lastEp: ep,
         eps: {},
         updatedAt: 0,
+        // Key rời không mang số tập đã xem xong — nó chỉ tồn tại khi CHƯA xong.
+        finished: 0,
         snapshot: null,
       };
 
@@ -390,19 +436,49 @@ function upsertIndex(slug: string, ep: string, tuple: WatchTuple, snapshot?: Wat
    * tập 1, và entry dựng lại từ key cũ (`snapshot: null`) được bù ngay lượt ghi
    * đầu tiên từ trang phát.
    */
-  const entry: WatchIndexEntry = {
+  putEntry(index, {
     slug,
     lastEp: ep,
     eps: capEps(slug, { ...current?.eps, [ep]: tuple }),
     updatedAt: tuple[2],
+    finished: current?.finished ?? 0,
     snapshot: sanitizeSnapshot(snapshot) ?? current?.snapshot ?? null,
-  };
+  });
+}
 
-  const rest = index.entries.filter((e) => e.slug !== slug);
-  const ordered = [entry, ...rest];
+/** Đưa entry lên đầu index, cắt phần quá trần và dọn key của những phim bị loại. */
+function putEntry(index: WatchIndex, entry: WatchIndexEntry): void {
+  const ordered = [entry, ...index.entries.filter((e) => e.slug !== entry.slug)];
   ordered.slice(WATCH_INDEX_LIMIT).forEach(dropEntryKeys);
 
   writeIndex({ v: WATCH_INDEX_VERSION, entries: ordered.slice(0, WATCH_INDEX_LIMIT) });
+}
+
+/**
+ * Xem xong một tập (≥ 95%, §10.5).
+ *
+ * Khác `clearWatchProgress` ("Xem từ đầu") ở đúng một điểm, nhưng là điểm quyết
+ * định: ở đây tập được ĐÁNH DẤU đã xong, còn ở kia người dùng vừa nói là chưa.
+ * Bản trước gộp cả hai vào một lời gọi nên mọi lần xem xong đều xoá sạch dấu vết
+ * — xem chú thích của `WatchIndexEntry.finished`.
+ */
+export function markCompleted(slug: string, ep: string, snapshot?: WatchSnapshot): void {
+  removeKey(watchKey(slug, ep));
+
+  const index = readIndex();
+  const current = index.entries.find((e) => e.slug === slug);
+
+  const eps = { ...current?.eps };
+  delete eps[ep];
+
+  putEntry(index, {
+    slug,
+    lastEp: newestEp(eps)?.[0] ?? ep,
+    eps,
+    updatedAt: Date.now(),
+    finished: (current?.finished ?? 0) + 1,
+    snapshot: sanitizeSnapshot(snapshot) ?? current?.snapshot ?? null,
+  });
 }
 
 export function getWatchProgress(slug: string, ep: string): WatchProgress | null {
@@ -475,15 +551,27 @@ export function clearWatchProgress(slug: string, ep: string): void {
   const eps = { ...entry.eps };
   delete eps[ep];
 
-  // Hết tập nào dở dang thì phim rời index — "đang xem" không còn đúng nữa.
   const newest = newestEp(eps);
-  if (!newest) {
+
+  /**
+   * Hết tập dở dang thì phim rời "đang xem" — nhưng CHỈ rời index khi nó cũng
+   * chưa xem xong tập nào. Xoá một entry có `finished` là xoá luôn tín hiệu sở
+   * thích của cả bộ phim, chỉ vì người dùng bấm "Xem từ đầu" ở tập cuối.
+   */
+  if (!newest && entry.finished === 0) {
     writeIndex({ v: WATCH_INDEX_VERSION, entries: index.entries.filter((e) => e.slug !== slug) });
     return;
   }
 
   const entries = index.entries.map((e) =>
-    e.slug === slug ? { ...e, eps, lastEp: newest[0], updatedAt: newest[1][2] } : e,
+    e.slug === slug
+      ? {
+          ...e,
+          eps,
+          lastEp: newest?.[0] ?? e.lastEp,
+          updatedAt: newest?.[1][2] ?? e.updatedAt,
+        }
+      : e,
   );
 
   writeIndex({ v: WATCH_INDEX_VERSION, entries: byRecency(entries) });
@@ -542,12 +630,25 @@ export function pruneWatchProgress(ttlDays: number = WATCH_PROGRESS_TTL_DAYS): n
       }
 
       const newest = newestEp(fresh);
-      if (!newest || kept.length >= WATCH_INDEX_LIMIT) {
+      /**
+       * Entry đã xem xong (không còn tập dở) vẫn được ở lại cho tới khi CHÍNH NÓ
+       * quá hạn: nó không còn giá trị cho "Tiếp tục xem" nhưng vẫn là tín hiệu sở
+       * thích (`lib/taste.ts`). Mốc hết hạn của nó là `updatedAt`, không phải các
+       * key tập đã bị dọn từ lâu.
+       */
+      const alive = newest !== null || (entry.finished > 0 && entry.updatedAt >= cutoff);
+
+      if (!alive || kept.length >= WATCH_INDEX_LIMIT) {
         removed += dropEntryKeys({ ...entry, eps: fresh });
         continue;
       }
 
-      kept.push({ ...entry, eps: fresh, lastEp: newest[0], updatedAt: newest[1][2] });
+      kept.push({
+        ...entry,
+        eps: fresh,
+        lastEp: newest?.[0] ?? entry.lastEp,
+        updatedAt: newest?.[1][2] ?? entry.updatedAt,
+      });
     }
 
     /**

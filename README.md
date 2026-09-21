@@ -619,12 +619,72 @@ là nút thứ hai rơi xuống dòng, dịch 60px. Nhãn cũng KHÔNG mang số
 storage: trang chủ hơn trăm card, mỗi card tự đọc là hơn trăm lượt chạm đồng bộ
 ngay lúc hydrate. Vạch `absolute` ở đáy ảnh nên xuất hiện mà không dịch gì.
 
-Đo thật trên dev server, trang chủ ở 360px và 1280px, cả hai trạng thái (có và
-không có phim đang xem): **CLS 0 – 0.001**, và ở `scrollY = 0` vẫn KHÔNG có request
-nào từ client — mốc của §11.2 còn nguyên.
+**Trọng số sở thích** (`lib/taste.ts`) — KHÔNG có key `profile` riêng. Profile tích
+luỹ dần (mỗi tín hiệu cộng một ít) thì phải tự chống cộng trùng, và một lần cộng
+sai là sai vĩnh viễn. Suy ra từ index thì hàm thuần, tính lại lúc nào cũng ra cùng
+kết quả, và phân rã theo thời gian miễn phí vì `updatedAt` đã có sẵn.
 
-Chưa làm: ngưỡng trọng số sở thích để đổi thứ tự 10 row lazy và row
-"Vì bạn đã xem X" (xem "Việc tiếp theo").
+```
+sức nặng một phim = (1 + tối đa 2 theo số tập xem xong + tối đa 1 theo độ sâu)
+                    × 0.97 ^ (số tuần kể từ lần xem gần nhất)
+thể loại × 1.0   ·   quốc gia × 0.8   ·   loại phim × 0.5
+```
+
+Ba hệ số cuối là bắt buộc, không phải trang trí: `type` chỉ có 4 giá trị và MỌI
+phim đều thuộc đúng một cái, nên không hạ nó xuống thì nó gom hết điểm rồi luôn
+đứng đầu — người xem phim bộ nào cũng thấy "Phim bộ" ở trên, tức là không cá nhân
+hoá gì cả. Hai test bắt đúng lỗi này.
+
+Để tính được trọng số, `WatchSnapshot` chép thêm `type` + slug thể loại + slug quốc
+gia lúc ghi: index chỉ giữ slug phim, mà tra ngược slug → thể loại là một lời gọi
+`/phim/{slug}` cho mỗi phim.
+
+**`finished` — tín hiệu mạnh nhất từng tự xoá chính nó.** Xem xong một tập là key
+tiến độ của tập đó bị dọn (§10.5), nên xem hết một bộ 12 tập là bộ đó biến mất sạch
+khỏi index: đúng những người xem nhiều nhất lại là những người app không biết gì về
+sở thích. Giờ `markCompleted()` đếm số tập đã xong và giữ entry lại (`eps` rỗng → nó
+không còn là "đang xem" nhưng vẫn là "đã xem"). Nó tách khỏi `clearWatchProgress`
+("Xem từ đầu") vì hai việc nói hai điều trái ngược nhau về cùng một tập.
+
+**Thứ tự 10 row lazy** theo trọng số, sắp ĐỨNG YÊN (row cùng điểm giữ nguyên thứ tự
+cũ — phần lớn row có điểm 0, không có nó thì mỗi lượt tải là một thứ tự khác và
+trang chủ trông như bị xáo). Số row KHÔNG đổi: row "Vì bạn đã xem X" chiếm chỗ một
+row thể loại có sẵn chứ không chèn thêm. Bằng điểm thì ưu tiên thể loại đã có row —
+một phim mang 3–4 thể loại và tất cả cùng điểm, mà chọn nhầm nhánh thì mất một row
+VÀ có hai row cùng nội dung (`hoat-hinh` vừa là slug thể loại vừa là `type_list`).
+
+⚠️ `key` của các row phải theo VỊ TRÍ, không theo id row. Key theo id thì React DỜI
+node DOM khi thứ tự đổi, node bị tháo ra cắm lại làm `IntersectionObserver` của
+`LazyRow` bắn theo hình học tạm thời giữa lúc dời, và hai row vừa lên đầu tưởng mình
+đã vào viewport → fetch ngay. Đo trên bản build thật: **2 request tới KKPhim ở
+`scrollY = 0`** (không có cá nhân hoá thì 0). Key theo vị trí thì không node nào
+dời, React chỉ đổi props — trạng thái "đã vào viewport" thuộc về vị trí chứ không
+thuộc về row, và đó mới đúng nghĩa.
+
+**Prefetch một route khi máy rỗi**: mục đầu của "Tiếp tục xem" là cú bấm có xác suất
+cao nhất trên cả trang chủ. `requestIdleCallback` + chỉ tier `high`, đúng một route.
+
+### Đã đo được gì
+
+Trên **bản build production** (`next build` + `next start`), trang chủ, có hồ sơ sở
+thích thật (xem một tập anime Nhật):
+
+| | |
+|---|---|
+| CLS | **0** (không một entry layout-shift nào) |
+| Request tới KKPhim ở `scrollY = 0` | **0** — mốc §11.2 còn nguyên |
+| Prefetch | đúng 1 route, chính tập đang xem dở |
+| Thứ tự row | Tiếp tục xem · Mới cập nhật · Vì bạn đã xem … · Nhật Bản · Hoạt hình · rồi phần còn lại theo thứ tự cũ |
+| Trang chủ | vẫn `○ (Static)` trong bảng build — cá nhân hoá KHÔNG làm nó thành dynamic |
+| First Load JS | 146 kB |
+
+Ở dev, thêm hai khổ màn: 360px và 1280px, cả hai trạng thái (có và không có phim
+đang xem) → CLS 0 – 0.001.
+
+⚠️ Một thứ KHÔNG kiểm được trong phiên đó: row lazy có fetch khi cuộn tới hay không.
+`IntersectionObserver` không bắn khi cửa sổ trình duyệt bị ẩn (`document.hidden`),
+nên phần đó chỉ còn lý lẽ: cùng `LazyRow`, cùng hook, và hành vi giống nhau y hệt
+giữa có và không có cá nhân hoá.
 
 ---
 
@@ -713,9 +773,11 @@ poisoning ở tầng server). Lên Next 16 sẽ sạch nhưng đổi stack so v�
 
 ## Việc tiếp theo
 
-- [ ] Cá nhân hoá bước 3: trọng số sở thích (`profile:v1`) → đổi thứ tự 10 row lazy,
-      row "Vì bạn đã xem X" bằng `ListSource` sẵn có, prefetch idle một route
-- [ ] Toggle tắt cá nhân hoá + nút xoá dữ liệu (máy dùng chung trong gia đình)
+- [ ] Toggle tắt cá nhân hoá + nút xoá dữ liệu (máy dùng chung trong gia đình) —
+      việc còn lại duy nhất của phần cá nhân hoá
+- [ ] Kiểm lazy fetch khi cuộn trên máy có cửa sổ hiện (IntersectionObserver không
+      bắn khi cửa sổ bị ẩn)
+- [ ] My List làm tín hiệu sở thích nữa (`MyListEntry` chưa chép taxonomy)
 - [ ] Virtualize item trong row — hiện mới lazy-mount cả row, chưa cắt theo ±1 viewport (§8.3)
 - [ ] Audit Lighthouse a11y ≥ 95 và hiệu năng (Phụ lục B)
 - [ ] Test trên Safari — native HLS đi đường khác Chrome (Phụ lục B)

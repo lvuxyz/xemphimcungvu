@@ -5,6 +5,7 @@ import { PLAYER } from '@/lib/constants';
 import {
   clearWatchProgress,
   getWatchProgress,
+  markCompleted,
   setWatchProgress,
   type WatchProgress,
   type WatchSnapshot,
@@ -61,12 +62,28 @@ export function useWatchProgress(
     );
   }, [slug, ep, skipResumePrompt]);
 
+  /**
+   * Tập này đã được đánh dấu xem xong trong lượt xem hiện tại chưa.
+   *
+   * `persist` chạy mỗi 5 giây, và một khi đã qua mốc 95% thì mọi lượt sau đó cũng
+   * qua — thiếu chốt này là đoạn credit chạy 3 phút cộng thêm 36 lần "đã xem xong"
+   * vào trọng số sở thích.
+   */
+  const completedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    completedRef.current = null;
+  }, [slug, ep]);
+
   const persist = useCallback(
     (position: number, duration: number) => {
       if (!slug || !ep || !Number.isFinite(duration) || duration <= 0) return;
 
       if (position / duration >= PLAYER.completedThreshold) {
-        clearWatchProgress(slug, ep);
+        if (completedRef.current !== ep) {
+          completedRef.current = ep;
+          markCompleted(slug, ep, snapshotRef.current);
+        }
         setSaved(null);
         return;
       }
@@ -96,6 +113,8 @@ export function useWatchProgress(
   const restart = useCallback(() => {
     const video = videoRef.current;
     if (video) video.currentTime = 0;
+    // Xem lại từ đầu thì tập được phép "xem xong" một lần nữa.
+    completedRef.current = null;
     clearWatchProgress(slug, ep);
     setSaved(null);
     setShowResumePrompt(false);

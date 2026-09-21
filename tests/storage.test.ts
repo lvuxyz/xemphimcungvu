@@ -85,6 +85,9 @@ const snapshot = (name: string): WatchSnapshot => ({
   quality: 'FHD',
   episodeCurrent: 'Tập 12',
   episodeName: 'Tập 5',
+  type: 'series',
+  categories: ['hanh-dong', 'phieu-luu'],
+  countries: ['han-quoc'],
 });
 
 describe('gom key tiến độ cũ vào index', () => {
@@ -227,6 +230,84 @@ describe('setWatchProgress', () => {
     // Mới nhất trước → hai phim đầu tiên là hai phim bị loại.
     expect(entries.some((e) => e.slug === 'phim-0')).toBe(false);
     expect(data.has('watch:phim-0:tap-01')).toBe(false);
+  });
+});
+
+describe('markCompleted', () => {
+  /**
+   * Tín hiệu sở thích mạnh nhất từng tự xoá chính nó: xem xong là key tiến độ bị
+   * dọn, nên xem hết một bộ là bộ đó biến mất sạch khỏi index.
+   */
+  it('giữ entry lại sau khi xem xong tập cuối, với số tập đã xong', async () => {
+    const { storage, data } = await freshModule();
+
+    storage.setWatchProgress('phim-a', 'tap-01', 100, 1400, snapshot('Phim A'));
+    storage.markCompleted('phim-a', 'tap-01');
+
+    const entry = storage.readWatchIndex()[0];
+    expect(entry?.slug).toBe('phim-a');
+    expect(entry?.finished).toBe(1);
+    expect(Object.keys(entry?.eps ?? {})).toEqual([]);
+    // Key tiến độ của tập đã xong thì không cần nữa.
+    expect(data.has('watch:phim-a:tap-01')).toBe(false);
+    // Nhưng snapshot — tức cả taxonomy để tính sở thích — vẫn còn.
+    expect(entry?.snapshot?.name).toBe('Phim A');
+  });
+
+  it('cộng dồn qua từng tập, và vẫn giữ tập khác đang xem dở', async () => {
+    const { storage } = await freshModule();
+
+    storage.setWatchProgress('phim-a', 'tap-01', 100, 1400, snapshot('Phim A'));
+    storage.setWatchProgress('phim-a', 'tap-02', 100, 1400);
+    storage.markCompleted('phim-a', 'tap-01');
+    storage.markCompleted('phim-a', 'tap-03');
+
+    const entry = storage.readWatchIndex()[0];
+    expect(entry?.finished).toBe(2);
+    expect(Object.keys(entry?.eps ?? {})).toEqual(['tap-02']);
+    expect(entry?.lastEp).toBe('tap-02');
+  });
+
+  it('"Xem từ đầu" ở tập cuối không được xoá tín hiệu của cả bộ', async () => {
+    const { storage } = await freshModule();
+
+    storage.setWatchProgress('phim-a', 'tap-01', 100, 1400, snapshot('Phim A'));
+    storage.markCompleted('phim-a', 'tap-01');
+    storage.setWatchProgress('phim-a', 'tap-02', 100, 1400);
+    storage.clearWatchProgress('phim-a', 'tap-02');
+
+    expect(storage.readWatchIndex()[0]?.finished).toBe(1);
+  });
+
+  it('entry đã xem xong vẫn sống qua prune cho tới khi chính nó quá hạn', async () => {
+    const now = Date.now();
+    const fresh = await freshModule({
+      'watch-index': {
+        v: 1,
+        entries: [
+          {
+            slug: 'phim-a',
+            lastEp: 'tap-01',
+            eps: {},
+            updatedAt: now,
+            finished: 3,
+            snapshot: null,
+          },
+          {
+            slug: 'phim-cu',
+            lastEp: 'tap-01',
+            eps: {},
+            updatedAt: now - (WATCH_PROGRESS_TTL_DAYS + 1) * DAY_MS,
+            finished: 3,
+            snapshot: null,
+          },
+        ],
+      },
+    });
+
+    fresh.storage.pruneWatchProgress();
+
+    expect(fresh.storage.readWatchIndex().map((e) => e.slug)).toEqual(['phim-a']);
   });
 });
 

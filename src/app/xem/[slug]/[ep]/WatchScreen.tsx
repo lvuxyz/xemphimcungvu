@@ -107,6 +107,10 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
       quality: movie.quality,
       episodeCurrent: movie.episodeCurrent,
       episodeName: episode?.name ?? '',
+      // Ba field cho trọng số sở thích, xem `lib/taste.ts`.
+      type: movie.type,
+      categories: movie.categories.map((c) => c.slug),
+      countries: movie.countries.map((c) => c.slug),
     }),
     [movie, episode?.name],
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { IconButton } from '@/components/ui/Button';
@@ -39,7 +40,8 @@ export function ContinueRow() {
   const loaded = useWatchStore((s) => s.loaded);
   const refresh = useWatchStore((s) => s.refresh);
   const forget = useWatchStore((s) => s.forget);
-  const { canHover } = useDevice();
+  const { canHover, tier } = useDevice();
+  const router = useRouter();
   const { ref, canScrollPrev, canScrollNext, scrollNext, scrollPrev } =
     useRowScroll<HTMLUListElement>();
 
@@ -53,6 +55,39 @@ export function ContinueRow() {
   const items = entries
     .filter((entry) => entry.snapshot !== null && resumePoint(entry) !== null)
     .slice(0, MAX_ITEMS);
+
+  const firstResume = items[0] ? resumePoint(items[0]) : null;
+  const firstHref =
+    items[0] && firstResume
+      ? routes.watch(items[0].slug, firstResume.ep, { startAt: firstResume.position })
+      : null;
+
+  /**
+   * Tải trước ĐÚNG MỘT route: tập mà người này gần như chắc chắn bấm tiếp.
+   *
+   * Cả row không prefetch (12 route trình phát thì thành nghẽn băng thông), nhưng
+   * mục đầu tiên là cú bấm có xác suất cao nhất trên cả trang chủ — trả trước một
+   * lần cho nó thì cú bấm đó thành tức thì.
+   *
+   * Hai điều kiện: chỉ khi máy RỖI (`requestIdleCallback`, không tranh với ảnh hero
+   * và 6 row đang tải), và chỉ ở tier `high` — mạng yếu thì tải trước một trang
+   * người ta CHƯA bấm là đúng thứ làm nghẽn nốt băng thông còn lại, cùng lý do
+   * `MovieCard` chặn prefetch khi hover ở tier thấp.
+   */
+  useEffect(() => {
+    if (!firstHref || tier !== 'high') return;
+
+    const run = () => router.prefetch(firstHref);
+
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(run, { timeout: 3_000 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+
+    // Safari cũ không có requestIdleCallback — chờ một nhịp rồi làm.
+    const timer = setTimeout(run, 2_000);
+    return () => clearTimeout(timer);
+  }, [firstHref, tier, router]);
 
   // Chưa đọc xong localStorage → giữ khung, để chỗ đã chừa không nháy rồi mới có card.
   if (!loaded) return <ContinueSkeleton />;

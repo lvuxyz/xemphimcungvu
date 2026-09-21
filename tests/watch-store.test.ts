@@ -19,6 +19,9 @@ const snapshot: WatchSnapshot = {
   quality: 'FHD',
   episodeCurrent: 'Tập 10',
   episodeName: 'Tập 03',
+  type: 'series',
+  categories: ['hanh-dong'],
+  countries: ['han-quoc'],
 };
 
 const entry = (position: number, duration = 1400, lastEp = 'tap-03'): WatchIndexEntry => ({
@@ -26,6 +29,7 @@ const entry = (position: number, duration = 1400, lastEp = 'tap-03'): WatchIndex
   lastEp,
   eps: { [lastEp]: [position, duration, Date.now()] },
   updatedAt: Date.now(),
+  finished: 0,
   snapshot,
 });
 
