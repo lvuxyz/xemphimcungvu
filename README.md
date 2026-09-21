@@ -664,6 +664,21 @@ thuộc về row, và đó mới đúng nghĩa.
 **Prefetch một route khi máy rỗi**: mục đầu của "Tiếp tục xem" là cú bấm có xác suất
 cao nhất trên cả trang chủ. `requestIdleCallback` + chỉ tier `high`, đúng một route.
 
+**Tắt được cá nhân hoá** — công tắc trong navbar (dropdown ⚙ từ `lg` lên, chân menu
+điện thoại ở dưới). Nó tồn tại không phải vì dữ liệu đi đâu — không có gì rời khỏi
+máy — mà vì máy dùng chung trong gia đình là chuyện thường, và row "Tiếp tục xem"
+giữa trang chủ kể cho cả nhà biết tối qua ai xem gì.
+
+Tắt được ép ở ĐÚNG MỘT CHỖ: `entries` của store về rỗng. Nhờ vậy mọi mặt hiển thị tự
+tắt theo mà không nơi nào phải tự kiểm cờ — row "Tiếp tục xem", thứ tự row, nút hero,
+vạch tiến độ trên card. Rải cờ ra từng chỗ thì chỉ cần quên một chỗ là lịch sử vẫn
+lộ ở đó.
+
+Nó KHÔNG xoá gì và KHÔNG tắt việc lưu tiến độ: trình phát vẫn nhớ chỗ đang xem của
+từng tập (§10.5), bật lại thì mọi thứ còn nguyên. Cờ nằm ở key riêng `personalized`
+chứ không trong `settings` hay trong index, vì `CONTINUE_PROBE` phải đọc nó trước
+lượt vẽ đầu — đọc một key vài byte khác hẳn parse cả index 14 kB để biết một cờ.
+
 ### Đã đo được gì
 
 Trên **bản build production** (`next build` + `next start`), trang chủ, có hồ sơ sở
@@ -773,8 +788,7 @@ poisoning ở tầng server). Lên Next 16 sẽ sạch nhưng đổi stack so v�
 
 ## Việc tiếp theo
 
-- [ ] Toggle tắt cá nhân hoá + nút xoá dữ liệu (máy dùng chung trong gia đình) —
-      việc còn lại duy nhất của phần cá nhân hoá
+- [ ] Nút xoá dữ liệu cá nhân hoá (công tắc tắt đã có, nhưng tắt không phải là xoá)
 - [ ] Kiểm lazy fetch khi cuộn trên máy có cửa sổ hiện (IntersectionObserver không
       bắn khi cửa sổ bị ẩn)
 - [ ] My List làm tín hiệu sở thích nữa (`MyListEntry` chưa chép taxonomy)

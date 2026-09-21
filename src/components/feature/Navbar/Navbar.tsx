@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import type { Taxonomy } from '@/types/movie';
-import { ChevronDownIcon } from '@/components/ui/icons';
+import { ChevronDownIcon, SettingsIcon } from '@/components/ui/icons';
 import { PATH, routes } from '@/lib/routes';
 import { usePresence } from '@/hooks/usePresence';
 import { MobileMenu } from './MobileMenu';
+import { PersonalizationToggle } from './PersonalizationToggle';
 import { SearchBox } from './SearchBox';
 
 const MENU = [
@@ -145,10 +146,81 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
           >
             Danh sách của tôi
           </Link>
+          <PrefsMenu />
           <MobileMenu menu={MENU} categories={categories} countries={countries} years={years} />
         </div>
       </nav>
     </header>
+  );
+}
+
+/**
+ * Dropdown tuỳ chọn — chỉ từ `lg` lên; dưới đó công tắc nằm ở chân `MobileMenu`.
+ *
+ * KHÔNG mở bằng hover như `MegaMenu`: menu kia là một danh sách link, rê chuột qua
+ * rồi bỏ đi thì chẳng mất gì. Đây là một công tắc có hiệu lực ngay, mà panel tự bung
+ * ra dưới con trỏ thì cú bấm tiếp theo của người dùng rơi vào một thứ họ không có ý
+ * mở. Chỉ mở bằng bấm.
+ */
+function PrefsMenu() {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { mounted, visible } = usePresence(open, 150);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative hidden lg:block">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label="Tuỳ chọn"
+        title="Tuỳ chọn"
+        className={cn(
+          'flex h-9 w-9 items-center justify-center rounded-card',
+          'transition-colors duration-micro ease-standard hover:bg-bg-hover',
+          open ? 'text-text-primary' : 'text-text-secondary',
+        )}
+      >
+        <SettingsIcon />
+      </button>
+
+      {mounted && (
+        <div
+          data-motion="fade"
+          className={cn(
+            'absolute right-0 top-full pt-2',
+            'transition-[opacity,transform] duration-micro ease-standard',
+            visible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-1 opacity-0',
+          )}
+        >
+          <div className="w-[18rem] rounded-card bg-bg-elevated/95 p-1 shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md">
+            <PersonalizationToggle />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

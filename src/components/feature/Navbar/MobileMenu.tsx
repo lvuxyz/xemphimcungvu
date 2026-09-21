@@ -9,6 +9,7 @@ import { useScrollLock } from '@/hooks/useScrollLock';
 import { usePresence } from '@/hooks/usePresence';
 import { CloseIcon } from '@/components/ui/icons';
 import { PATH, routes } from '@/lib/routes';
+import { PersonalizationToggle } from './PersonalizationToggle';
 
 interface MobileMenuProps {
   menu: ReadonlyArray<{ label: string; href: string }>;
@@ -156,6 +157,16 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
                 ))}
               </Section>
             </nav>
+
+            {/*
+              Công tắc nằm NGOÀI vùng cuộn, dính đáy panel.
+              Để nó trong `nav` thì muốn tắt cá nhân hoá phải cuộn qua hết danh sách
+              thể loại, quốc gia và năm — một tuỳ chọn về sự riêng tư không nên là
+              thứ khó tìm nhất trong menu.
+            */}
+            <div className="shrink-0 border-t border-white/10 px-2 pt-1">
+              <PersonalizationToggle />
+            </div>
           </div>
         </div>
       )}

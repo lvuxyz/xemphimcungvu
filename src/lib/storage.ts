@@ -20,6 +20,14 @@ const PREFIX = {
    * không hợp lệ rồi xoá sạch cả index.
    */
   watchIndex: 'watch-index',
+  /**
+   * Cờ bật/tắt cá nhân hoá — key RIÊNG, không nhét vào `settings` hay vào index.
+   *
+   * `CONTINUE_PROBE` phải đọc nó trước lượt vẽ đầu tiên, nơi mỗi byte đều nằm trên
+   * đường găng: đọc một key vài byte khác hẳn với parse cả index 14 kB chỉ để biết
+   * một cờ bật/tắt.
+   */
+  personalized: 'personalized',
 } as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -698,6 +706,26 @@ export function getPlayerSettings(): PlayerSettings {
 
 export function savePlayerSettings(patch: Partial<PlayerSettings>): void {
   writeJson(PREFIX.settings, { ...getPlayerSettings(), ...patch } satisfies PlayerSettings);
+}
+
+/* ------------------------- tuỳ chọn cá nhân hoá ------------------------- */
+
+/**
+ * Cá nhân hoá đang bật hay không. Chưa có key nghĩa là BẬT.
+ *
+ * Mặc định bật vì đây là thứ chỉ chạy trên máy người xem và không có gì rời khỏi
+ * máy; còn tắt được là bắt buộc vì máy dùng chung trong gia đình là chuyện thường —
+ * row "Tiếp tục xem" giữa trang chủ kể cho cả nhà biết tối qua ai xem gì.
+ *
+ * Nó KHÔNG tắt việc lưu tiến độ: trình phát vẫn nhớ chỗ đang xem của từng tập
+ * (§10.5). Tắt là không đem lịch sử đó ra các mặt DẠO — trang chủ và card.
+ */
+export function getPersonalized(): boolean {
+  return readJson<boolean>(PREFIX.personalized, true) !== false;
+}
+
+export function setPersonalized(value: boolean): void {
+  writeJson(PREFIX.personalized, value);
 }
 
 export { DEFAULT_PLAYER_SETTINGS };

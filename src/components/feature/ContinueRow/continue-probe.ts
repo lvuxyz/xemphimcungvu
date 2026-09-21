@@ -21,10 +21,14 @@ import { STORAGE_KEYS } from '@/lib/storage';
  * nó phải chạy trước khi bất kỳ bundle nào tải xong. Đổi hình dạng index thì sửa
  * cả đây.
  *
- * ⚠️ Điều kiện phải khớp CHÍNH XÁC với bộ lọc của `ContinueRow` (snapshot có, và
- * `position > PLAYER.resumeMinPosition`). Nới hơn thì chỗ chừa hiện ra rồi xẹp lại
- * vì row quyết định không hiện — đúng cú dịch mà cả cơ chế này sinh ra để tránh.
+ * ⚠️ Điều kiện phải khớp CHÍNH XÁC với bộ lọc của `ContinueRow`: cá nhân hoá đang
+ * bật, snapshot có, và `position > PLAYER.resumeMinPosition`. Nới hơn thì chỗ chừa
+ * hiện ra rồi xẹp lại vì row quyết định không hiện — đúng cú dịch mà cả cơ chế này
+ * sinh ra để tránh. Cờ cá nhân hoá phải đọc ở đây, không phải ở store: store chỉ có
+ * sau khi bundle về, mà lúc đó chỗ chừa đã vẽ xong rồi.
  */
-export const CONTINUE_PROBE = `try{var r=localStorage.getItem(${JSON.stringify(
+export const CONTINUE_PROBE = `try{if(localStorage.getItem(${JSON.stringify(
+  STORAGE_KEYS.personalized,
+)})!=='false'){var r=localStorage.getItem(${JSON.stringify(
   STORAGE_KEYS.watchIndex,
-)});if(r&&(JSON.parse(r).entries||[]).some(function(e){var t=e&&e.eps&&e.eps[e.lastEp];return e&&e.snapshot&&t&&t[0]>${PLAYER.resumeMinPosition}&&t[1]>0}))document.documentElement.dataset.continueWatching='1'}catch(e){}`;
+)});if(r&&(JSON.parse(r).entries||[]).some(function(e){var t=e&&e.eps&&e.eps[e.lastEp];return e&&e.snapshot&&t&&t[0]>${PLAYER.resumeMinPosition}&&t[1]>0}))document.documentElement.dataset.continueWatching='1'}}catch(e){}`;

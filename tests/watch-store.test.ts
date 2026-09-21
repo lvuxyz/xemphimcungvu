@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PLAYER } from '@/lib/constants';
 import type { WatchIndexEntry, WatchSnapshot } from '@/lib/storage';
 import { resumePoint } from '@/store/useWatchStore';
+import type { WatchSnapshot as Snapshot } from '@/lib/storage';
 
 /**
  * `resumePoint` là chỗ ba nơi phải đồng ý với nhau: nút hero, row "Tiếp tục xem",
@@ -66,5 +67,64 @@ describe('resumePoint', () => {
   it('kẹp tỉ lệ ở 1', () => {
     expect(resumePoint(entry(2000, 1400))?.ratio).toBe(1);
     expect(resumePoint(entry(2000, 1400))?.remaining).toBe(0);
+  });
+});
+
+/**
+ * localStorage giả + module mới, để chạm được vào store thật trong môi trường `node`.
+ * Xem `tests/storage.test.ts` về việc vì sao phải là module mới mỗi lần.
+ */
+async function freshStore() {
+  const data = new Map<string, string>();
+  const store = {
+    get length() {
+      return data.size;
+    },
+    key: (i: number) => [...data.keys()][i] ?? null,
+    getItem: (k: string) => data.get(k) ?? null,
+    setItem: (k: string, v: string) => void data.set(k, v),
+    removeItem: (k: string) => void data.delete(k),
+    clear: () => data.clear(),
+  };
+
+  vi.stubGlobal('window', { localStorage: store, addEventListener: () => {} });
+  vi.resetModules();
+
+  const storage = await import('@/lib/storage');
+  const { useWatchStore } = await import('@/store/useWatchStore');
+  return { storage, useWatchStore, data };
+}
+
+/**
+ * Tắt cá nhân hoá được ép ở đúng một chỗ — `entries` về rỗng — nên mọi mặt hiển thị
+ * tự tắt theo mà không nơi nào phải tự kiểm cờ. Đây là test giữ lấy tính chất đó.
+ */
+describe('tắt cá nhân hoá', () => {
+  it('rút hết entry khỏi store, và bật lại thì còn nguyên', async () => {
+    const { storage, useWatchStore } = await freshStore();
+
+    storage.setWatchProgress('phim-a', 'tap-01', 420, 1400, snapshot as Snapshot);
+    useWatchStore.getState().refresh();
+    expect(useWatchStore.getState().entries).toHaveLength(1);
+
+    useWatchStore.getState().setPersonalized(false);
+    expect(useWatchStore.getState().personalized).toBe(false);
+    expect(useWatchStore.getState().entries).toEqual([]);
+
+    useWatchStore.getState().setPersonalized(true);
+    expect(useWatchStore.getState().entries).toHaveLength(1);
+  });
+
+  it('`refresh` sau khi tải lại trang vẫn tôn trọng cờ đã tắt', async () => {
+    const { storage, useWatchStore } = await freshStore();
+
+    storage.setWatchProgress('phim-a', 'tap-01', 420, 1400, snapshot as Snapshot);
+    storage.setPersonalized(false);
+
+    // Như lượt khởi động mới: store còn mặc định, `AppBootstrap` gọi refresh.
+    useWatchStore.getState().refresh();
+
+    expect(useWatchStore.getState().personalized).toBe(false);
+    expect(useWatchStore.getState().entries).toEqual([]);
   });
 });

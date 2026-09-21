@@ -429,6 +429,33 @@ describe('cache trong RAM', () => {
   });
 });
 
+describe('cờ cá nhân hoá', () => {
+  it('chưa có key nghĩa là BẬT', async () => {
+    const { storage } = await freshModule();
+    expect(storage.getPersonalized()).toBe(true);
+  });
+
+  it('tắt rồi bật lại, và KHÔNG xoá gì của tiến độ xem', async () => {
+    const { storage, data } = await freshModule();
+    storage.setWatchProgress('phim-a', 'tap-01', 420, 1400, snapshot('Phim A'));
+
+    storage.setPersonalized(false);
+    expect(storage.getPersonalized()).toBe(false);
+    // Tắt là không ĐEM RA hiện, không phải xoá: index và key tập còn nguyên.
+    expect(storage.readWatchIndex()).toHaveLength(1);
+    expect(data.has('watch:phim-a:tap-01')).toBe(true);
+
+    storage.setPersonalized(true);
+    expect(storage.getPersonalized()).toBe(true);
+  });
+
+  it('chỉ đúng giá trị `false` mới tắt — rác thì coi như bật', async () => {
+    const { storage, data } = await freshModule();
+    data.set('personalized', 'không-phải-json');
+    expect(storage.getPersonalized()).toBe(true);
+  });
+});
+
 describe('storage không dùng được', () => {
   /** Safari private mode: mọi lời gọi ném exception ngay từ lượt thăm dò. */
   it('không ném lỗi, chỉ trả về rỗng', async () => {

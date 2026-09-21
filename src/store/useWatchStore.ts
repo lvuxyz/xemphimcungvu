@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { PLAYER } from '@/lib/constants';
-import { forgetMovie, readWatchIndex, type WatchIndexEntry } from '@/lib/storage';
+import {
+  forgetMovie,
+  getPersonalized,
+  readWatchIndex,
+  setPersonalized as savePersonalized,
+  type WatchIndexEntry,
+} from '@/lib/storage';
 
 /**
  * Index tiến độ xem, phía React.
@@ -17,22 +23,48 @@ interface WatchState {
   entries: WatchIndexEntry[];
   /** Đã đọc localStorage xong chưa — để khung chờ không nháy thành "rỗng". */
   loaded: boolean;
+  /** Cá nhân hoá đang bật hay không (§ tuỳ chọn trong navbar). */
+  personalized: boolean;
 
   /** Đọc lại index. Rẻ: index đã nằm trong RAM của `lib/storage.ts`. */
   refresh: () => void;
   /** Gỡ một phim khỏi "Tiếp tục xem", cả trong storage. */
   forget: (slug: string) => void;
+  setPersonalized: (value: boolean) => void;
 }
+
+/**
+ * Tắt cá nhân hoá được ép ở ĐÚNG MỘT CHỖ: `entries` về rỗng.
+ *
+ * Nhờ vậy mọi mặt hiển thị tự tắt theo mà không nơi nào phải tự kiểm cờ — row
+ * "Tiếp tục xem", thứ tự row trang chủ, nút hero, vạch tiến độ trên card. Rải cờ ra
+ * từng chỗ thì chỉ cần quên một chỗ là lịch sử của người ta vẫn lộ ở đó.
+ *
+ * KHÔNG tắt việc ghi tiến độ: trình phát vẫn nhớ chỗ đang xem của từng tập (§10.5),
+ * và bật lại thì mọi thứ còn nguyên chứ không mất.
+ */
+const visibleEntries = (personalized: boolean): WatchIndexEntry[] =>
+  personalized ? readWatchIndex() : [];
 
 export const useWatchStore = create<WatchState>((set) => ({
   entries: [],
   loaded: false,
+  // Lượt render đầu ở client phải khớp HTML server, mà server không đọc được cờ.
+  personalized: true,
 
-  refresh: () => set({ entries: readWatchIndex(), loaded: true }),
+  refresh: () => {
+    const personalized = getPersonalized();
+    set({ personalized, entries: visibleEntries(personalized), loaded: true });
+  },
 
   forget: (slug) => {
     forgetMovie(slug);
     set((state) => ({ entries: state.entries.filter((e) => e.slug !== slug) }));
+  },
+
+  setPersonalized: (value) => {
+    savePersonalized(value);
+    set({ personalized: value, entries: visibleEntries(value) });
   },
 }));
 
