@@ -97,3 +97,18 @@ export const PLAYER = {
 
 /** §10.5 — dọn key tiến độ cũ hơn 90 ngày khi khởi động app. */
 export const WATCH_PROGRESS_TTL_DAYS = 90;
+
+/**
+ * Trần số PHIM giữ trong index tiến độ xem (`lib/storage.ts`).
+ *
+ * 30 phim ≈ 12–15 kB JSON, tức một lượt `JSON.parse` dưới 0.2ms — index được đọc
+ * đồng bộ ngay lúc app khởi động nên con số này là ngân sách main thread, không
+ * phải ngân sách dung lượng (localStorage có 5 MB).
+ */
+export const WATCH_INDEX_LIMIT = 30;
+
+/**
+ * Trần số TẬP dở dang giữ cho mỗi phim. Xem tới tập 60 của một bộ dài thì tiến
+ * độ của tập 1 không còn ai cần, mà nó vẫn ngốn chỗ trong lượt parse ở trên.
+ */
+export const WATCH_EPS_LIMIT = 60;

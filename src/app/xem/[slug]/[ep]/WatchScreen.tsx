@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import { episodeLabel, resolveEpisode } from '@/lib/derive';
 import { routes } from '@/lib/routes';
@@ -89,6 +89,28 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
     if (next) goToEpisode(next.slug);
   }, [next, goToEpisode]);
 
+  /**
+   * Ảnh chụp ghi kèm tiến độ xem.
+   *
+   * Đây là NƠI DUY NHẤT trong app vừa biết người ta đang xem tập nào, vừa đang
+   * giữ dữ liệu phim — nên cũng là nơi duy nhất trả được câu hỏi "vẽ card cho
+   * phim này bằng gì" mà không phải gọi lại `/phim/{slug}`. Không chụp ở đây thì
+   * mọi chỗ muốn hiện "đang xem" đều phải tự đi fetch.
+   */
+  const watchSnapshot = useMemo(
+    () => ({
+      name: movie.name,
+      originName: movie.originName,
+      poster: movie.poster,
+      thumb: movie.thumb,
+      year: movie.year,
+      quality: movie.quality,
+      episodeCurrent: movie.episodeCurrent,
+      episodeName: episode?.name ?? '',
+    }),
+    [movie, episode?.name],
+  );
+
   if (!episode) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-32 text-center">
@@ -121,6 +143,7 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
             onBack={goBackOrHome}
             onNext={next ? onNext : undefined}
             nextLabel={next ? episodeLabel(next.name) : undefined}
+            watchSnapshot={watchSnapshot}
           />
 
           {countdown !== null && next && (

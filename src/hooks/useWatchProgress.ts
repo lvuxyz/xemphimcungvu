@@ -7,6 +7,7 @@ import {
   getWatchProgress,
   setWatchProgress,
   type WatchProgress,
+  type WatchSnapshot,
 } from '@/lib/storage';
 
 /**
@@ -27,6 +28,12 @@ export function useWatchProgress(
      * hỏi một câu đã có câu trả lời, và bấm nhầm "Xem từ đầu" là mất luôn mốc đó.
      */
     skipResumePrompt?: boolean;
+    /**
+     * Ảnh chụp phim đang xem, ghi kèm tiến độ để chỗ khác vẽ được card "đang xem"
+     * mà không gọi API. Chỉ trang phát có dữ liệu này; bỏ trống thì tiến độ vẫn
+     * ghi như thường và entry giữ snapshot đã lưu trước đó.
+     */
+    snapshot?: WatchSnapshot;
   },
 ) {
   const [saved, setSaved] = useState<WatchProgress | null>(null);
@@ -34,6 +41,15 @@ export function useWatchProgress(
   const lastWriteRef = useRef(0);
 
   const skipResumePrompt = options?.skipResumePrompt ?? false;
+
+  /**
+   * Qua ref chứ không qua deps: snapshot là dữ liệu ĐI KÈM lượt ghi, không phải
+   * thứ quyết định khi nào ghi. Đưa nó vào deps của `persist` thì mọi listener
+   * `pagehide`/`visibilitychange` bị tháo ra gắn lại mỗi lần nơi gọi dựng lại
+   * object — mà nơi gọi không có lý do gì phải biết chuyện đó.
+   */
+  const snapshotRef = useRef(options?.snapshot);
+  snapshotRef.current = options?.snapshot;
 
   // Đọc tiến độ đã lưu một lần khi đổi tập.
   useEffect(() => {
@@ -52,7 +68,7 @@ export function useWatchProgress(
         setSaved(null);
         return;
       }
-      setWatchProgress(slug, ep, position, duration);
+      setWatchProgress(slug, ep, position, duration, snapshotRef.current);
     },
     [slug, ep],
   );
@@ -108,5 +124,12 @@ export function useWatchProgress(
     };
   }, [persist, videoRef]);
 
-  return { saved, showResumePrompt, handleTimeUpdate, resume, restart, dismissPrompt: () => setShowResumePrompt(false) };
+  return {
+    saved,
+    showResumePrompt,
+    handleTimeUpdate,
+    resume,
+    restart,
+    dismissPrompt: () => setShowResumePrompt(false),
+  };
 }
