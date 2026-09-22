@@ -41,6 +41,44 @@ const TYPE_FACTOR = 0.5;
 const FINISHED_CAP = 5;
 
 /**
+ * Sức nặng của một phim trong "Danh sách của tôi".
+ *
+ * Đặt trên mức "đã mở xem" (1) và dưới mọi mức có thời gian xem thật: lưu một phim là
+ * một lời nói RÕ về sở thích — rõ hơn việc bấm vào xem thử — nhưng ý định vẫn là bằng
+ * chứng yếu hơn thời gian đã bỏ ra. Đây cũng là tín hiệu duy nhất có được với người
+ * mới: lưu vài phim rồi chưa xem gì thì trang chủ vẫn nói được điều gì đó về họ.
+ */
+const LIST_WEIGHT = 1.2;
+
+/**
+ * Chỉ tính N phim lưu gần nhất.
+ *
+ * Danh sách của tôi không có trần, mà 80 phim lưu từ năm ngoái × 1.2 thì dìm hẳn vài
+ * bộ vừa xem tuần này — phân rã theo tuần đỡ được phần nào nhưng không đỡ hết khi số
+ * lượng chênh nhau quá xa.
+ */
+const LIST_CAP = 20;
+
+/**
+ * Phim trong "Danh sách của tôi", ở dạng `lib/taste.ts` cần.
+ *
+ * Khai lại tại đây thay vì import `MyListEntry`: `lib/` không được phụ thuộc vào
+ * `store/` (§2.1 — tầng dưới không biết gì về tầng trên). `MyListEntry` khớp cấu trúc
+ * này nên nơi gọi truyền thẳng vào được.
+ *
+ * Ba field taxonomy để TUỲ CHỌN vì entry lưu từ trước bản này không có chúng —
+ * "không biết" là một trạng thái thật, và bịa ra một giá trị mặc định thì mọi phim cũ
+ * thành phiếu bầu cho cùng một thứ.
+ */
+export interface ListedMovie {
+  type?: MovieType;
+  categories?: string[];
+  countries?: string[];
+  /** ms — để phim lưu lâu rồi cũng nhạt dần như phim xem lâu rồi. */
+  addedAt: number;
+}
+
+/**
  * `Movie.type` (đã chuẩn hoá) → `type_list` của endpoint danh sách.
  *
  * Hai thang tên khác nhau cho cùng một thứ: §5.1 dùng `series`/`single`, còn §3.1
@@ -101,9 +139,19 @@ function deepestRatio(entry: WatchIndexEntry): number {
 export function entryWeight(entry: WatchIndexEntry, now: number): number {
   const base =
     1 + (Math.min(entry.finished, FINISHED_CAP) / FINISHED_CAP) * 2 + deepestRatio(entry);
-  const weeks = Math.max(0, (now - entry.updatedAt) / WEEK_MS);
 
-  return base * DECAY_PER_WEEK ** weeks;
+  return base * decay(entry.updatedAt, now);
+}
+
+/** Hệ số nhạt dần theo số tuần kể từ `at`. */
+function decay(at: number, now: number): number {
+  return DECAY_PER_WEEK ** Math.max(0, (now - at) / WEEK_MS);
+}
+
+export interface TasteInput {
+  /** Phim trong "Danh sách của tôi" — tín hiệu thứ hai, xem `LIST_WEIGHT`. */
+  listed?: readonly ListedMovie[];
+  now?: number;
 }
 
 /**
@@ -114,20 +162,38 @@ export function entryWeight(entry: WatchIndexEntry, now: number): number {
  */
 export function tasteScores(
   entries: readonly WatchIndexEntry[],
-  now: number = Date.now(),
+  { listed = [], now = Date.now() }: TasteInput = {},
 ): Map<TasteKey, number> {
   const scores = new Map<TasteKey, number>();
   const add = (key: TasteKey, value: number) => scores.set(key, (scores.get(key) ?? 0) + value);
+
+  /** Một phim đóng góp cho ba nhóm, cùng một sức nặng nhưng khác hệ số nhóm. */
+  const spread = (
+    weight: number,
+    type: MovieType | undefined,
+    categories: readonly string[],
+    countries: readonly string[],
+  ) => {
+    if (type) add(typeKey(TYPE_LIST_OF[type]), weight * TYPE_FACTOR);
+    for (const slug of categories) add(categoryKey(slug), weight);
+    for (const slug of countries) add(countryKey(slug), weight * COUNTRY_FACTOR);
+  };
 
   for (const entry of entries) {
     // Snapshot ghi trước khi có ba field taxonomy thì không đóng góp được gì.
     if (!entry.snapshot) continue;
 
-    const weight = entryWeight(entry, now);
+    const { type, categories, countries } = entry.snapshot;
+    spread(entryWeight(entry, now), type, categories, countries);
+  }
 
-    add(typeKey(TYPE_LIST_OF[entry.snapshot.type]), weight * TYPE_FACTOR);
-    for (const slug of entry.snapshot.categories) add(categoryKey(slug), weight);
-    for (const slug of entry.snapshot.countries) add(countryKey(slug), weight * COUNTRY_FACTOR);
+  for (const item of [...listed].sort((a, b) => b.addedAt - a.addedAt).slice(0, LIST_CAP)) {
+    spread(
+      LIST_WEIGHT * decay(item.addedAt, now),
+      item.type,
+      item.categories ?? [],
+      item.countries ?? [],
+    );
   }
 
   return scores;
@@ -193,14 +259,29 @@ function topCategory(
   const best = ranked[0];
   if (!best) return null;
 
-  const tied = ranked.filter((item) => item.score === best.score);
-  const onPage = tied.find((item) =>
-    rows.some((row) => row.source.kind === 'category' && row.source.slug === item.slug),
-  );
+  // Bằng điểm: đưa thể loại đã có row lên trước, trong cùng nhóm cùng điểm.
+  const preferred = [
+    ...ranked.filter(
+      (item) =>
+        item.score === best.score &&
+        rows.some((row) => row.source.kind === 'category' && row.source.slug === item.slug),
+    ),
+    ...ranked,
+  ];
 
-  const slug = (onPage ?? best).slug;
-  const movie = championOf(entries, slug, now);
-  return movie ? { slug, movie } : null;
+  /**
+   * Đi tiếp khi thể loại đứng đầu không có phim ĐÃ XEM nào đại diện.
+   *
+   * Xảy ra thật từ khi "Danh sách của tôi" cũng góp điểm: thể loại đứng đầu có thể
+   * hoàn toàn đến từ phim đã lưu mà chưa xem, và "Vì bạn đã xem X" thì buộc phải nói
+   * về một phim đã xem. Không đi tiếp thì cả dòng tiêu đề đó lặng lẽ biến mất.
+   */
+  for (const item of preferred) {
+    const movie = championOf(entries, item.slug, now);
+    if (movie) return { slug: item.slug, movie };
+  }
+
+  return null;
 }
 
 /**
@@ -222,11 +303,11 @@ function topCategory(
 export function personalizeRows<T extends TasteRow>(
   rows: readonly T[],
   entries: readonly WatchIndexEntry[],
-  now: number = Date.now(),
+  { listed = [], now = Date.now() }: TasteInput = {},
 ): readonly T[] {
-  if (entries.length === 0) return rows;
+  if (entries.length === 0 && listed.length === 0) return rows;
 
-  const scores = tasteScores(entries, now);
+  const scores = tasteScores(entries, { listed, now });
   if (scores.size === 0) return rows;
 
   const top = topCategory(entries, scores, rows, now);

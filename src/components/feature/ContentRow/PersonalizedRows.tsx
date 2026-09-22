@@ -1,9 +1,12 @@
 'use client';
 
 import { useMemo } from 'react';
-import { personalizeRows, type TasteRow } from '@/lib/taste';
+import { personalizeRows, type ListedMovie, type TasteRow } from '@/lib/taste';
+import { useMyListHydrated, useMyListStore } from '@/store/useMyListStore';
 import { useWatchStore } from '@/store/useWatchStore';
 import { LazyRow } from './LazyRow';
+
+const NO_LIST: readonly ListedMovie[] = [];
 
 /**
  * Các row lazy của trang chủ, sắp theo sở thích của chính người đang xem.
@@ -38,8 +41,30 @@ import { LazyRow } from './LazyRow';
  */
 export function PersonalizedRows({ rows }: { rows: readonly TasteRow[] }) {
   const entries = useWatchStore((s) => s.entries);
+  const personalized = useWatchStore((s) => s.personalized);
 
-  const ordered = useMemo(() => personalizeRows(rows, entries), [rows, entries]);
+  /**
+   * "Danh sách của tôi" là tín hiệu thứ hai — và là tín hiệu DUY NHẤT có được với
+   * người mới: lưu vài phim rồi chưa xem gì thì trang chủ vẫn nói được điều gì đó.
+   *
+   * Hai cái chốt ở đây, cả hai đều cần thiết:
+   *
+   *   · `useMyListHydrated()` — persist của zustand đọc localStorage ĐỒNG BỘ ngay
+   *     trong `create()`, nên `entries` của nó đã có dữ liệu ngay lượt render ĐẦU ở
+   *     client. Dùng thẳng thì thứ tự row lượt đầu khác HTML server → hydration
+   *     mismatch. `entries` của `useWatchStore` không có vấn đề này vì nó chỉ được
+   *     nạp trong effect.
+   *   · `personalized` — cổng tắt của store chỉ rút `entries` của chính nó; danh
+   *     sách này đến từ store khác nên phải tự đi qua cùng cái cổng đó.
+   */
+  const hydrated = useMyListHydrated();
+  const myList = useMyListStore((s) => s.entries);
+  const listed = hydrated && personalized ? myList : NO_LIST;
+
+  const ordered = useMemo(
+    () => personalizeRows(rows, entries, { listed }),
+    [rows, entries, listed],
+  );
 
   return (
     <>

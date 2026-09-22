@@ -664,6 +664,29 @@ thuộc về row, và đó mới đúng nghĩa.
 **Prefetch một route khi máy rỗi**: mục đầu của "Tiếp tục xem" là cú bấm có xác suất
 cao nhất trên cả trang chủ. `requestIdleCallback` + chỉ tier `high`, đúng một route.
 
+**Danh sách của tôi là tín hiệu thứ hai** (`LIST_WEIGHT = 1.2`, phân rã theo `addedAt`,
+chỉ tính 20 phim lưu gần nhất). Lưu một phim là một lời nói rõ về sở thích — rõ hơn
+việc bấm vào xem thử — nhưng ý định vẫn là bằng chứng yếu hơn thời gian đã bỏ ra, nên
+nó nằm trên mức "đã mở xem" (1) và dưới mọi mức có thời gian xem thật. Đây cũng là
+tín hiệu DUY NHẤT có được với người mới: đo thật, một người chưa xem gì mà đã lưu 3
+phim kinh dị Hàn thì trang chủ ra "Kinh dị · Hàn Quốc · Phim lẻ" ở ba row đầu.
+
+Ba field taxonomy trong `MyListEntry` để TUỲ CHỌN thay vì viết `migrate` cho persist:
+entry lưu từ trước bản này không biết loại phim của nó, và "không biết" là một trạng
+thái thật — migrate mà điền `single` thì mọi phim cũ trong danh sách bỗng thành phiếu
+bầu cho "Phim lẻ".
+
+⚠️ Hai cái chốt ở `PersonalizedRows` khi dùng danh sách này, cả hai đều cần:
+`useMyListHydrated()` (persist của zustand đọc localStorage ĐỒNG BỘ ngay trong
+`create()`, nên dùng thẳng là thứ tự row lượt render đầu khác HTML server → hydration
+mismatch; `entries` của `useWatchStore` không có vấn đề này vì nó chỉ nạp trong
+effect), và cờ `personalized` (cổng tắt chỉ rút `entries` của chính store đó, danh
+sách này đến từ store khác nên phải tự đi qua cùng cái cổng).
+
+Và vì "Vì bạn đã xem X" buộc phải nói về một phim ĐÃ XEM: khi thể loại đứng đầu đến
+hoàn toàn từ phim đã lưu mà chưa xem, `topCategory` đi tiếp xuống thể loại kế tiếp
+thay vì để cả dòng tiêu đề đó lặng lẽ biến mất.
+
 **Tắt được cá nhân hoá** — công tắc trong navbar (dropdown ⚙ từ `lg` lên, chân menu
 điện thoại ở dưới). Nó tồn tại không phải vì dữ liệu đi đâu — không có gì rời khỏi
 máy — mà vì máy dùng chung trong gia đình là chuyện thường, và row "Tiếp tục xem"
@@ -675,7 +698,12 @@ vạch tiến độ trên card. Rải cờ ra từng chỗ thì chỉ cần quê
 lộ ở đó.
 
 Nó KHÔNG xoá gì và KHÔNG tắt việc lưu tiến độ: trình phát vẫn nhớ chỗ đang xem của
-từng tập (§10.5), bật lại thì mọi thứ còn nguyên. Cờ nằm ở key riêng `personalized`
+từng tập (§10.5), bật lại thì mọi thứ còn nguyên. **Xoá** thì có nút riêng ngay dưới
+công tắc (xác nhận hai bước tại chỗ, không `window.confirm`): nó xoá index và mọi key
+`watch:`, kể cả key mồ côi index không biết tới — đây là chỗ duy nhất còn quét toàn bộ
+localStorage ngoài `rebuildIndex`, và ở đây quét là đúng vì sót một key khi người dùng
+vừa bấm xoá là sai nặng hơn nhiều so với tốn vài ms. Nó KHÔNG chạm `my-list` (thứ
+người dùng tự tay chọn) và KHÔNG bật lại cá nhân hoá hộ ai. Cờ nằm ở key riêng `personalized`
 chứ không trong `settings` hay trong index, vì `CONTINUE_PROBE` phải đọc nó trước
 lượt vẽ đầu — đọc một key vài byte khác hẳn parse cả index 14 kB để biết một cờ.
 
@@ -788,10 +816,8 @@ poisoning ở tầng server). Lên Next 16 sẽ sạch nhưng đổi stack so v�
 
 ## Việc tiếp theo
 
-- [ ] Nút xoá dữ liệu cá nhân hoá (công tắc tắt đã có, nhưng tắt không phải là xoá)
 - [ ] Kiểm lazy fetch khi cuộn trên máy có cửa sổ hiện (IntersectionObserver không
       bắn khi cửa sổ bị ẩn)
-- [ ] My List làm tín hiệu sở thích nữa (`MyListEntry` chưa chép taxonomy)
 - [ ] Virtualize item trong row — hiện mới lazy-mount cả row, chưa cắt theo ±1 viewport (§8.3)
 - [ ] Audit Lighthouse a11y ≥ 95 và hiệu năng (Phụ lục B)
 - [ ] Test trên Safari — native HLS đi đường khác Chrome (Phụ lục B)
