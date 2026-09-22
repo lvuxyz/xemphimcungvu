@@ -429,6 +429,41 @@ describe('cache trong RAM', () => {
   });
 });
 
+describe('clearWatchData', () => {
+  it('xoá index, mọi key tập, và cả key mồ côi index không biết tới', async () => {
+    const { storage, data } = await freshModule({
+      // Key mồ côi: ghi từ một tab bản cũ, hoặc còn lại sau một lần ghi index trượt.
+      'watch:phim-mo-coi:tap-01': progress(100, 1400),
+    });
+
+    storage.setWatchProgress('phim-a', 'tap-01', 420, 1400, snapshot('Phim A'));
+    storage.setWatchProgress('phim-b', 'tap-02', 100, 1400, snapshot('Phim B'));
+
+    const removed = storage.clearWatchData();
+
+    expect(removed).toBeGreaterThanOrEqual(3);
+    expect([...data.keys()].filter((k) => k.startsWith('watch:'))).toEqual([]);
+    expect(storage.readWatchIndex()).toEqual([]);
+    expect(storage.getWatchProgress('phim-a', 'tap-01')).toBeNull();
+  });
+
+  it('KHÔNG chạm my-list, settings, hay cờ cá nhân hoá', async () => {
+    const { storage, data } = await freshModule({
+      'my-list': { state: { entries: [{ slug: 'phim-x' }] } },
+      settings: { volume: 0.5 },
+    });
+
+    storage.setWatchProgress('phim-a', 'tap-01', 420, 1400);
+    storage.setPersonalized(false);
+    storage.clearWatchData();
+
+    expect(data.has('my-list')).toBe(true);
+    expect(data.has('settings')).toBe(true);
+    // Xoá dữ liệu không phải là lý do để bật lại cá nhân hoá hộ người ta.
+    expect(storage.getPersonalized()).toBe(false);
+  });
+});
+
 describe('cờ cá nhân hoá', () => {
   it('chưa có key nghĩa là BẬT', async () => {
     const { storage } = await freshModule();

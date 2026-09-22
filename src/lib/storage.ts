@@ -602,6 +602,44 @@ export function forgetMovie(slug: string): void {
 }
 
 /**
+ * Xoá SẠCH dữ liệu xem: index và mọi key `watch:`. Trả về số key đã xoá.
+ *
+ * Khác công tắc tắt cá nhân hoá ở chỗ căn bản: tắt là không đem ra hiện, còn đây là
+ * không còn gì để hiện. Một chiều, không hoàn lại được.
+ *
+ * ⚠️ Đây là chỗ DUY NHẤT còn quét toàn bộ localStorage ngoài `rebuildIndex`, và ở đây
+ * nó là đúng: người dùng vừa yêu cầu xoá, nên sót lại một key vì index không biết tới
+ * nó là sai theo nghĩa nặng hơn nhiều so với tốn vài ms. Quét sau khi đã xoá theo
+ * index, để bắt cả key mồ côi (ghi từ một tab bản cũ, hoặc từ lần ghi trượt quota).
+ *
+ * KHÔNG chạm tới `my-list` và `settings`: danh sách của tôi là thứ người dùng tự tay
+ * chọn, không phải lịch sử app tự ghi; còn âm lượng với chất lượng thì không nói gì
+ * về việc ai đã xem phim nào.
+ */
+export function clearWatchData(): number {
+  const store = safeStorage();
+  if (!store) return 0;
+
+  let removed = 0;
+  for (const entry of readIndex().entries) removed += dropEntryKeys(entry);
+
+  const stale: string[] = [];
+  try {
+    for (let i = 0; i < store.length; i++) {
+      const key = store.key(i);
+      if (key?.startsWith(PREFIX.watch)) stale.push(key);
+    }
+  } catch {
+    /* quét dở thì phần đã xoá theo index vẫn có giá trị */
+  }
+  stale.forEach(removeKey);
+  removed += stale.length;
+
+  writeIndex(emptyIndex());
+  return removed;
+}
+
+/**
  * `writeJson` gọi `pruneWatchProgress` khi hết quota, mà `writeIndex` lại đi qua
  * `writeJson` — thiếu cờ này thì một lần hết quota là đệ quy không đáy.
  */

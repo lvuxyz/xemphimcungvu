@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { PLAYER } from '@/lib/constants';
 import {
+  clearWatchData,
   forgetMovie,
   getPersonalized,
   readWatchIndex,
@@ -25,12 +26,22 @@ interface WatchState {
   loaded: boolean;
   /** Cá nhân hoá đang bật hay không (§ tuỳ chọn trong navbar). */
   personalized: boolean;
+  /**
+   * Máy này có dữ liệu xem hay không — theo STORAGE, không theo `entries`.
+   *
+   * Hai thứ khác nhau khi cá nhân hoá đang tắt: `entries` rỗng nhưng dữ liệu vẫn còn
+   * đó. Nút "Xoá dữ liệu" phải bám vào cái này, nếu không thì đúng người đã tắt lại
+   * là người không tìm được đường xoá.
+   */
+  hasData: boolean;
 
   /** Đọc lại index. Rẻ: index đã nằm trong RAM của `lib/storage.ts`. */
   refresh: () => void;
   /** Gỡ một phim khỏi "Tiếp tục xem", cả trong storage. */
   forget: (slug: string) => void;
   setPersonalized: (value: boolean) => void;
+  /** Xoá sạch dữ liệu xem. Một chiều — nơi gọi phải hỏi lại trước. */
+  clearAll: () => void;
 }
 
 /**
@@ -43,28 +54,43 @@ interface WatchState {
  * KHÔNG tắt việc ghi tiến độ: trình phát vẫn nhớ chỗ đang xem của từng tập (§10.5),
  * và bật lại thì mọi thứ còn nguyên chứ không mất.
  */
-const visibleEntries = (personalized: boolean): WatchIndexEntry[] =>
-  personalized ? readWatchIndex() : [];
+function readGated(personalized: boolean): Pick<WatchState, 'entries' | 'hasData'> {
+  const stored = readWatchIndex();
+  return { entries: personalized ? stored : [], hasData: stored.length > 0 };
+}
 
 export const useWatchStore = create<WatchState>((set) => ({
   entries: [],
   loaded: false,
   // Lượt render đầu ở client phải khớp HTML server, mà server không đọc được cờ.
   personalized: true,
+  hasData: false,
 
   refresh: () => {
     const personalized = getPersonalized();
-    set({ personalized, entries: visibleEntries(personalized), loaded: true });
+    set({ personalized, loaded: true, ...readGated(personalized) });
   },
 
   forget: (slug) => {
     forgetMovie(slug);
-    set((state) => ({ entries: state.entries.filter((e) => e.slug !== slug) }));
+    set((state) => ({
+      entries: state.entries.filter((e) => e.slug !== slug),
+      hasData: readWatchIndex().length > 0,
+    }));
   },
 
   setPersonalized: (value) => {
     savePersonalized(value);
-    set({ personalized: value, entries: visibleEntries(value) });
+    set({ personalized: value, ...readGated(value) });
+  },
+
+  /**
+   * Cố ý KHÔNG bật lại cá nhân hoá: người vừa xoá dữ liệu mà trước đó đã tắt thì
+   * không có lý gì lại bị bật lên hộ.
+   */
+  clearAll: () => {
+    clearWatchData();
+    set({ entries: [], hasData: false });
   },
 }));
 
