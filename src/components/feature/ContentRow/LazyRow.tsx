@@ -1,73 +1,100 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { CACHE, ROW_LIMIT } from '@/lib/constants';
-import { fetchListSource, listQueryKey, type ListSource } from '@/lib/list-source';
+import { CACHE } from '@/lib/constants';
+import { fetchHomeSection, type HomeSection } from '@/lib/home';
+import { queryKeys } from '@/lib/query-keys';
 import { useInView } from '@/hooks/useInView';
+import { useHasScrolled } from '@/hooks/useHasScrolled';
+import { useHoverPreviewEnabled } from '@/hooks/useDevice';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ContentRow } from './ContentRow';
 
 interface LazyRowProps {
   title: string;
-  source: ListSource;
+  section: HomeSection;
   /** Link "Xem tất cả" ở tiêu đề row */
   href?: string;
-  limit?: number;
 }
 
 /**
- * §11.2 — row KHÔNG nằm trong `/v1/api/home` thì fetch lazy khi vào viewport.
+ * Một section lazy của trang chủ: chỉ gọi `/api/home/{section}` khi người xem
+ * cuộn gần tới. "Mới cập nhật" đã nằm sẵn trong HTML, nên lúc trang vừa mở ra
+ * KHÔNG section nào dưới mép màn hình được tải.
  *
- * Đây là điểm mấu chốt của thứ tự fetch trang chủ: RSC chỉ dựng hero + row đầu,
- * 10 row còn lại tự gọi khi người dùng cuộn tới. Bắn cả 11 request lúc load là
- * lỗi phá LCP mà §11.2 nêu đích danh.
+ * Chống request thừa — cả ba thứ đều do TanStack Query lo, không tự viết lại:
  *
- * §14.1 — "List API fail → ẩn row đó, các row khác vẫn render": lỗi hoặc rỗng
- * thì trả `null`, không hiện thông báo lỗi giữa trang chủ.
+ *   · cache 5 phút (`CACHE.home`): rời trang chủ rồi quay lại trong 5 phút là 0
+ *     request, section hiện ngay từ cache
+ *   · dedupe theo query key: hai lượt mount cùng lúc (StrictMode, điều hướng
+ *     nhanh) chỉ ra một request
+ *   · huỷ khi unmount: `signal` đi thẳng vào `fetch`, rời trang giữa chừng là
+ *     request bị abort chứ không chạy nốt cho một component đã mất
+ *
+ * §14.1 — "List API fail → ẩn row đó, các row khác vẫn render": mỗi section là
+ * một query riêng, lỗi hoặc rỗng thì trả `null`, không hiện thông báo lỗi giữa
+ * trang chủ và không kéo section nào khác theo.
  */
-export function LazyRow({ title, source, href, limit = ROW_LIMIT }: LazyRowProps) {
-  const filters = { limit };
-
+export function LazyRow({ title, section, href }: LazyRowProps) {
   /**
-   * `once: true` — đã fetch thì thôi, TanStack Query giữ cache phần còn lại.
+   * Lề nhìn trước 200px, nhưng chỉ SAU lần cuộn đầu tiên (xem `useHasScrolled`).
    *
-   * rootMargin 75% ≈ ba row phía trước. Một row chỉ cao hơn 200px một chút nên
-   * mỗi nấc nới rộng đều kéo theo vài row nữa cùng bắn: đo thật ở scrollY = 300,
-   * 150% cho 7 request song song, 75% cho 6. Điều quan trọng của §11.2 vẫn đúng
-   * ở cả hai mức — lúc trang vừa load (scrollY = 0) KHÔNG có request nào.
+   * Trước đó, section phải lộ ít nhất 64px (tiêu đề + mép trên dải card) mới tính
+   * là đang hiện:
+   *   · lộ thật thì vẫn tải — để khung xám có tiêu đề nằm đó cho tới khi người xem
+   *     chạm vào trang thì trông như trang hỏng
+   *   · chỉ lề đệm `py-3` ló lên vài pixel thì không — đo ở 1280×720, "Phim bộ"
+   *     ló đúng 2px dưới mép màn hình và với lề 0 nó vẫn bắn request lúc mở trang
+   *
+   * Bản cũ nới 75% chiều cao màn hình ngay từ đầu, và ở 1075×922 hay 375×812 điều
+   * đó nghĩa là 6 request tới KKPhim ở `scrollY = 0` (đo trên bản build).
    */
-  const { ref, inView } = useInView<HTMLDivElement>({ rootMargin: '75% 0px', once: true });
-
-  const { data, isError } = useQuery({
-    queryKey: listQueryKey(source, filters),
-    queryFn: ({ signal }) => fetchListSource(source, filters, { signal }),
-    enabled: inView,
-    staleTime: CACHE.list.staleTime,
-    gcTime: CACHE.list.gcTime,
+  const hasScrolled = useHasScrolled();
+  const { ref, inView } = useInView<HTMLDivElement>({
+    rootMargin: hasScrolled ? '200px 0px' : '0px 0px -64px 0px',
+    once: true,
   });
 
-  if (isError || (data && data.items.length === 0)) return null;
+  const { data, isError } = useQuery({
+    queryKey: queryKeys.homeSection(section),
+    queryFn: ({ signal }) => fetchHomeSection(section, { signal }),
+    enabled: inView,
+    staleTime: CACHE.home.staleTime,
+    gcTime: CACHE.home.gcTime,
+    /** Route của mình, đã cache sẵn — hỏng thì thử lại một lần là đủ. */
+    retry: 1,
+  });
+
+  const withMeta = !useHoverPreviewEnabled();
+
+  if (isError || (data && data.length === 0)) return null;
 
   if (!data) {
     return (
-      <section ref={ref} className="py-3" aria-labelledby={`row-skeleton-${title}`}>
+      <section ref={ref} className="py-3" aria-labelledby={`row-skeleton-${section}`}>
         <div className="mb-2 px-row">
           <h2
-            id={`row-skeleton-${title}`}
+            id={`row-skeleton-${section}`}
             className="text-base font-bold tracking-[-0.01em] text-text-primary md:text-lg"
           >
             {title}
           </h2>
         </div>
         {/*
-          §12.2 — skeleton giữ đúng chỗ của row, không dùng spinner.
+          §12.2 — skeleton giữ ĐÚNG chỗ của row thật, không dùng spinner:
+            · `py-1` = phần `.row-track` thật sự chừa ra trên/dưới dải card (padding
+              chừa chỗ phóng to trừ đi margin âm, còn đúng 0.25rem mỗi phía)
+            · `meta` = khối tên/năm dưới ảnh, có khi card không có HoverPreview
+          Thiếu hai thứ đó thì dữ liệu về là row cao thêm 8px (desktop) hoặc 80px
+          (điện thoại) và mọi thứ bên dưới giật theo.
+
           `overflow-hidden` là BẮT BUỘC: 6 ô `shrink-0` rộng hơn màn hình, thiếu
           nó thì cả trang cuộn ngang được 160px ở màn 1366 (đo thật).
         */}
-        <div className="flex gap-2 overflow-hidden px-row" aria-hidden="true">
+        <div className="flex gap-2 overflow-hidden px-row py-1" aria-hidden="true">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="w-[45%] shrink-0 sm:w-[30%] lg:w-[19%] 2xl:w-[16%]">
-              <CardSkeleton />
+              <CardSkeleton meta={withMeta} />
             </div>
           ))}
         </div>
@@ -75,5 +102,11 @@ export function LazyRow({ title, source, href, limit = ROW_LIMIT }: LazyRowProps
     );
   }
 
-  return <ContentRow title={title} movies={data.items} href={href} />;
+  /**
+   * `inView` ở đây là của khung chờ: dữ liệu về SAU khi nó lọt tầm nhìn thì row
+   * thật cũng đang ở đó. Dữ liệu có sẵn từ cache lúc mount (quay lại trang chủ)
+   * thì khung chờ chưa từng dựng, `inView` là `false` — row tự chờ observer như cũ,
+   * không mount 16 card cho một row còn nằm tận cuối trang.
+   */
+  return <ContentRow title={title} movies={data} href={href} mountedInView={inView} />;
 }

@@ -6,7 +6,6 @@ import { Navbar } from '@/components/feature/Navbar/Navbar';
 import { ToastViewport } from '@/components/ui/Toast';
 import { NetworkBanner } from '@/components/ui/NetworkBanner';
 import { Providers } from '@/providers';
-import { getTaxonomies } from '@/lib/endpoints';
 import '@/styles/globals.css';
 
 /**
@@ -84,20 +83,13 @@ export const viewport: Viewport = {
  * Cách chặn thật sự là ở phía nơi gọi: điều hướng từ trang phát sang
  * `/phim/{slug}` phải là điều hướng CỨNG. Xem `useLeavesPlayer()`.
  */
-export default async function RootLayout({
+export default function RootLayout({
   children,
   modal,
 }: {
   children: ReactNode;
   modal: ReactNode;
 }) {
-  /**
-   * §3.4 — ba danh mục cho Navbar, cache 24 giờ nên gần như không tốn gì ở các
-   * lần render sau. Fail thì `getTaxonomies` trả rỗng và menu tự ẩn nhánh đó,
-   * layout vẫn dựng bình thường (§14.1).
-   */
-  const { categories, countries, years } = await getTaxonomies();
-
   return (
     /**
      * `suppressHydrationWarning` ở ĐÂY, và chỉ ở đây.
@@ -125,7 +117,12 @@ export default async function RootLayout({
       </head>
       <body>
         <Providers>
-          <Navbar categories={categories} countries={countries} years={years} />
+          {/*
+            Layout KHÔNG gọi API nào: ba danh mục của menu (Thể loại / Quốc gia /
+            Năm) chỉ tải khi người dùng mở menu — xem `useTaxonomyLinks`. Trước
+            đây chúng đi kèm HTML của MỌI trang, kể cả khi không ai mở menu.
+          */}
+          <Navbar />
           {children}
           {modal}
           <ToastViewport />

@@ -4,21 +4,30 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { MOTION } from '@/lib/constants';
-import type { Movie } from '@/types/movie';
+import type { CardMovie } from '@/types/movie';
 import { useRowScroll } from '@/hooks/useRowScroll';
 import { useInView } from '@/hooks/useInView';
-import { useDevice } from '@/hooks/useDevice';
+import { useDevice, useHoverPreviewEnabled } from '@/hooks/useDevice';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/ui/icons';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { CardSkeleton } from '@/components/ui/Skeleton';
 import { MovieCard } from '../MovieCard/MovieCard';
 
 interface ContentRowProps {
   title: string;
-  movies: Movie[];
+  movies: CardMovie[];
   /** Link "Xem tất cả" ở tiêu đề row */
   href?: string;
-  /** Row đầu trang chủ ưu tiên tải ảnh (§12.2 — priority chỉ cho ảnh gần LCP) */
+  /**
+   * Row đầu trang chủ: card có mặt ngay trong HTML server render, và trang card
+   * đầu tiên tải ảnh `eager` (§12.2). Xem chú thích ở chỗ render card.
+   */
   priority?: boolean;
+  /**
+   * Row được dựng khi CHẮC CHẮN đã ở sát màn hình — `LazyRow` chỉ có dữ liệu sau
+   * khi chính nó vừa lọt vào tầm nhìn trước. Khởi đầu thẳng ở trạng thái "đang
+   * hiện" thay vì chờ IntersectionObserver báo lại một khung hình sau.
+   */
+  mountedInView?: boolean;
 }
 
 /**
@@ -30,10 +39,26 @@ interface ContentRowProps {
  * Xem chú thích `.row-track` trong styles/globals.css về việc §8.3 yêu cầu
  * `overflow: visible` nhưng CSS không cho phép, và cách đi vòng.
  */
-export function ContentRow({ title, movies, href, priority = false }: ContentRowProps) {
+export function ContentRow({
+  title,
+  movies,
+  href,
+  priority = false,
+  mountedInView = false,
+}: ContentRowProps) {
   const { ref, canScrollPrev, canScrollNext, scrollNext, scrollPrev, originFor } =
     useRowScroll<HTMLUListElement>();
   const { cols, canHover } = useDevice();
+  const withMeta = !useHoverPreviewEnabled();
+
+  /**
+   * Row đầu (nằm ngay dưới hero) và row `LazyRow` vừa dựng đều BIẾT mình đang ở
+   * trong tầm nhìn lúc mount. Chờ observer báo thì khung hình đầu mang
+   * `row-offscreen` — `content-visibility: auto` bật rồi tắt ngay — và Chrome ghi
+   * đó là một cặp layout shift giữa lúc đang cuộn (đo trên bản build: CLS 0.015
+   * ở 1280×720, toàn bộ đến từ đúng chỗ này).
+   */
+  const startsInView = priority || mountedInView;
 
   /**
    * Hai thứ khác nhau, cố ý tách:
@@ -46,6 +71,7 @@ export function ContentRow({ title, movies, href, priority = false }: ContentRow
   const { ref: sectionRef, inView } = useInView<HTMLElement>({
     rootMargin: '100% 0px',
     once: false,
+    initialInView: startsInView,
   });
   /**
    * Row `priority` khởi tạo THẲNG ở `true`, không chờ IntersectionObserver.
@@ -56,11 +82,11 @@ export function ContentRow({ title, movies, href, priority = false }: ContentRow
    * hydrate xong; trên 3G đó là vài giây nhìn ô xám, và `priority` truyền xuống
    * card cũng vô nghĩa vì lúc preload scanner quét HTML thì card chưa tồn tại.
    *
-   * Chỉ row đầu được hưởng: 10 row lazy của trang chủ vẫn phải chờ viewport, đó
-   * mới là thứ §11.2 muốn chặn. Row đầu thì luôn nằm ngay dưới hero — nó KHÔNG
-   * phải thứ cần tiết kiệm.
+   * Row đầu thì luôn nằm ngay dưới hero — nó KHÔNG phải thứ cần tiết kiệm. Row
+   * `LazyRow` vừa dựng cũng vậy: dữ liệu về đúng lúc nó sắp lọt vào màn hình, mà
+   * chờ thêm một khung hình để thay ô chờ bằng card chỉ là thêm một lần nháy.
    */
-  const [hasEntered, setHasEntered] = useState(priority);
+  const [hasEntered, setHasEntered] = useState(startsInView);
 
   useEffect(() => {
     if (inView) setHasEntered(true);
@@ -176,20 +202,29 @@ export function ContentRow({ title, movies, href, priority = false }: ContentRow
                   duy nhất trên trang chủ có thể là LCP: không card nào nằm trên nó.
                   Đo trên HTML đã build: 5 thẻ preload ảnh thay vì 1.
 
-                  Bỏ `priority` không có nghĩa là card tải muộn: thẻ <img> đã nằm
-                  sẵn trong HTML nên trình duyệt tự lo, `loading=lazy` fetch ngay
-                  sau layout với card nào lọt viewport. Chỗ `priority` thật sự có
-                  ích là grid trang danh sách (`MovieGrid`) — ở đó không có hero.
+                  Thay vào đó là `loading="eager"` cho TRANG CARD ĐẦU của row đầu
+                  (`cols` card — thứ nằm trong màn hình lúc mở trang): preload
+                  scanner thấy chúng ngay trong HTML thay vì đợi layout như ảnh lazy,
+                  nhưng không preload và giữ `fetchpriority=low` (lý do ở MovieCard)
+                  — hero vẫn là ảnh duy nhất được ưu tiên. Mọi card khác, kể cả ba
+                  section lazy, vẫn `loading="lazy"` mặc định của next/image.
+
+                  `cols` ở HTML server là 6 (khổ rộng nhất); về client nó thành đúng
+                  khổ thật. Ảnh đã bắt đầu tải thì đổi thuộc tính sau cũng vô hại.
+                  Chỗ `priority` thật sự có ích là grid trang danh sách (`MovieGrid`)
+                  — ở đó không có hero.
                 */
                 <MovieCard
                   movie={movie}
+                  eager={priority && index < cols}
                   transformOrigin={originFor(index, movies.length, cols)}
                   tabIndex={index === rovingIndex ? 0 : -1}
                   onFocusCard={() => setRovingIndex(index)}
                 />
               ) : (
-                // Giữ đúng chỗ để không gây CLS khi card mount (§12.1)
-                <Skeleton className="aspect-backdrop w-full" />
+                // Giữ đúng chỗ để không gây CLS khi card mount (§12.1) — kể cả khối
+                // tên/năm dưới ảnh ở máy không có HoverPreview.
+                <CardSkeleton meta={withMeta} />
               )}
             </li>
           ))}

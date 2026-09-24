@@ -4,18 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
-import type { Taxonomy } from '@/types/movie';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { usePresence } from '@/hooks/usePresence';
+import { useTaxonomyLinks, type TaxonomyKind } from '@/hooks/useTaxonomyLinks';
 import { CloseIcon } from '@/components/ui/icons';
-import { PATH, routes } from '@/lib/routes';
+import { PATH } from '@/lib/routes';
 import { PersonalizationToggle } from './PersonalizationToggle';
 
 interface MobileMenuProps {
   menu: ReadonlyArray<{ label: string; href: string }>;
-  categories: Taxonomy[];
-  countries: Taxonomy[];
-  years: number[];
 }
 
 /**
@@ -27,7 +24,7 @@ interface MobileMenuProps {
  *
  * Mọi mục chạm được đều cao tối thiểu 44px theo khuyến nghị vùng chạm.
  */
-export function MobileMenu({ menu, categories, countries, years }: MobileMenuProps) {
+export function MobileMenu({ menu }: MobileMenuProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -133,29 +130,9 @@ export function MobileMenu({ menu, categories, countries, years }: MobileMenuPro
                 </li>
               </ul>
 
-              <Section title="Thể loại">
-                {categories.map((c) => (
-                  <TagLink key={c.slug} href={routes.category(c.slug)}>
-                    {c.name}
-                  </TagLink>
-                ))}
-              </Section>
-
-              <Section title="Quốc gia">
-                {countries.map((c) => (
-                  <TagLink key={c.slug} href={routes.country(c.slug)}>
-                    {c.name}
-                  </TagLink>
-                ))}
-              </Section>
-
-              <Section title="Năm phát hành">
-                {years.slice(0, 16).map((year) => (
-                  <TagLink key={year} href={routes.year(year)}>
-                    {year}
-                  </TagLink>
-                ))}
-              </Section>
+              <Section title="Thể loại" kind="categories" />
+              <Section title="Quốc gia" kind="countries" />
+              <Section title="Năm phát hành" kind="years" limit={16} />
             </nav>
 
             {/*
@@ -196,9 +173,20 @@ function MenuLink({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * Một nhánh danh mục, gập sẵn. Danh sách chỉ tải khi nhánh được MỞ — mở menu điện
+ * thoại để tìm "Danh sách của tôi" không kéo theo ba danh mục chẳng ai nhìn tới.
+ */
+function Section({ title, kind, limit }: { title: string; kind: TaxonomyKind; limit?: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const { data, isError } = useTaxonomyLinks(kind, expanded);
+  const items = data && limit !== undefined ? data.slice(0, limit) : data;
+
   return (
-    <details className="group border-t border-white/5 py-1">
+    <details
+      className="group border-t border-white/5 py-1"
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    >
       <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between px-3 text-sm font-medium text-text-primary">
         {title}
         <span
@@ -208,7 +196,26 @@ function Section({ title, children }: { title: string; children: React.ReactNode
           ⌄
         </span>
       </summary>
-      <div className="flex flex-wrap gap-1.5 px-3 pb-3 pt-1">{children}</div>
+      <div className="flex flex-wrap gap-1.5 px-3 pb-3 pt-1">
+        {items && items.length > 0 ? (
+          items.map((item) => (
+            <TagLink key={item.href} href={item.href}>
+              {item.label}
+            </TagLink>
+          ))
+        ) : isError || items ? (
+          <p className="py-2 text-[13px] text-text-muted">Không tải được danh mục.</p>
+        ) : (
+          // Đang tải — ô cùng cỡ với TagLink thật.
+          Array.from({ length: 8 }).map((_, i) => (
+            <span
+              key={i}
+              aria-hidden="true"
+              className="skeleton inline-flex min-h-[36px] w-20 rounded-pill"
+            />
+          ))
+        )}
+      </div>
     </details>
   );
 }

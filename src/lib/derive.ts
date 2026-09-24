@@ -3,8 +3,11 @@
  * Không gọi mạng, không chạm raw response — thuần tính toán, dễ test.
  */
 
-import type { Movie, RatingSource } from '@/types/movie';
+import type { CardMovie, Movie, RatingSource } from '@/types/movie';
 import { FIRST_EPISODE, routes } from '@/lib/routes';
+
+/** Hai số duy nhất mà việc tính điểm cần — card trang chủ chỉ mang đúng chừng này. */
+type Rating = Pick<RatingSource, 'vote_average' | 'vote_count'>;
 
 /** Giữ lại để không phá các import cũ; định nghĩa thật nằm ở `lib/routes.ts`. */
 export { FIRST_EPISODE };
@@ -15,7 +18,7 @@ export { FIRST_EPISODE };
  * Dữ liệu thật có nhiều phim `vote_count > 0` nhưng `vote_average = 0`
  * (KKPhim lưu id IMDb kèm số vote nhưng chưa đồng bộ điểm) — coi là không có dữ liệu.
  */
-function isUsable(src: RatingSource): boolean {
+function isUsable(src: Rating): boolean {
   return src.vote_count > 0 && src.vote_average > 0;
 }
 
@@ -28,7 +31,7 @@ function isUsable(src: RatingSource): boolean {
  * rồi hiện "0% phù hợp", đúng thứ §17 rủi ro #7 muốn tránh.
  * Ở đây lọc nguồn dùng được TRƯỚC, rồi mới so lượt vote.
  */
-export function bestRatingSource(m: Movie): RatingSource | null {
+export function bestRatingSource<R extends Rating>(m: { imdb: R; tmdb: R }): R | null {
   const usable = [m.imdb, m.tmdb].filter(isUsable);
   if (usable.length === 0) return null;
   return usable.reduce((best, src) => (src.vote_count > best.vote_count ? src : best));
@@ -39,7 +42,7 @@ export function bestRatingSource(m: Movie): RatingSource | null {
  * Trả `null` khi không đủ dữ liệu — UI PHẢI ẩn badge, KHÔNG được hiện 0%
  * (§5.3, §8.4, §17 rủi ro #7).
  */
-export function matchScore(m: Movie): number | null {
+export function matchScore(m: Pick<CardMovie, 'imdb' | 'tmdb'>): number | null {
   const src = bestRatingSource(m);
   if (!src) return null;
   return Math.round(src.vote_average * 10);

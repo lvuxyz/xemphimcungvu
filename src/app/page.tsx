@@ -5,6 +5,7 @@ import { ContinueRow } from '@/components/feature/ContinueRow/ContinueRow';
 import { CONTINUE_PROBE } from '@/components/feature/ContinueRow/continue-probe';
 import { EMPTY_LIST, getHeroSpotlight, getHome, getNewlyUpdated } from '@/lib/endpoints';
 import { ROW_LIMIT } from '@/lib/constants';
+import { toCardMovie } from '@/lib/home';
 import type { ListSource } from '@/lib/list-source';
 import { PATH, routes } from '@/lib/routes';
 
@@ -23,8 +24,13 @@ interface HomeRow {
 }
 
 /**
- * 10 row còn lại của trang chủ. KHÔNG fetch ở RSC: mỗi row tự gọi API khi cuộn
- * tới (§11.2 — "không được bắn 11 request song song ngay khi load").
+ * Ba section còn lại của trang chủ. KHÔNG fetch ở RSC: mỗi section tự gọi
+ * `/api/home/{type}` khi người xem cuộn gần tới (`LazyRow`).
+ *
+ * Trang chủ cố ý chỉ có bốn section tính cả "Mới cập nhật" — TV Shows, quốc gia
+ * và thể loại đã rời trang chủ, lối vào của chúng là menu Navbar và các trang
+ * danh sách. Hệ quả cho cá nhân hoá: không còn row thể loại nào để nhường chỗ cho
+ * "Vì bạn đã xem X", nên `personalizeRows` ở đây chỉ còn đảo thứ tự ba row này.
  */
 const LAZY_ROWS: HomeRow[] = [
   {
@@ -45,76 +51,33 @@ const LAZY_ROWS: HomeRow[] = [
     source: { kind: 'type', type: 'hoat-hinh' },
     href: routes.listByType('hoat-hinh'),
   },
-  {
-    id: 'type-tv-shows',
-    title: 'TV Shows',
-    source: { kind: 'type', type: 'tv-shows' },
-    href: routes.listByType('tv-shows'),
-  },
-  {
-    id: 'country-han-quoc',
-    title: 'Hàn Quốc',
-    source: { kind: 'country', slug: 'han-quoc' },
-    href: routes.country('han-quoc'),
-  },
-  {
-    id: 'country-trung-quoc',
-    title: 'Trung Quốc',
-    source: { kind: 'country', slug: 'trung-quoc' },
-    href: routes.country('trung-quoc'),
-  },
-  {
-    id: 'country-nhat-ban',
-    title: 'Nhật Bản',
-    source: { kind: 'country', slug: 'nhat-ban' },
-    href: routes.country('nhat-ban'),
-  },
-  {
-    id: 'category-hanh-dong',
-    title: 'Hành động',
-    source: { kind: 'category', slug: 'hanh-dong' },
-    href: routes.category('hanh-dong'),
-  },
-  {
-    id: 'category-tinh-cam',
-    title: 'Tình cảm',
-    source: { kind: 'category', slug: 'tinh-cam' },
-    href: routes.category('tinh-cam'),
-  },
-  {
-    id: 'category-kinh-di',
-    title: 'Kinh dị',
-    source: { kind: 'category', slug: 'kinh-di' },
-    href: routes.category('kinh-di'),
-  },
 ];
 
 /**
- * Trang chủ (§6) — thứ tự fetch bám đúng §11.2:
+ * Trang chủ (§6) — thứ tự fetch:
  *
- *   1. RSC  : `/v1/api/home` → chọn hero, dựng row đầu
- *   2. Client: 10 row còn lại, lazy khi vào viewport (`LazyRow`)
+ *   1. RSC   : `/danh-sach/phim-moi-cap-nhat-v3` → chọn hero, dựng "Mới cập nhật"
+ *   2. Client: 3 section còn lại, mỗi section một request khi cuộn gần tới
  *
- * ⚠️ Sai lệch có chủ đích: `/v1/api/home` KHÔNG trả `thumb_url` (chỉ có
- * `poster_url`), mà ContentRow dùng ảnh 16:9. Vì vậy row "Mới cập nhật" lấy dữ
- * liệu từ `/danh-sach/phim-moi-cap-nhat-v3` — cùng nội dung, cùng thứ tự, nhưng
- * có đủ hai cỡ ảnh. `/home` vẫn là lời gọi đầu tiên và vẫn là nguồn chọn hero.
+ * Đúng MỘT request danh sách ở RSC. Trước đây là hai (`/v1/api/home` song song
+ * với v3), nhưng kiểm tra thật 24/09/2026 cho thấy hai endpoint trả CÙNG 24 phim
+ * theo CÙNG thứ tự — mà `/home` lại thiếu `thumb_url`. Giờ v3 vừa là nguồn hero
+ * vừa là nguồn row đầu; `/home` chỉ còn là phao khi v3 hỏng (không tốn gì lúc
+ * bình thường).
+ *
+ * ⚠️ v3 lờ tham số `limit` (luôn trả 24 — đã thử), nên row đầu được cắt còn
+ * `ROW_LIMIT` NGAY TẠI ĐÂY, trên server: HTML chỉ mang 16 card, và mỗi card chỉ
+ * mang các field `CardMovie`.
  */
 export default async function HomePage() {
-  const [home, newly] = await Promise.all([
-    getHome().catch(() => EMPTY_LIST),
-    getNewlyUpdated(1, 'v3').catch(() => EMPTY_LIST),
-  ]);
+  const newly = await getNewlyUpdated(1, 'v3').catch(() => getHome().catch(() => EMPTY_LIST));
 
-  const firstRow = newly.items.length > 0 ? newly.items : home.items;
-  const heroPool = home.items.length > 0 ? home.items : newly.items;
-
-  // Mất cả hai nguồn là hỏng phần cốt lõi → để error.tsx hiện nút "Thử lại" (§14.1).
-  if (heroPool.length === 0) {
+  // Mất nguồn này là hỏng phần cốt lõi → để error.tsx hiện nút "Thử lại" (§14.1).
+  if (newly.items.length === 0) {
     throw new Error('Không tải được danh sách phim cho trang chủ');
   }
 
-  const hero = await getHeroSpotlight(heroPool);
+  const hero = await getHeroSpotlight(newly.items);
 
   return (
     <>
@@ -142,12 +105,12 @@ export default async function HomePage() {
 
         <ContentRow
           title="Mới cập nhật"
-          movies={firstRow.slice(0, ROW_LIMIT)}
+          movies={newly.items.slice(0, ROW_LIMIT).map(toCardMovie)}
           href={PATH.list}
           priority
         />
 
-        {/* Thứ tự 10 row này do sở thích của người đang xem quyết định — xem `lib/taste.ts`. */}
+        {/* Thứ tự 3 row này do sở thích của người đang xem quyết định — xem `lib/taste.ts`. */}
         <PersonalizedRows rows={LAZY_ROWS} />
       </div>
     </>

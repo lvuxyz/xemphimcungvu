@@ -1,4 +1,5 @@
 import type { ListFilters, TypeList } from '@/types/filters';
+import type { HomeSection } from './home';
 
 /**
  * Query key tập trung cho TanStack Query (§11).
@@ -8,6 +9,8 @@ export const queryKeys = {
   all: ['phim'] as const,
 
   home: () => [...queryKeys.all, 'home'] as const,
+  /** Một section lazy của trang chủ — dữ liệu là `CardMovie[]`, không phải `MovieListResult`. */
+  homeSection: (section: HomeSection) => [...queryKeys.home(), section] as const,
 
   lists: () => [...queryKeys.all, 'list'] as const,
   listByType: (type: TypeList, filters: ListFilters = {}) =>
@@ -35,4 +38,7 @@ export const queryKeys = {
   categories: () => [...queryKeys.taxonomy(), 'the-loai'] as const,
   countries: () => [...queryKeys.taxonomy(), 'quoc-gia'] as const,
   years: () => [...queryKeys.taxonomy(), 'nam'] as const,
+  /** Danh mục đã dựng sẵn thành link cho menu Navbar — xem `useTaxonomyLinks`. */
+  taxonomyLinks: (kind: 'categories' | 'countries' | 'years') =>
+    [...queryKeys.taxonomy(), 'links', kind] as const,
 } as const;
