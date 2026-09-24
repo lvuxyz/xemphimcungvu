@@ -25,8 +25,22 @@ const CONFIRM_TIMEOUT = 5_000;
 export function PersonalizationToggle({ className }: { className?: string }) {
   const personalized = useWatchStore((s) => s.personalized);
   const setPersonalized = useWatchStore((s) => s.setPersonalized);
-  const hasData = useWatchStore((s) => s.entries.length > 0);
+  /**
+   * `hasData` của store, KHÔNG phải `entries.length`: tắt cá nhân hoá là `entries` về
+   * rỗng trong khi dữ liệu vẫn còn nguyên — đếm `entries` thì đúng người đã tắt lại
+   * là người không thấy nút xoá.
+   */
+  const hasData = useWatchStore((s) => s.hasData);
   const clearAll = useWatchStore((s) => s.clearAll);
+  const refresh = useWatchStore((s) => s.refresh);
+
+  /**
+   * Đọc lại mỗi lần panel mở (component chỉ mount khi dropdown / menu điện thoại mở).
+   * Store chỉ được nạp lúc khởi động và ở trang chủ, nên người mới xem tập đầu tiên
+   * rồi mở ⚙ ngay trên trang phát sẽ thấy `hasData` cũ — không có nút xoá. Rẻ: index
+   * đã nằm trong RAM của `lib/storage.ts`.
+   */
+  useEffect(() => refresh(), [refresh]);
   const pushToast = useUIStore((s) => s.pushToast);
 
   /**
