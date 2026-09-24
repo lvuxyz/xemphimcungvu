@@ -56,6 +56,27 @@ export function ContinueRow() {
     .filter((entry) => entry.snapshot !== null && resumePoint(entry) !== null)
     .slice(0, MAX_ITEMS);
 
+  const hasItems = items.length > 0;
+
+  /**
+   * Đồng bộ lại cờ của `CONTINUE_PROBE` sau khi đã đọc xong index.
+   *
+   * Script đó chỉ chạy ở lượt tải TRANG ĐẦU: về trang chủ bằng điều hướng mềm thì
+   * React chèn thẻ `<script>` nhưng không chạy nó, nên cờ trên `<html>` vẫn là
+   * câu trả lời của lần tải đầu. Người mới vào trang chủ khi chưa xem gì, mở một
+   * tập, rồi bấm Back → row có dữ liệu mà `.continue-slot` vẫn `display: none`,
+   * tức là row biến mất cho tới lần F5 sau. Bật cá nhân hoá lại giữa phiên cũng
+   * rơi vào đúng chỗ đó.
+   *
+   * Chỉ sau `loaded`: trước đó quyết định của script là thứ duy nhất đúng.
+   */
+  useEffect(() => {
+    if (!loaded) return;
+    const root = document.documentElement;
+    if (hasItems) root.dataset.continueWatching = '1';
+    else delete root.dataset.continueWatching;
+  }, [loaded, hasItems]);
+
   const firstResume = items[0] ? resumePoint(items[0]) : null;
   const firstHref =
     items[0] && firstResume
