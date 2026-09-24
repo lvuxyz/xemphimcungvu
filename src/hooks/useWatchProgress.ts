@@ -83,6 +83,14 @@ export function useWatchProgress(
         if (completedRef.current !== ep) {
           completedRef.current = ep;
           markCompleted(slug, ep, snapshotRef.current);
+        } else {
+          /**
+           * Đã đếm xong rồi, nhưng vẫn phải dọn: xem hết → tua lại giữa tập (lượt
+           * `persist` sau ghi lại tiến độ) → tua qua 95% lần nữa thì không có nhánh
+           * này là tập đã xem xong nằm lại trong "Tiếp tục xem" ở mốc giữa tập. Rẻ:
+           * không còn tiến độ thì hàm tự dừng sau một `removeItem`.
+           */
+          clearWatchProgress(slug, ep);
         }
         setSaved(null);
         return;
