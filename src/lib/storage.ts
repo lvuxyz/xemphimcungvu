@@ -128,7 +128,12 @@ export interface WatchSnapshot {
    * tra ngược slug → thể loại là một lời gọi `/phim/{slug}` cho mỗi phim. Chép
    * mấy chuỗi slug vào lúc ghi thì trọng số sở thích tính được mà không chạm mạng.
    */
-  type: MovieType;
+  /**
+   * Tuỳ chọn vì snapshot ghi trước khi có field này không biết loại phim của nó —
+   * cùng lý do với `MyListEntry.type`: điền `single` thì mọi snapshot cũ thành phiếu
+   * bầu cho "Phim lẻ".
+   */
+  type?: MovieType;
   /** Slug thể loại, ví dụ `['hanh-dong', 'phieu-luu']`. */
   categories: string[];
   /** Slug quốc gia. */
@@ -251,8 +256,9 @@ function sanitizeSnapshot(raw: unknown): WatchSnapshot | null {
     quality: str(s.quality),
     episodeCurrent: str(s.episodeCurrent),
     episodeName: str(s.episodeName),
-    // Snapshot ghi trước khi có ba field này thì về mặc định, không phải bỏ cả entry.
-    type: MOVIE_TYPES.includes(s.type as MovieType) ? (s.type as MovieType) : 'single',
+    // Snapshot ghi trước khi có ba field này thì để trống, không phải bỏ cả entry —
+    // và KHÔNG bịa mặc định (xem chú thích ở `WatchSnapshot.type`).
+    type: MOVIE_TYPES.includes(s.type as MovieType) ? (s.type as MovieType) : undefined,
     categories: slugs(s.categories),
     countries: slugs(s.countries),
   };

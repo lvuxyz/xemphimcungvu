@@ -218,6 +218,33 @@ describe('setWatchProgress', () => {
     expect(entry?.snapshot?.name).toBe('Phim A');
   });
 
+  it('snapshot ghi trước khi có taxonomy KHÔNG bị bịa loại phim', async () => {
+    const { name, originName, poster, thumb, year, quality, episodeCurrent, episodeName } =
+      snapshot('Phim cũ');
+    const { storage } = await freshModule({
+      'watch-index': {
+        v: 1,
+        entries: [
+          {
+            slug: 'phim-cu',
+            lastEp: 'tap-01',
+            eps: { 'tap-01': [120, 1400, Date.now()] },
+            updatedAt: Date.now(),
+            finished: 0,
+            // Hình dạng snapshot trước khi có `type`/`categories`/`countries`.
+            snapshot: { name, originName, poster, thumb, year, quality, episodeCurrent, episodeName },
+          },
+        ],
+      },
+    });
+
+    const restored = storage.readWatchIndex()[0]?.snapshot;
+    expect(restored?.name).toBe('Phim cũ');
+    // Điền `single` thì mọi snapshot cũ thành phiếu bầu cho "Phim lẻ".
+    expect(restored?.type).toBeUndefined();
+    expect(restored?.categories).toEqual([]);
+  });
+
   it('cắt index về trần và dọn luôn key của phim bị loại', async () => {
     const { storage, data } = await freshModule();
 

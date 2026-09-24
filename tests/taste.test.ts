@@ -116,6 +116,16 @@ describe('tasteScores', () => {
     expect(scores.get('type:phim-bo')).toBeCloseTo(0.75);
   });
 
+  it('snapshot không biết loại phim thì không bầu cho loại nào', () => {
+    const old = entry('a', { categories: ['hanh-dong'] });
+    const scores = tasteScores([{ ...old, snapshot: { ...old.snapshot!, type: undefined } }], {
+      now: NOW,
+    });
+
+    expect([...scores.keys()].some((key) => key.startsWith('type:'))).toBe(false);
+    expect(scores.get('category:hanh-dong')).toBeCloseTo(1.5);
+  });
+
   it('xem xong nhiều tập thì nặng hơn xem dở', () => {
     const [dở, xong] = [
       tasteScores([entry('a', { categories: ['x'], ratio: 0.5 })], { now: NOW }),

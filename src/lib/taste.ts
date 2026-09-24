@@ -180,7 +180,8 @@ export function tasteScores(
   };
 
   for (const entry of entries) {
-    // Snapshot ghi trước khi có ba field taxonomy thì không đóng góp được gì.
+    // Entry dựng lại từ key cũ không có snapshot thì không đóng góp được gì; snapshot
+    // ghi trước khi có ba field taxonomy thì chỉ còn những field nó thật sự có.
     if (!entry.snapshot) continue;
 
     const { type, categories, countries } = entry.snapshot;
