@@ -7,6 +7,7 @@ import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { firstEpisodeHref, matchScore, metaLine } from '@/lib/derive';
 import { routes } from '@/lib/routes';
 import type { Movie, MovieImages } from '@/types/movie';
+import { resumePoint, useWatchEntry } from '@/store/useWatchStore';
 import { useDevice } from '@/hooks/useDevice';
 import { Button } from '@/components/ui/Button';
 import { MatchScore } from '@/components/ui/Chip';
@@ -36,6 +37,19 @@ interface HeroBillboardProps {
  */
 export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardProps) {
   const { reducedMotion, budget } = useDevice();
+
+  /**
+   * Phim hero mà người này đang xem dở thì nút chính mở lại đúng chỗ đã dừng.
+   *
+   * Lượt render đầu ở client luôn ra `null` (store còn rỗng) nên khớp HTML từ
+   * server — nhưng chữ trên nút đổi sau khi hydrate, và một nhãn dài hơn thì đẩy
+   * nút bên cạnh đi. Cách chừa chỗ khác nhau theo khổ màn, xem khối nút bên dưới.
+   *
+   * Nhãn cũng KHÔNG mang theo số tập: "Tiếp tục Tập 12" rộng gần gấp đôi "Phát",
+   * đủ để phá mọi cách chừa chỗ ở khổ điện thoại. Số tập và thời gian còn lại nằm
+   * ở row "Tiếp tục xem" ngay dưới hero, nơi có chỗ cho chúng.
+   */
+  const resume = resumePoint(useWatchEntry(movie.slug));
 
   const backdrop = images.backdrops[0];
   // Không có backdrop thì dùng thumb độ phân giải thấp + bật layer 0 (§17 rủi ro #4).
@@ -101,8 +115,8 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
       />
 
       {/* layer 4 — nội dung */}
-      <div className="absolute inset-0 flex items-end pt-20 pb-10 sm:pb-12 md:pb-16 lg:pb-20">
-        <div className="w-full max-w-2xl space-y-3 sm:space-y-4 px-row drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
+      <div className="absolute inset-0 flex items-end pb-10 pt-20 sm:pb-12 md:pb-16 lg:pb-20">
+        <div className="w-full max-w-2xl space-y-3 px-row drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] sm:space-y-4">
           {logo ? (
             <SmartImage
               src={logo}
@@ -119,7 +133,9 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
           )}
 
           {movie.originName && movie.originName !== movie.name && (
-            <p className="text-sm font-medium text-text-secondary drop-shadow-md md:text-base">{movie.originName}</p>
+            <p className="text-sm font-medium text-text-secondary drop-shadow-md md:text-base">
+              {movie.originName}
+            </p>
           )}
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm drop-shadow-md">
@@ -127,14 +143,36 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
             <span className="text-text-secondary">{metaLine(movie)}</span>
           </div>
 
+          {/*
+            Nhãn nút chính đổi được sau khi hydrate, nên hai nút phải chịu được
+            chuyện đó ở MỌI khổ màn. Đo thật ở 360px: khối này chỉ rộng 331px, mà
+            "Phát" + "Thông tin khác" đã chiếm 303px — nút chính rộng thêm 30px là
+            đủ ép nút thứ hai xuống dòng, tức dịch 60px theo chiều dọc.
+
+            Hai việc, mỗi việc cho một nút thắt:
+            · `sm:min-w` chừa sẵn cho nhãn dài hơn, nên từ 640px lên thì nút thứ
+              hai không nhích một pixel nào.
+            · nhãn phụ ngắn lại ở khổ điện thoại, để cả hai nhãn của nút chính đều
+              còn chỗ trên MỘT dòng. Còn lại đúng một cú nhích ngang ~30px của nút
+              phụ — CLS cỡ 0.002, trong khi ngưỡng "tốt" là 0.1.
+          */}
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <Button href={firstEpisodeHref(movie.slug)} variant="primary" size="lg">
+            <Button
+              href={
+                resume
+                  ? routes.watch(movie.slug, resume.ep, { startAt: resume.position })
+                  : firstEpisodeHref(movie.slug)
+              }
+              variant="primary"
+              size="lg"
+              className="sm:min-w-[8.75rem]"
+            >
               <PlayIcon />
-              Phát
+              {resume ? 'Tiếp tục' : 'Phát'}
             </Button>
             <Button href={routes.detail(movie.slug)} variant="secondary" size="lg">
               <InfoIcon />
-              Thông tin khác
+              Thông tin<span className="hidden sm:inline">&nbsp;khác</span>
             </Button>
           </div>
         </div>

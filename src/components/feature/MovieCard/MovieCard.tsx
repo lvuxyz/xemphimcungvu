@@ -9,6 +9,7 @@ import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { HOVER_DELAY, PLACEHOLDER_BACKDROP, PLACEHOLDER_POSTER } from '@/lib/constants';
 import { episodeBadgeLabel, matchScore, parseEpisodeBadge } from '@/lib/derive';
 import type { Movie } from '@/types/movie';
+import { useWatchRatio } from '@/store/useWatchStore';
 import { useHoverDelay } from '@/hooks/useHoverDelay';
 import { usePresence } from '@/hooks/usePresence';
 import { useDevice } from '@/hooks/useDevice';
@@ -116,6 +117,14 @@ export function MovieCard({
 
   const badgeLabel = episodeBadgeLabel(parseEpisodeBadge(movie.episodeCurrent));
 
+  /**
+   * Đọc từ store dùng chung, không phải từ localStorage: trang chủ có hơn trăm
+   * card, mỗi card tự đọc storage là hơn trăm lượt chạm đồng bộ ngay lúc hydrate.
+   * Store nạp index một lần, ở đây chỉ còn một phép tìm trong RAM — và card nào
+   * chưa xem thì selector trả về đúng `0`, không render lại.
+   */
+  const watchRatio = useWatchRatio(movie.slug);
+
   return (
     <div
       className={cn('relative', className)}
@@ -163,6 +172,19 @@ export function MovieCard({
           {badgeLabel && (
             <span className="absolute bottom-1.5 right-1.5 rounded-[3px] bg-accent/90 px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--accent-contrast)]">
               {badgeLabel}
+            </span>
+          )}
+
+          {/*
+            §10.5 — phim đang xem dở. Nằm đè lên đáy ảnh (`absolute`) nên nó xuất
+            hiện sau hydrate mà không dịch một pixel nào của bố cục.
+          */}
+          {watchRatio > 0 && (
+            <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[3px] bg-white/20">
+              <span
+                className="block h-full bg-accent"
+                style={{ width: `${Math.max(2, Math.round(watchRatio * 100))}%` }}
+              />
             </span>
           )}
         </div>

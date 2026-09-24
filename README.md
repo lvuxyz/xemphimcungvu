@@ -566,6 +566,171 @@ iframe load, nếu không YouTube không bao giờ gửi message về.
 
 ---
 
+## Cá nhân hoá cho người xem
+
+Nguyên tắc nền: **HTML từ server vẫn là một bản dùng chung cho mọi người.** Trang
+chủ là ISR 300s và cả CDN dùng chung một bản; chạm `cookies()` trong RSC để biết
+người nào đang xem là mất full-route cache cho *mọi* khách, kể cả người mới. Còn
+PPR — cách của Next cho đúng chuyện "vỏ tĩnh, lỗ động" — thì bản 14.2.35 đang pin
+ném lỗi, nó chỉ bật được trên canary. Nên mọi thứ mang tính cá nhân chạy ở client,
+sau paint, và chỉ ở những chỗ HTML đó vốn còn trống.
+
+**Index tiến độ xem** (`lib/storage.ts`). Một key `watch-index` giữ danh sách phim
+đang xem: tập nào, tới đâu, kèm ảnh chụp đủ để vẽ card (tên, poster, thumb, tập).
+Đọc một lần rồi giữ trong RAM cho cả phiên.
+
+| | Trước | Sau |
+|---|---|---|
+| Khởi động app, đã xem 200 tập | 200 `getItem` + 200 `JSON.parse` đồng bộ | 1 + 1 |
+| Mở sidebar một bộ 40 tập | 40 `getItem` (mỗi lần đổi server thêm 40) | 0 |
+| Mỗi `readJson` | 1 `setItem` + 1 `removeItem` thăm dò | 0 |
+
+Index là CACHE, không phải nguồn sự thật: `watch:{slug}:{ep}` vẫn là bản ghi bền
+của từng tập và index dựng lại được từ chúng. Mất index thì mất thứ tự "gần đây" và
+snapshot, không mất vị trí đang xem của ai. Người đã dùng app từ trước chịu đúng
+MỘT lượt quét localStorage, ở lần mở đầu tiên sau khi cập nhật, để gom key cũ vào.
+
+⚠️ Key tên `watch-index` chứ không `watch:index`: mọi vòng quét theo tiền tố
+`watch:` sẽ coi nó là một key tiến độ, thấy `updatedAt` không hợp lệ rồi xoá sạch.
+
+**Row "Tiếp tục xem"** — dựng hoàn toàn từ localStorage, KHÔNG một request nào. Đây
+là phần thu lãi của snapshot: không có nó thì row phải gọi `/phim/{slug}` cho từng
+phim, mấy request nối tiếp ngay trên màn hình đầu — đúng thứ §11.2 cấm.
+
+**Chống CLS bằng một script đồng bộ.** Row chỉ dựng được ở client, nên chèn nó lúc
+hydrate là đẩy cả "Mới cập nhật" xuống — mà row đó đang trong viewport. Cách đi:
+một script ~200 byte đứng TRƯỚC chỗ chừa trong HTML, đọc `watch-index` và đánh dấu
+`<html data-continue-watching>`; CSS `.continue-slot` lấy dấu đó để chừa sẵn chiều
+cao ngay lượt vẽ đầu. Khách mới không có dấu → không chừa gì, không thấy khoảng
+trống nào. Điều kiện trong script phải khớp CHÍNH XÁC bộ lọc của row (cùng ngưỡng
+`PLAYER.resumeMinPosition`), nếu không chỗ chừa hiện ra rồi xẹp lại.
+
+Vì script đặt attribute trước khi React hydrate, `<html>` phải có
+`suppressHydrationWarning` — cùng cách next-themes chống nháy theme.
+
+**Nút hero đổi nhãn** "Phát" → "Tiếp tục", href mang theo `?t=`. Nhãn dài hơn thì
+đẩy nút bên cạnh, nên: `sm:min-w` chừa sẵn cho nhãn dài từ 640px lên, và nhãn phụ
+ngắn lại ở khổ điện thoại để cả hai nhãn còn chỗ trên một dòng. Đo ở 360px: khối
+nút chỉ rộng 331px mà "Phát" + "Thông tin khác" đã chiếm 303px — thiếu hai việc đó
+là nút thứ hai rơi xuống dòng, dịch 60px. Nhãn cũng KHÔNG mang số tập vì
+"Tiếp tục Tập 12" rộng gần gấp đôi "Phát"; số tập và thời gian còn lại nằm ở row.
+
+**Vạch tiến độ trên card** (`MovieCard`) đọc từ store dùng chung chứ không tự đọc
+storage: trang chủ hơn trăm card, mỗi card tự đọc là hơn trăm lượt chạm đồng bộ
+ngay lúc hydrate. Vạch `absolute` ở đáy ảnh nên xuất hiện mà không dịch gì.
+
+**Trọng số sở thích** (`lib/taste.ts`) — KHÔNG có key `profile` riêng. Profile tích
+luỹ dần (mỗi tín hiệu cộng một ít) thì phải tự chống cộng trùng, và một lần cộng
+sai là sai vĩnh viễn. Suy ra từ index thì hàm thuần, tính lại lúc nào cũng ra cùng
+kết quả, và phân rã theo thời gian miễn phí vì `updatedAt` đã có sẵn.
+
+```
+sức nặng một phim = (1 + tối đa 2 theo số tập xem xong + tối đa 1 theo độ sâu)
+                    × 0.97 ^ (số tuần kể từ lần xem gần nhất)
+thể loại × 1.0   ·   quốc gia × 0.8   ·   loại phim × 0.5
+```
+
+Ba hệ số cuối là bắt buộc, không phải trang trí: `type` chỉ có 4 giá trị và MỌI
+phim đều thuộc đúng một cái, nên không hạ nó xuống thì nó gom hết điểm rồi luôn
+đứng đầu — người xem phim bộ nào cũng thấy "Phim bộ" ở trên, tức là không cá nhân
+hoá gì cả. Hai test bắt đúng lỗi này.
+
+Để tính được trọng số, `WatchSnapshot` chép thêm `type` + slug thể loại + slug quốc
+gia lúc ghi: index chỉ giữ slug phim, mà tra ngược slug → thể loại là một lời gọi
+`/phim/{slug}` cho mỗi phim.
+
+**`finished` — tín hiệu mạnh nhất từng tự xoá chính nó.** Xem xong một tập là key
+tiến độ của tập đó bị dọn (§10.5), nên xem hết một bộ 12 tập là bộ đó biến mất sạch
+khỏi index: đúng những người xem nhiều nhất lại là những người app không biết gì về
+sở thích. Giờ `markCompleted()` đếm số tập đã xong và giữ entry lại (`eps` rỗng → nó
+không còn là "đang xem" nhưng vẫn là "đã xem"). Nó tách khỏi `clearWatchProgress`
+("Xem từ đầu") vì hai việc nói hai điều trái ngược nhau về cùng một tập.
+
+**Thứ tự 10 row lazy** theo trọng số, sắp ĐỨNG YÊN (row cùng điểm giữ nguyên thứ tự
+cũ — phần lớn row có điểm 0, không có nó thì mỗi lượt tải là một thứ tự khác và
+trang chủ trông như bị xáo). Số row KHÔNG đổi: row "Vì bạn đã xem X" chiếm chỗ một
+row thể loại có sẵn chứ không chèn thêm. Bằng điểm thì ưu tiên thể loại đã có row —
+một phim mang 3–4 thể loại và tất cả cùng điểm, mà chọn nhầm nhánh thì mất một row
+VÀ có hai row cùng nội dung (`hoat-hinh` vừa là slug thể loại vừa là `type_list`).
+
+⚠️ `key` của các row phải theo VỊ TRÍ, không theo id row. Key theo id thì React DỜI
+node DOM khi thứ tự đổi, node bị tháo ra cắm lại làm `IntersectionObserver` của
+`LazyRow` bắn theo hình học tạm thời giữa lúc dời, và hai row vừa lên đầu tưởng mình
+đã vào viewport → fetch ngay. Đo trên bản build thật: **2 request tới KKPhim ở
+`scrollY = 0`** (không có cá nhân hoá thì 0). Key theo vị trí thì không node nào
+dời, React chỉ đổi props — trạng thái "đã vào viewport" thuộc về vị trí chứ không
+thuộc về row, và đó mới đúng nghĩa.
+
+**Prefetch một route khi máy rỗi**: mục đầu của "Tiếp tục xem" là cú bấm có xác suất
+cao nhất trên cả trang chủ. `requestIdleCallback` + chỉ tier `high`, đúng một route.
+
+**Danh sách của tôi là tín hiệu thứ hai** (`LIST_WEIGHT = 1.2`, phân rã theo `addedAt`,
+chỉ tính 20 phim lưu gần nhất). Lưu một phim là một lời nói rõ về sở thích — rõ hơn
+việc bấm vào xem thử — nhưng ý định vẫn là bằng chứng yếu hơn thời gian đã bỏ ra, nên
+nó nằm trên mức "đã mở xem" (1) và dưới mọi mức có thời gian xem thật. Đây cũng là
+tín hiệu DUY NHẤT có được với người mới: đo thật, một người chưa xem gì mà đã lưu 3
+phim kinh dị Hàn thì trang chủ ra "Kinh dị · Hàn Quốc · Phim lẻ" ở ba row đầu.
+
+Ba field taxonomy trong `MyListEntry` để TUỲ CHỌN thay vì viết `migrate` cho persist:
+entry lưu từ trước bản này không biết loại phim của nó, và "không biết" là một trạng
+thái thật — migrate mà điền `single` thì mọi phim cũ trong danh sách bỗng thành phiếu
+bầu cho "Phim lẻ".
+
+⚠️ Hai cái chốt ở `PersonalizedRows` khi dùng danh sách này, cả hai đều cần:
+`useMyListHydrated()` (persist của zustand đọc localStorage ĐỒNG BỘ ngay trong
+`create()`, nên dùng thẳng là thứ tự row lượt render đầu khác HTML server → hydration
+mismatch; `entries` của `useWatchStore` không có vấn đề này vì nó chỉ nạp trong
+effect), và cờ `personalized` (cổng tắt chỉ rút `entries` của chính store đó, danh
+sách này đến từ store khác nên phải tự đi qua cùng cái cổng).
+
+Và vì "Vì bạn đã xem X" buộc phải nói về một phim ĐÃ XEM: khi thể loại đứng đầu đến
+hoàn toàn từ phim đã lưu mà chưa xem, `topCategory` đi tiếp xuống thể loại kế tiếp
+thay vì để cả dòng tiêu đề đó lặng lẽ biến mất.
+
+**Tắt được cá nhân hoá** — công tắc trong navbar (dropdown ⚙ từ `lg` lên, chân menu
+điện thoại ở dưới). Nó tồn tại không phải vì dữ liệu đi đâu — không có gì rời khỏi
+máy — mà vì máy dùng chung trong gia đình là chuyện thường, và row "Tiếp tục xem"
+giữa trang chủ kể cho cả nhà biết tối qua ai xem gì.
+
+Tắt được ép ở ĐÚNG MỘT CHỖ: `entries` của store về rỗng. Nhờ vậy mọi mặt hiển thị tự
+tắt theo mà không nơi nào phải tự kiểm cờ — row "Tiếp tục xem", thứ tự row, nút hero,
+vạch tiến độ trên card. Rải cờ ra từng chỗ thì chỉ cần quên một chỗ là lịch sử vẫn
+lộ ở đó.
+
+Nó KHÔNG xoá gì và KHÔNG tắt việc lưu tiến độ: trình phát vẫn nhớ chỗ đang xem của
+từng tập (§10.5), bật lại thì mọi thứ còn nguyên. **Xoá** thì có nút riêng ngay dưới
+công tắc (xác nhận hai bước tại chỗ, không `window.confirm`): nó xoá index và mọi key
+`watch:`, kể cả key mồ côi index không biết tới — đây là chỗ duy nhất còn quét toàn bộ
+localStorage ngoài `rebuildIndex`, và ở đây quét là đúng vì sót một key khi người dùng
+vừa bấm xoá là sai nặng hơn nhiều so với tốn vài ms. Nó KHÔNG chạm `my-list` (thứ
+người dùng tự tay chọn) và KHÔNG bật lại cá nhân hoá hộ ai. Cờ nằm ở key riêng `personalized`
+chứ không trong `settings` hay trong index, vì `CONTINUE_PROBE` phải đọc nó trước
+lượt vẽ đầu — đọc một key vài byte khác hẳn parse cả index 14 kB để biết một cờ.
+
+### Đã đo được gì
+
+Trên **bản build production** (`next build` + `next start`), trang chủ, có hồ sơ sở
+thích thật (xem một tập anime Nhật):
+
+| | |
+|---|---|
+| CLS | **0** (không một entry layout-shift nào) |
+| Request tới KKPhim ở `scrollY = 0` | **0** — mốc §11.2 còn nguyên |
+| Prefetch | đúng 1 route, chính tập đang xem dở |
+| Thứ tự row | Tiếp tục xem · Mới cập nhật · Vì bạn đã xem … · Nhật Bản · Hoạt hình · rồi phần còn lại theo thứ tự cũ |
+| Trang chủ | vẫn `○ (Static)` trong bảng build — cá nhân hoá KHÔNG làm nó thành dynamic |
+| First Load JS | 146 kB |
+
+Ở dev, thêm hai khổ màn: 360px và 1280px, cả hai trạng thái (có và không có phim
+đang xem) → CLS 0 – 0.001.
+
+⚠️ Một thứ KHÔNG kiểm được trong phiên đó: row lazy có fetch khi cuộn tới hay không.
+`IntersectionObserver` không bắn khi cửa sổ trình duyệt bị ẩn (`document.hidden`),
+nên phần đó chỉ còn lý lẽ: cùng `LazyRow`, cùng hook, và hành vi giống nhau y hệt
+giữa có và không có cá nhân hoá.
+
+---
+
 ## Thích ứng mạng và thiết bị
 
 Toàn bộ phần "nặng" của app tự co giãn theo hoàn cảnh chạy thật, thay vì phục vụ
@@ -651,6 +816,8 @@ poisoning ở tầng server). Lên Next 16 sẽ sạch nhưng đổi stack so v�
 
 ## Việc tiếp theo
 
+- [ ] Kiểm lazy fetch khi cuộn trên máy có cửa sổ hiện (IntersectionObserver không
+      bắn khi cửa sổ bị ẩn)
 - [ ] Virtualize item trong row — hiện mới lazy-mount cả row, chưa cắt theo ±1 viewport (§8.3)
 - [ ] Audit Lighthouse a11y ≥ 95 và hiệu năng (Phụ lục B)
 - [ ] Test trên Safari — native HLS đi đường khác Chrome (Phụ lục B)

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import { formatTime } from '@/lib/derive';
-import { getPlayerSettings, savePlayerSettings } from '@/lib/storage';
+import { getPlayerSettings, savePlayerSettings, type WatchSnapshot } from '@/lib/storage';
 import { useHls, type PlaybackSource } from '@/hooks/useHls';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useWatchProgress } from '@/hooks/useWatchProgress';
@@ -30,6 +30,13 @@ interface VideoPlayerProps {
   /** Sang tập kế. Bỏ trống ở phim lẻ / tập cuối → nút tự ẩn. */
   onNext?: () => void;
   nextLabel?: string;
+  /**
+   * Ghi kèm tiến độ để row "Tiếp tục xem" vẽ được card mà không gọi API.
+   *
+   * Trình phát không biết gì về phim ngoài slug và link, nên dữ liệu này do nơi
+   * gọi dựng (`WatchScreen` — chỗ đang giữ `MovieDetailResult`) rồi gửi xuống.
+   */
+  watchSnapshot?: WatchSnapshot;
 }
 
 type FullscreenVideo = HTMLVideoElement & {
@@ -69,6 +76,7 @@ export function VideoPlayer({
   onBack,
   onNext,
   nextLabel,
+  watchSnapshot,
 }: VideoPlayerProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -118,7 +126,7 @@ export function VideoPlayer({
     slug,
     episodeSlug,
     videoRef,
-    { skipResumePrompt: startAt !== undefined },
+    { skipResumePrompt: startAt !== undefined, snapshot: watchSnapshot },
   );
 
   /**

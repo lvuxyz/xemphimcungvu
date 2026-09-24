@@ -1,12 +1,21 @@
 import { HeroBillboard } from '@/components/feature/HeroBillboard/HeroBillboard';
 import { ContentRow } from '@/components/feature/ContentRow/ContentRow';
-import { LazyRow } from '@/components/feature/ContentRow/LazyRow';
+import { PersonalizedRows } from '@/components/feature/ContentRow/PersonalizedRows';
+import { ContinueRow } from '@/components/feature/ContinueRow/ContinueRow';
+import { CONTINUE_PROBE } from '@/components/feature/ContinueRow/continue-probe';
 import { EMPTY_LIST, getHeroSpotlight, getHome, getNewlyUpdated } from '@/lib/endpoints';
 import { ROW_LIMIT } from '@/lib/constants';
 import type { ListSource } from '@/lib/list-source';
 import { PATH, routes } from '@/lib/routes';
 
 interface HomeRow {
+  /**
+   * Định danh ổn định của row, KHÔNG phải tiêu đề — tiêu đề đổi được ("Hành động"
+   * → "Vì bạn đã xem X") và nguồn cũng đổi được. Dùng để nói về một row cụ thể
+   * trong test và trong log, không phải để làm `key` của React (xem
+   * `PersonalizedRows` về việc key phải theo vị trí).
+   */
+  id: string;
   title: string;
   source: ListSource;
   /** Link "Xem tất cả" — mọi row đều phải có đường đi tiếp (§8.3). */
@@ -18,24 +27,66 @@ interface HomeRow {
  * tới (§11.2 — "không được bắn 11 request song song ngay khi load").
  */
 const LAZY_ROWS: HomeRow[] = [
-  { title: 'Phim bộ', source: { kind: 'type', type: 'phim-bo' }, href: routes.listByType('phim-bo') },
-  { title: 'Phim lẻ', source: { kind: 'type', type: 'phim-le' }, href: routes.listByType('phim-le') },
-  { title: 'Hoạt hình', source: { kind: 'type', type: 'hoat-hinh' }, href: routes.listByType('hoat-hinh') },
-  { title: 'TV Shows', source: { kind: 'type', type: 'tv-shows' }, href: routes.listByType('tv-shows') },
-  { title: 'Hàn Quốc', source: { kind: 'country', slug: 'han-quoc' }, href: routes.country('han-quoc') },
   {
+    id: 'type-phim-bo',
+    title: 'Phim bộ',
+    source: { kind: 'type', type: 'phim-bo' },
+    href: routes.listByType('phim-bo'),
+  },
+  {
+    id: 'type-phim-le',
+    title: 'Phim lẻ',
+    source: { kind: 'type', type: 'phim-le' },
+    href: routes.listByType('phim-le'),
+  },
+  {
+    id: 'type-hoat-hinh',
+    title: 'Hoạt hình',
+    source: { kind: 'type', type: 'hoat-hinh' },
+    href: routes.listByType('hoat-hinh'),
+  },
+  {
+    id: 'type-tv-shows',
+    title: 'TV Shows',
+    source: { kind: 'type', type: 'tv-shows' },
+    href: routes.listByType('tv-shows'),
+  },
+  {
+    id: 'country-han-quoc',
+    title: 'Hàn Quốc',
+    source: { kind: 'country', slug: 'han-quoc' },
+    href: routes.country('han-quoc'),
+  },
+  {
+    id: 'country-trung-quoc',
     title: 'Trung Quốc',
     source: { kind: 'country', slug: 'trung-quoc' },
     href: routes.country('trung-quoc'),
   },
-  { title: 'Nhật Bản', source: { kind: 'country', slug: 'nhat-ban' }, href: routes.country('nhat-ban') },
   {
+    id: 'country-nhat-ban',
+    title: 'Nhật Bản',
+    source: { kind: 'country', slug: 'nhat-ban' },
+    href: routes.country('nhat-ban'),
+  },
+  {
+    id: 'category-hanh-dong',
     title: 'Hành động',
     source: { kind: 'category', slug: 'hanh-dong' },
     href: routes.category('hanh-dong'),
   },
-  { title: 'Tình cảm', source: { kind: 'category', slug: 'tinh-cam' }, href: routes.category('tinh-cam') },
-  { title: 'Kinh dị', source: { kind: 'category', slug: 'kinh-di' }, href: routes.category('kinh-di') },
+  {
+    id: 'category-tinh-cam',
+    title: 'Tình cảm',
+    source: { kind: 'category', slug: 'tinh-cam' },
+    href: routes.category('tinh-cam'),
+  },
+  {
+    id: 'category-kinh-di',
+    title: 'Kinh dị',
+    source: { kind: 'category', slug: 'kinh-di' },
+    href: routes.category('kinh-di'),
+  },
 ];
 
 /**
@@ -78,6 +129,17 @@ export default async function HomePage() {
         đáy hero nối vào row, mà mọi khổ màn đều còn khoảng hở dưới nút.
       */}
       <div className="relative z-row -mt-[clamp(0.5rem,4vw,4.5rem)] pb-16">
+        {/*
+          Phải đứng TRƯỚC chỗ chừa: script đồng bộ chạy đúng lúc trình duyệt đọc
+          tới đây, nên `<html data-continue-watching>` đã có mặt khi `.continue-slot`
+          bên dưới được layout. Đặt sau là chừa chỗ muộn hơn một lượt vẽ, tức là
+          vẫn dịch — chính thứ nó sinh ra để tránh.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: CONTINUE_PROBE }} />
+        <div className="continue-slot">
+          <ContinueRow />
+        </div>
+
         <ContentRow
           title="Mới cập nhật"
           movies={firstRow.slice(0, ROW_LIMIT)}
@@ -85,9 +147,8 @@ export default async function HomePage() {
           priority
         />
 
-        {LAZY_ROWS.map((row) => (
-          <LazyRow key={row.title} title={row.title} source={row.source} href={row.href} />
-        ))}
+        {/* Thứ tự 10 row này do sở thích của người đang xem quyết định — xem `lib/taste.ts`. */}
+        <PersonalizedRows rows={LAZY_ROWS} />
       </div>
     </>
   );

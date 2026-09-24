@@ -11,7 +11,6 @@
 import {
   DEFAULT_NETWORK,
   FEATURE_BUDGET,
-  IMAGE_QUALITY,
   getConnection,
   readNetworkInfo,
   type FeatureBudget,
@@ -28,8 +27,13 @@ export interface DeviceSnapshot {
   coarsePointer: boolean;
   reducedMotion: boolean;
   budget: FeatureBudget;
-  /** `quality` truyền vào next/image. */
-  imageQuality: number;
+  /**
+   * ⚠️ KHÔNG thêm `imageQuality` vào đây nữa. Mọi thứ trong snapshot này chỉ
+   * đúng SAU hydrate, mà `quality` của next/image nằm trong URL ảnh — đổi nó sau
+   * hydrate là bắt trình duyệt tải lại ảnh từ đầu. Xem `IMAGE_QUALITY` trong
+   * `lib/network.ts`.
+   */
+
   /**
    * Số card nhìn thấy cùng lúc trong một ContentRow, khớp với breakpoint của
    * `.row-item` trong ContentRow.tsx. Tính một lần ở đây thay vì để mỗi row tự
@@ -55,7 +59,6 @@ const SERVER_SNAPSHOT: DeviceSnapshot = {
   coarsePointer: false,
   reducedMotion: false,
   budget: FEATURE_BUDGET.high,
-  imageQuality: IMAGE_QUALITY.high,
   cols: 6,
 };
 
@@ -84,7 +87,6 @@ function build(): DeviceSnapshot {
     coarsePointer: matches(QUERIES.coarse),
     reducedMotion: matches(QUERIES.reducedMotion),
     budget: FEATURE_BUDGET[network.tier],
-    imageQuality: IMAGE_QUALITY[network.tier],
     cols: columns(),
   };
 }

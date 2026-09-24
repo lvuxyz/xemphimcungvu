@@ -28,7 +28,27 @@ import type {
   Taxonomy,
 } from '@/types/movie';
 
-type Fetchable = { signal?: AbortSignal };
+/**
+ * Mỗi endpoint tự khai ngân sách mặc định của nó, nhưng NƠI GỌI mới biết lời gọi
+ * này cốt lõi hay chỉ là trang trí — cùng một `/phim/{slug}` là xương sống của
+ * trang chi tiết mà lại chỉ để lấy link trailer khi đứng trong bộ chọn hero.
+ */
+type Fetchable = {
+  signal?: AbortSignal;
+  /**
+   * Ghi đè `revalidate` mặc định của endpoint.
+   *
+   * Cần thiết vì `revalidate` của MỘT lời gọi quyết định `s-maxage` của CẢ trang:
+   * Next lấy giá trị NHỎ NHẤT trong toàn bộ fetch của lượt render. Xem
+   * `getRelated` — một danh sách phụ 300s từng kéo trang chi tiết 1800s xuống
+   * theo nó.
+   */
+  revalidate?: number;
+  /** ms. Mặc định theo `TIMEOUT` của từng endpoint. */
+  timeout?: number;
+  /** Số lần thử lại, không tính lần đầu. Mặc định 2 (§14.2). */
+  retries?: number;
+};
 
 /** Ép `limit` về trần 64 mà API chấp nhận (§3.1, §17 rủi ro #11). */
 function toParams(filters: ListFilters = {}): QueryParams {
@@ -193,7 +213,22 @@ export async function getMovieByImdb(ttid: string, opts: Fetchable = {}): Promis
 
 /* ---------------------------- §3.3 bổ trợ chi tiết ----------------------------- */
 /* Ba endpoint này quyết định chất lượng thị giác nhưng KHÔNG cốt lõi:
-   fail thì trả rỗng để UI ẩn im lặng (§14.1).                                    */
+   fail thì trả rỗng để UI ẩn im lặng (§14.1).
+
+   `retries: 0` — KHÔNG thử lại, và đây là chỗ khác biệt so với endpoint cốt lõi.
+
+   Cả ba nằm trong `Promise.all` của `getMovieBundle`, nghĩa là trang chi tiết
+   không render được cho tới khi cả ba xong. Với `retries: 1` cũ, một endpoint
+   chết lặng lẽ tốn:
+
+       timeout 5s  +  backoff 1s  +  timeout 5s  =  11 giây
+
+   mười một giây chờ để rồi hiện đúng cái giao diện mà `requestOptional` vốn đã
+   sẵn sàng hiện ngay từ giây thứ năm. Không thử lại thì trần rơi về 5s.
+
+   Cái giá: một cú chớp mạng làm mất dàn diễn viên trong suốt `REVALIDATE.detail`
+   (30 phút, vì trang đã được cache). Đổi lại là phần cốt lõi — `getDetail` —
+   vẫn giữ nguyên 2 lần thử; thứ đáng chờ thì vẫn được chờ.                      */
 
 export async function getMovieImages(slug: string, opts: Fetchable = {}): Promise<MovieImages> {
   return requestOptional(
@@ -202,7 +237,7 @@ export async function getMovieImages(slug: string, opts: Fetchable = {}): Promis
         await request(`/v1/api/phim/${slug}/images`, {
           timeout: TIMEOUT.supplementary,
           revalidate: REVALIDATE.detail,
-          retries: 1,
+          retries: 0,
           ...opts,
         }),
       ),
@@ -217,7 +252,7 @@ export async function getMoviePeoples(slug: string, opts: Fetchable = {}): Promi
         await request(`/v1/api/phim/${slug}/peoples`, {
           timeout: TIMEOUT.supplementary,
           revalidate: REVALIDATE.detail,
-          retries: 1,
+          retries: 0,
           ...opts,
         }),
       ),
@@ -232,7 +267,7 @@ export async function getMovieKeywords(slug: string, opts: Fetchable = {}): Prom
         await request(`/v1/api/phim/${slug}/keywords`, {
           timeout: TIMEOUT.supplementary,
           revalidate: REVALIDATE.detail,
-          retries: 1,
+          retries: 0,
           ...opts,
         }),
       ),
@@ -347,7 +382,20 @@ export async function getRelated(
   if (!slug) return [];
 
   const { items } = await requestOptional(
-    () => getByCategory(slug, { limit: Math.min(limit + 4, MAX_LIMIT) }, opts),
+    () =>
+      getByCategory(
+        slug,
+        { limit: Math.min(limit + 4, MAX_LIMIT) },
+        /**
+         * `REVALIDATE.detail` chứ không phải `.list` mặc định của endpoint danh sách.
+         *
+         * Không phải vì dữ liệu này tươi lâu hơn, mà vì nó là fetch NGẮN HẠN NHẤT
+         * của trang chi tiết: để nguyên 300s thì cả trang chỉ sống được 300s ở CDN
+         * dù phần cốt lõi khai 1800s. Một hàng "Có thể bạn thích" cũ hơn nửa tiếng
+         * là thứ không ai nhận ra.
+         */
+        { revalidate: REVALIDATE.detail, ...opts },
+      ),
     EMPTY_LIST,
   );
 
@@ -408,7 +456,25 @@ export async function getHeroSpotlight(
     pool.map(async (movie): Promise<HeroSpotlight> => {
       const [images, detail] = await Promise.all([
         getMovieImages(movie.slug, opts),
-        requestOptional(() => getDetail(movie.slug, opts), null),
+        /**
+         * Ngân sách BỔ TRỢ, không phải ngân sách chi tiết — đây là chỗ duy nhất
+         * gọi `getDetail` mà không cần chi tiết: thứ lấy ra chỉ là `trailerUrl`,
+         * một đoạn trang trí chỉ chạy sau 2500ms và chỉ ở tier cao.
+         *
+         * Mặc định của nó (`timeout` 8s, `retries` 2) cộng thêm việc `getDetail`
+         * còn có phao `/v1/api/phim/{slug}` đứng sau, cho ra đuôi xấu nhất
+         * (8+1+8+2+8) × 2 ≈ 54 giây — chặn ngay giữa lượt dựng trang chủ, tức là
+         * chặn cả `next build`. Một link YouTube không đáng chỗ đó.
+         */
+        requestOptional(
+          () =>
+            getDetail(movie.slug, {
+              timeout: TIMEOUT.supplementary,
+              retries: 0,
+              ...opts,
+            }),
+          null,
+        ),
       ]);
 
       return { movie, images, trailerUrl: detail?.movie.trailerUrl ?? '' };

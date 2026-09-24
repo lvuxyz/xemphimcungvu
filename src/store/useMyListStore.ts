@@ -19,6 +19,20 @@ export interface MyListEntry {
   quality: string;
   episodeCurrent: string;
   addedAt: number;
+  /**
+   * Ba field dưới đây KHÔNG để render card, mà để tính sở thích (`lib/taste.ts`):
+   * lưu một phim là một lời nói rõ về sở thích, chỉ là không kèm thời gian đã xem.
+   *
+   * Cố ý để TUỲ CHỌN thay vì viết `migrate` cho persist: entry lưu từ trước bản này
+   * KHÔNG biết loại phim của nó, và "không biết" là một trạng thái thật. Migrate mà
+   * điền `single` cho chúng thì mọi phim cũ trong danh sách bỗng thành phiếu bầu cho
+   * "Phim lẻ" — bịa dữ liệu còn tệ hơn thiếu dữ liệu.
+   */
+  type?: Movie['type'];
+  /** Slug thể loại. */
+  categories?: string[];
+  /** Slug quốc gia. */
+  countries?: string[];
 }
 
 function toEntry(movie: Movie): MyListEntry {
@@ -32,6 +46,9 @@ function toEntry(movie: Movie): MyListEntry {
     quality: movie.quality,
     episodeCurrent: movie.episodeCurrent,
     addedAt: Date.now(),
+    type: movie.type,
+    categories: movie.categories.map((c) => c.slug),
+    countries: movie.countries.map((c) => c.slug),
   };
 }
 

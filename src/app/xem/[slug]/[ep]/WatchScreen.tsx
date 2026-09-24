@@ -1,10 +1,11 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import { episodeLabel, resolveEpisode } from '@/lib/derive';
 import { routes } from '@/lib/routes';
+import { readStartTime } from '@/lib/search-params';
 import type { MovieDetailResult } from '@/types/movie';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { Button } from '@/components/ui/Button';
@@ -23,13 +24,26 @@ const VideoPlayer = dynamic(
 interface WatchScreenProps {
   detail: MovieDetailResult;
   episodeSlug: string;
-  /** Giây lấy từ `?t=` trên URL. */
-  startAt?: number;
 }
 
-export function WatchScreen({ detail, episodeSlug, startAt }: WatchScreenProps) {
+export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
   const { playTitle, goBackOrHome } = useAppNavigation();
   const { movie, episodes } = detail;
+
+  /**
+   * §2.4 — giây lấy từ `?t=`, đọc một lần lúc mount.
+   *
+   * Đọc ở đây chứ không nhận từ props server: xem chú thích trong `page.tsx` về
+   * chuyện `searchParams` làm mất cache CDN của cả trang.
+   *
+   * Lazy initializer chứ không phải `useEffect`: `VideoPlayer` cần giá trị này
+   * ngay ở lần render ĐẦU của nó (`skipResumePrompt`), muộn hơn là hộp thoại
+   * "xem tiếp" đã kịp hiện rồi mới bị mốc `?t=` ghi đè.
+   *
+   * Cố ý KHÔNG đọc lại khi đổi tập: `goToEpisode` dùng `replace` nên URL tập mới
+   * không còn `?t=`, mà mốc thời gian của tập cũ thì không có nghĩa gì ở tập mới.
+   */
+  const [startAt] = useState(readStartTime);
 
   const server = episodes[0];
   const list = server?.episodes ?? [];
@@ -75,6 +89,32 @@ export function WatchScreen({ detail, episodeSlug, startAt }: WatchScreenProps) 
     if (next) goToEpisode(next.slug);
   }, [next, goToEpisode]);
 
+  /**
+   * Ảnh chụp ghi kèm tiến độ xem.
+   *
+   * Đây là NƠI DUY NHẤT trong app vừa biết người ta đang xem tập nào, vừa đang
+   * giữ dữ liệu phim — nên cũng là nơi duy nhất trả được câu hỏi "vẽ card cho
+   * phim này bằng gì" mà không phải gọi lại `/phim/{slug}`. Không chụp ở đây thì
+   * mọi chỗ muốn hiện "đang xem" đều phải tự đi fetch.
+   */
+  const watchSnapshot = useMemo(
+    () => ({
+      name: movie.name,
+      originName: movie.originName,
+      poster: movie.poster,
+      thumb: movie.thumb,
+      year: movie.year,
+      quality: movie.quality,
+      episodeCurrent: movie.episodeCurrent,
+      episodeName: episode?.name ?? '',
+      // Ba field cho trọng số sở thích, xem `lib/taste.ts`.
+      type: movie.type,
+      categories: movie.categories.map((c) => c.slug),
+      countries: movie.countries.map((c) => c.slug),
+    }),
+    [movie, episode?.name],
+  );
+
   if (!episode) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-32 text-center">
@@ -107,6 +147,7 @@ export function WatchScreen({ detail, episodeSlug, startAt }: WatchScreenProps) 
             onBack={goBackOrHome}
             onNext={next ? onNext : undefined}
             nextLabel={next ? episodeLabel(next.name) : undefined}
+            watchSnapshot={watchSnapshot}
           />
 
           {countdown !== null && next && (

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { episodeLabel } from '@/lib/derive';
-import { getWatchProgress } from '@/lib/storage';
+import { getMovieProgress } from '@/lib/storage';
 import { routes } from '@/lib/routes';
 import type { EpisodeServer } from '@/types/movie';
 
@@ -42,21 +42,15 @@ export function EpisodePicker({
    * §10.6 — "tập đã xem có thanh tiến độ mỏng phía dưới".
    * localStorage chỉ đọc được phía client, nên đọc trong effect để server và
    * client render giống nhau ở lượt đầu (tránh hydration mismatch).
+   *
+   * MỘT lượt đọc cho cả phim, không phải một lượt cho mỗi tập: bản trước gọi
+   * `getWatchProgress` trong vòng lặp, nên mở sidebar một bộ 40 tập là 40 lần
+   * `getItem` + `JSON.parse` đồng bộ — mỗi lần đổi server lại làm thêm một lượt.
+   * Xem `lib/storage.ts` mục index tiến độ xem.
    */
   const [progress, setProgress] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    if (!active) return;
-
-    const next: Record<string, number> = {};
-    for (const episode of active.episodes) {
-      const saved = getWatchProgress(slug, episode.slug);
-      if (saved && saved.duration > 0) {
-        next[episode.slug] = Math.min(1, saved.position / saved.duration);
-      }
-    }
-    setProgress(next);
-  }, [slug, active]);
+  useEffect(() => setProgress(getMovieProgress(slug)), [slug]);
 
   if (servers.length === 0) return null;
 

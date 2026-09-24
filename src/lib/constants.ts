@@ -89,6 +89,18 @@ export const PLAYER = {
   volumeStep: 0.05,
   controlsAutoHide: 3_000,
   progressSaveInterval: 5_000,
+  /**
+   * Giây — dưới mốc này thì coi như chưa xem gì.
+   *
+   * Dùng ở BA chỗ và bắt buộc phải là một số: prompt "Tiếp tục xem từ…" của trình
+   * phát, row "Tiếp tục xem", và script chừa chỗ chạy trước lượt vẽ đầu. Lệch nhau
+   * thì trang chủ mời "Tiếp tục" xong trình phát mở từ đầu mà không hỏi gì, hoặc
+   * chỗ chừa xuất hiện rồi xẹp lại vì row quyết định không hiện.
+   *
+   * Lượt ghi đầu tiên của mỗi tập rơi vào khoảng 0.2s (trình phát ghi ngay ở
+   * `timeupdate` đầu), nên KHÔNG có mốc này thì mọi tập từng mở đều thành "đang xem".
+   */
+  resumeMinPosition: 5,
   /** Xem đủ 95% coi như đã hoàn tất (§10.5). */
   completedThreshold: 0.95,
   autoNextCountdown: 10,
@@ -97,3 +109,18 @@ export const PLAYER = {
 
 /** §10.5 — dọn key tiến độ cũ hơn 90 ngày khi khởi động app. */
 export const WATCH_PROGRESS_TTL_DAYS = 90;
+
+/**
+ * Trần số PHIM giữ trong index tiến độ xem (`lib/storage.ts`).
+ *
+ * 30 phim ≈ 12–15 kB JSON, tức một lượt `JSON.parse` dưới 0.2ms — index được đọc
+ * đồng bộ ngay lúc app khởi động nên con số này là ngân sách main thread, không
+ * phải ngân sách dung lượng (localStorage có 5 MB).
+ */
+export const WATCH_INDEX_LIMIT = 30;
+
+/**
+ * Trần số TẬP dở dang giữ cho mỗi phim. Xem tới tập 60 của một bộ dài thì tiến
+ * độ của tập 1 không còn ai cần, mà nó vẫn ngốn chỗ trong lượt parse ở trên.
+ */
+export const WATCH_EPS_LIMIT = 60;

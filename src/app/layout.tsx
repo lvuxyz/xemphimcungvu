@@ -17,6 +17,28 @@ import '@/styles/globals.css';
  * preload trước khi trang vẽ xong. Bỏ 500 tiết kiệm 2 request và ~30KB ngay ở
  * đường găng của lần tải đầu — trên 3G là gần nửa giây. `font-medium` rơi về
  * 400, khác biệt gần như không nhận ra ở cỡ chữ 12–15px của UI.
+ *
+ * ⚠️ BUILD TRÊN WINDOWS THÌ KHÔNG CÓ PRELOAD FONT NÀO CẢ.
+ *
+ * Kiểm tra thật: HTML sinh ra có 0 thẻ `<link rel="preload" as="font">`, dù
+ * `.next/static/media` có đủ 6 file `-s.p.woff2` (hậu tố `.p.` = Next đã đánh
+ * dấu để preload). `server/next-font-manifest.json` rỗng: `{"app":{},...}`,
+ * và `appUsingSizeAdjust` là `false` trong khi CSS rõ ràng có `size-adjust`.
+ *
+ * Nguyên nhân nằm trong `NextFontManifestPlugin` của Next 14.2:
+ *
+ *     mod.request?.includes('/next-font-loader/index.js?')
+ *
+ * Trên Windows, `mod.request` của webpack dùng dấu `\`. Soi trong
+ * `.next/cache/webpack/client-production/0.pack` ra đúng chuỗi
+ * `next-font-loader\index.js?` — điều kiện trên không bao giờ khớp, manifest
+ * rỗng, và không thẻ preload nào được phát. Plugin cũng không rơi về preconnect
+ * vì nó chỉ làm thế khi entry CÓ mặt nhưng rỗng, còn ở đây entry không tồn tại.
+ *
+ * Hệ quả thực tế: build trên Linux (Vercel, Docker, CI) thì preload chạy bình
+ * thường và không cần làm gì. Chỉ bản build ra từ máy Windows mới thiếu — nên
+ * đây là chuyện của chỗ build, KHÔNG phải chỗ để vá bằng thẻ preload viết tay:
+ * tên file có hash đổi theo mỗi lần build.
  */
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ['vietnamese', 'latin'],
@@ -77,7 +99,19 @@ export default async function RootLayout({
   const { categories, countries, years } = await getTaxonomies();
 
   return (
-    <html lang="vi" className={beVietnamPro.variable}>
+    /**
+     * `suppressHydrationWarning` ở ĐÂY, và chỉ ở đây.
+     *
+     * Script chừa chỗ cho row "Tiếp tục xem" (`continue-probe.ts`) đặt
+     * `data-continue-watching` lên `<html>` TRƯỚC khi React hydrate — đó là mục
+     * đích của nó: chỗ chừa phải có mặt ngay lượt vẽ đầu. React thấy một attribute
+     * mà HTML từ server không có, và cảnh báo "Extra attributes from the server"
+     * ở mọi lần tải trang.
+     *
+     * Cờ này chỉ tắt cảnh báo cho đúng thẻ `<html>` (cách next-themes và mọi bản
+     * chống nháy theme đều dùng), không lan xuống cây con.
+     */
+    <html lang="vi" className={beVietnamPro.variable} suppressHydrationWarning>
       <head>
         {/*
           Bắt tay TLS với CDN ảnh tốn 2 vòng round-trip. Mở sẵn ngay khi HTML về

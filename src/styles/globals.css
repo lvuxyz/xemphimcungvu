@@ -248,6 +248,25 @@
     contain-intrinsic-size: auto 280px;
   }
 
+  /**
+   * Chỗ chừa cho row "Tiếp tục xem".
+   *
+   * Row đó chỉ dựng được ở client (localStorage), nên mặc định KHÔNG chiếm chỗ —
+   * khách mới không phải nhìn một khoảng trống bằng cả một row. Máy nào có phim
+   * đang xem dở thì `CONTINUE_PROBE` đánh dấu lên `<html>` trước lượt vẽ đầu, và
+   * chỗ chừa xuất hiện ngay trong HTML đầu tiên thay vì chen vào lúc hydrate.
+   *
+   * Xem `components/feature/ContinueRow/continue-probe.ts` về việc vì sao phải là
+   * một script đồng bộ chứ không phải cookie đọc ở RSC.
+   */
+  .continue-slot {
+    display: none;
+  }
+
+  :root[data-continue-watching='1'] .continue-slot {
+    display: block;
+  }
+
   /* §10.3 — vòng chờ dữ liệu của trình phát. Không dùng cho skeleton (§12.2). */
   .player-spinner {
     width: 40px;

@@ -4,8 +4,8 @@ import Image, { type ImageProps } from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { PLACEHOLDER_POSTER } from '@/lib/constants';
+import { IMAGE_QUALITY } from '@/lib/network';
 import { isOptimizable, isPlaceholder } from '@/lib/image';
-import { useDevice } from '@/hooks/useDevice';
 
 interface SmartImageProps extends ImageProps {
   /** Ảnh dự phòng khi CDN trả 404. Khung 16:9 truyền `PLACEHOLDER_BACKDROP`. */
@@ -15,8 +15,10 @@ interface SmartImageProps extends ImageProps {
 /**
  * `next/image` + ba thứ mà mọi chỗ trong app đều cần:
  *
- * 1. `quality` theo chất lượng mạng thật (45 / 60 / 75). Đặt tay ở từng chỗ gọi
- *    thì sớm muộn cũng sót, mà sót thì mạng 2G phải tải ảnh nặng gấp đôi.
+ * 1. `quality` mặc định dùng chung một hằng số. Đặt tay ở từng chỗ gọi thì sớm
+ *    muộn cũng sót. Trước đây chỗ này lấy `quality` theo tier mạng và đó là một
+ *    cái bẫy: `q` nằm trong URL ảnh, đổi nó sau hydrate là tải lại từ đầu. Lý do
+ *    đầy đủ ở `IMAGE_QUALITY` trong `lib/network.ts`.
  *
  * 2. Placeholder nội bộ KHÔNG đi qua optimizer. Hai lý do:
  *    · tối ưu một file SVG 356 byte là vô nghĩa — chỉ thêm một vòng qua server
@@ -44,8 +46,6 @@ export function SmartImage({
   className,
   ...props
 }: SmartImageProps) {
-  const { imageQuality } = useDevice();
-
   const src = typeof props.src === 'string' ? props.src : '';
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -102,7 +102,7 @@ export function SmartImage({
       {...props}
       ref={imgRef}
       src={finalSrc}
-      quality={quality ?? imageQuality}
+      quality={quality ?? IMAGE_QUALITY}
       unoptimized={unoptimized || skipOptimizer}
       // §9.4 — fade là ngoại lệ được giữ lại khi người dùng bật giảm chuyển động.
       data-motion={fade ? 'fade' : undefined}

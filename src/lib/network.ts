@@ -121,14 +121,27 @@ export function readNetworkInfo(): NetworkInfo {
 /* ------------------------- ngân sách theo tier ------------------------- */
 
 /**
- * Chất lượng ảnh cho next/image. Mặc định của Next là 75; ở mạng yếu 45 vẫn
- * chấp nhận được với poster nhỏ mà giảm ~50% dung lượng.
+ * Chất lượng ảnh cho next/image — MỘT số cố định, cố ý KHÔNG theo tier.
+ *
+ * Bản cũ là `Record<NetworkTier, number>` (45 / 60 / 75) và nó phản tác dụng
+ * đúng ở nhóm người dùng nó định giúp:
+ *
+ *   · `q` nằm trong URL `/_next/image?...&q=`, nên nó là KHOÁ CACHE chứ không
+ *     phải một tuỳ chọn hiển thị
+ *   · server render bằng snapshot mặc định (tier `high` → q=75) và phát ra luôn
+ *     `<link rel=preload>` trỏ vào q=75
+ *   · sau hydrate, `navigator.connection` cho tier thật; máy nào ra `medium`
+ *     (chỉ cần `rtt > 270ms` — phần lớn 4G di động ở VN) thì `q` đổi thành 60,
+ *     URL đổi theo, và trình duyệt VỨT ảnh đang tải để tải lại từ đầu
+ *
+ * Tức là mạng càng yếu càng phải tải hai lần, lần sau còn phải chờ optimizer
+ * encode AVIF lần đầu. Một số cố định thì server và client luôn khớp, và 60 vẫn
+ * nhẹ hơn mặc định 75 của Next cho MỌI người.
+ *
+ * Muốn y hệt hình ảnh trước đây trên máy khoẻ: đổi số này thành 75. Thứ KHÔNG
+ * được làm là cho nó phụ thuộc vào trạng thái chỉ biết được sau hydrate.
  */
-export const IMAGE_QUALITY: Record<NetworkTier, number> = {
-  low: 45,
-  medium: 60,
-  high: 75,
-};
+export const IMAGE_QUALITY = 60;
 
 /** Timeout API co giãn: mạng 2G cần nhiều hơn 8s mới công bằng (§14.3). */
 export const TIMEOUT_MULTIPLIER: Record<NetworkTier, number> = {
