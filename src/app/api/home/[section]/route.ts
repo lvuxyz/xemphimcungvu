@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
-import { ROW_LIMIT } from '@/lib/constants';
-import { getListByType } from '@/lib/endpoints';
-import { HOME_SECTIONS, isHomeSection, toCardMovie } from '@/lib/home';
+import { TIMEOUT } from '@/lib/constants';
+import { getHomeFeed, getListByType } from '@/lib/endpoints';
+import {
+  HOME_SECTIONS,
+  SECTION_FETCH_LIMIT,
+  excludeShown,
+  isHomeSection,
+  toCardMovie,
+} from '@/lib/home';
 
 /**
  * `/api/home/{phim-bo|phim-le|hoat-hinh}` — một section lazy của trang chủ.
  *
- * Tồn tại vì hai thứ mà gọi thẳng KKPhim từ trình duyệt không làm được:
+ * Tồn tại vì ba thứ mà gọi thẳng KKPhim từ trình duyệt không làm được:
  *
  *   · CACHE DÙNG CHUNG. Gọi thẳng thì mỗi người xem cuộn trang chủ là một lượt
  *     gọi KKPhim cho mỗi section. Qua đây thì KKPhim thấy tối đa MỘT lượt mỗi
@@ -16,6 +22,11 @@ import { HOME_SECTIONS, isHomeSection, toCardMovie } from '@/lib/home';
  *   · PAYLOAD CHỈ CÓ FIELD CARD. Response gốc mang theo `seoOnPage`, `breadCrumb`,
  *     `alternative_names`, `last_episodes`, id của từng thể loại… — card không đọc
  *     thứ nào trong đó. Cắt ở đây là cắt trước khi nó lên dây.
+ *   · KHÔNG TRÙNG MÀN ĐẦU. Section bỏ mọi phim đã có ở hero và "Mới cập nhật"
+ *     (`excludeShown`). Trước đây "Phim bộ" trùng 12/16 phim với row đầu — cả 6
+ *     card nhìn thấy đầu tiên — vì cả hai nguồn cùng xếp theo lần cập nhật cuối.
+ *     Route và trang chủ dựng lại độc lập nên có thể lệch nhau tối đa một chu kỳ
+ *     ISR; khi đó lọt vài phim trùng, không hơn.
  *
  * Lỗi thì NÉM, không trả rỗng: lúc dựng lại ngầm, ném là cách để Next giữ bản cũ
  * còn tốt thay vì cache một section rỗng suốt 5 phút. Người xem thì không thấy gì
@@ -54,12 +65,23 @@ export async function GET(_request: Request, { params }: { params: { section: st
     return NextResponse.json({ items: [] }, { status: 404 });
   }
 
-  const { items } = await getListByType(params.section, { limit: ROW_LIMIT });
+  const [{ items }, feed] = await Promise.all([
+    getListByType(params.section, { limit: SECTION_FETCH_LIMIT }),
+    /**
+     * Danh sách đang nằm ở màn đầu trang chủ, để loại trùng. Cùng lời gọi với RSC
+     * trang chủ nên trúng data cache của Next — thường KHÔNG tới KKPhim.
+     *
+     * Ngân sách bổ trợ, và `getHomeFeed` không bao giờ ném (hỏng hết thì trả
+     * rỗng): thiếu nó thì section chỉ có thể trùng vài phim, không đáng giữ
+     * section lại chờ, càng không đáng làm hỏng section.
+     */
+    getHomeFeed({ timeout: TIMEOUT.supplementary, retries: 0 }),
+  ]);
 
-  // `limit` ở trên là thứ quyết định; `slice` chỉ để API có lờ tham số đó đi
-  // (như `/danh-sach/phim-moi-cap-nhat-v3` vẫn làm) thì trang chủ cũng không phình.
+  // `excludeShown` cắt về `ROW_LIMIT`: API có lờ `limit` đi (như
+  // `/danh-sach/phim-moi-cap-nhat-v3` vẫn làm) thì trang chủ cũng không phình.
   return NextResponse.json(
-    { items: items.slice(0, ROW_LIMIT).map(toCardMovie) },
+    { items: excludeShown(items, feed.items).map(toCardMovie) },
     { headers: { 'Cache-Control': CACHE_CONTROL } },
   );
 }

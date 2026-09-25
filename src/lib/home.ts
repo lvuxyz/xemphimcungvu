@@ -2,9 +2,12 @@
  * Dữ liệu trang chủ: bốn section, và hình dạng card đi qua `/api/home/*`.
  *
  *   Mới cập nhật   RSC, nằm sẵn trong HTML      `/danh-sach/phim-moi-cap-nhat-v3`
- *   Phim bộ        lazy, `/api/home/phim-bo`     `/v1/api/danh-sach/phim-bo?limit=16`
- *   Phim lẻ        lazy, `/api/home/phim-le`     `/v1/api/danh-sach/phim-le?limit=16`
- *   Hoạt hình      lazy, `/api/home/hoat-hinh`   `/v1/api/danh-sach/hoat-hinh?limit=16`
+ *   Phim bộ        lazy, `/api/home/phim-bo`     `/v1/api/danh-sach/phim-bo?limit=33`
+ *   Phim lẻ        lazy, `/api/home/phim-le`     `/v1/api/danh-sach/phim-le?limit=33`
+ *   Hoạt hình      lazy, `/api/home/hoat-hinh`   `/v1/api/danh-sach/hoat-hinh?limit=33`
+ *
+ * Mỗi section trả đúng 16 phim, KHÔNG trùng phim nào đã có ở hero hay "Mới cập
+ * nhật" — xin 33 là để còn đủ 16 sau khi loại trùng (`SECTION_FETCH_LIMIT`).
  *
  * Dùng ở cả ba nơi — RSC trang chủ, route handler, và `LazyRow` trên trình duyệt —
  * nên file này KHÔNG được import thứ gì chỉ chạy ở server.
@@ -13,7 +16,55 @@
 import type { TypeList } from '@/types/filters';
 import type { CardMovie } from '@/types/movie';
 import { ApiError } from './api';
+import { ROW_LIMIT } from './constants';
 import type { ListSource } from './list-source';
+
+/**
+ * Số phim ĐẦU của nguồn "Mới cập nhật" đã có mặt ở màn đầu trang chủ: hero (luôn
+ * là một trong `HERO_CANDIDATES` phim đầu) + `ROW_LIMIT` phim của row "Mới cập
+ * nhật" (đã bỏ phim hero ra). Hai chỗ phải cùng đếm như nhau — RSC dựng row, route
+ * `/api/home/*` loại trùng — nên đếm ở đây.
+ */
+export const HOME_SHOWN = ROW_LIMIT + 1;
+
+/**
+ * Số phim mỗi section xin API, để còn đủ `ROW_LIMIT` phim sau khi loại trùng.
+ *
+ * Nguồn "Mới cập nhật" gần như là phim bộ (17/24 phim, đo 25/09/2026), và cả hai
+ * nguồn cùng xếp theo thời gian cập nhật — nên section "Phim bộ" xin 16 phim thì
+ * 12 phim trùng với row đầu, cả 6 card nhìn thấy đầu tiên đều trùng. Tệ nhất là
+ * trùng hết `HOME_SHOWN` phim, nên xin thêm đúng chừng đó là luôn còn đủ.
+ */
+export const SECTION_FETCH_LIMIT = ROW_LIMIT + HOME_SHOWN;
+
+/**
+ * Row "Mới cập nhật": `ROW_LIMIT` phim đầu của nguồn, BỎ phim đang nằm trên hero —
+ * card đầu tiên ngay dưới hero lặp lại đúng phim trên hero là phí mất một chỗ.
+ */
+export function homeFirstRow<T extends { slug: string }>(
+  feed: readonly T[],
+  heroSlug?: string,
+): T[] {
+  return feed
+    .slice(0, HOME_SHOWN)
+    .filter((movie) => movie.slug !== heroSlug)
+    .slice(0, ROW_LIMIT);
+}
+
+/**
+ * Bỏ khỏi một section mọi phim đã có ở màn đầu (hero + "Mới cập nhật").
+ *
+ * Loại theo `HOME_SHOWN` phim đầu của nguồn chứ không theo đúng phim hero: route
+ * không biết phim nào được chọn làm hero (bộ chọn còn xét backdrop và trailer),
+ * nhưng biết chắc hero nằm trong khoảng đó — nên loại cả khoảng là vừa đủ.
+ */
+export function excludeShown<T extends { slug: string }>(
+  items: readonly T[],
+  feed: readonly { slug: string }[],
+): T[] {
+  const shown = new Set(feed.slice(0, HOME_SHOWN).map((movie) => movie.slug));
+  return items.filter((movie) => !shown.has(movie.slug)).slice(0, ROW_LIMIT);
+}
 
 /**
  * Ba section lazy, lọc theo loại phim ngay ở API (`/v1/api/danh-sach/{type}`) chứ

@@ -3,11 +3,18 @@ import { ContentRow } from '@/components/feature/ContentRow/ContentRow';
 import { PersonalizedRows } from '@/components/feature/ContentRow/PersonalizedRows';
 import { ContinueRow } from '@/components/feature/ContinueRow/ContinueRow';
 import { CONTINUE_PROBE } from '@/components/feature/ContinueRow/continue-probe';
-import { EMPTY_LIST, getHeroSpotlight, getHome, getNewlyUpdated } from '@/lib/endpoints';
-import { ROW_LIMIT } from '@/lib/constants';
-import { toCardMovie } from '@/lib/home';
+import { SiteFooter } from '@/components/feature/SiteFooter/SiteFooter';
+import { getHeroSpotlight, getHomeFeed } from '@/lib/endpoints';
+import { homeFirstRow, toCardMovie } from '@/lib/home';
 import type { ListSource } from '@/lib/list-source';
 import { PATH, routes } from '@/lib/routes';
+import { toPlainText } from '@/lib/sanitize';
+
+/**
+ * Trần độ dài tóm tắt ở hero. CSS chỉ hiện 2–3 dòng (~210 ký tự ở khổ rộng nhất),
+ * phần dư không đáng đi kèm HTML.
+ */
+const SYNOPSIS_MAX = 280;
 
 interface HomeRow {
   /**
@@ -62,57 +69,68 @@ const LAZY_ROWS: HomeRow[] = [
  * Đúng MỘT request danh sách ở RSC. Trước đây là hai (`/v1/api/home` song song
  * với v3), nhưng kiểm tra thật 24/09/2026 cho thấy hai endpoint trả CÙNG 24 phim
  * theo CÙNG thứ tự — mà `/home` lại thiếu `thumb_url`. Giờ v3 vừa là nguồn hero
- * vừa là nguồn row đầu; `/home` chỉ còn là phao khi v3 hỏng (không tốn gì lúc
- * bình thường).
+ * vừa là nguồn row đầu; `/home` chỉ còn là phao khi v3 hỏng (xem `getHomeFeed`).
  *
  * ⚠️ v3 lờ tham số `limit` (luôn trả 24 — đã thử), nên row đầu được cắt còn
  * `ROW_LIMIT` NGAY TẠI ĐÂY, trên server: HTML chỉ mang 16 card, và mỗi card chỉ
  * mang các field `CardMovie`.
+ *
+ * Không phim nào hiện hai lần: row đầu bỏ phim đang ở hero (`homeFirstRow`), ba
+ * section bỏ mọi phim đã có ở hai chỗ đó (`excludeShown` trong `/api/home/*`).
  */
 export default async function HomePage() {
-  const newly = await getNewlyUpdated(1, 'v3').catch(() => getHome().catch(() => EMPTY_LIST));
+  const feed = await getHomeFeed();
 
   // Mất nguồn này là hỏng phần cốt lõi → để error.tsx hiện nút "Thử lại" (§14.1).
-  if (newly.items.length === 0) {
+  if (feed.items.length === 0) {
     throw new Error('Không tải được danh sách phim cho trang chủ');
   }
 
-  const hero = await getHeroSpotlight(newly.items);
+  const hero = await getHeroSpotlight(feed.items);
 
   return (
     <>
-      {hero && (
-        <HeroBillboard movie={hero.movie} images={hero.images} trailerUrl={hero.trailerUrl} />
-      )}
+      <main>
+        {hero && (
+          <HeroBillboard
+            movie={hero.movie}
+            images={hero.images}
+            trailerUrl={hero.trailerUrl}
+            synopsis={toPlainText(hero.content, SYNOPSIS_MAX)}
+          />
+        )}
 
-      {/*
-        §8.2 layer 3 — row đầu chồng lên đáy hero cho liền mạch, nhưng KHÔNG
-        được chồng lên chữ: `-8vw` ở màn 1920 là 154px, nuốt luôn 62px cuối của
-        khối tiêu đề + nút Phát. Kẹp lại còn tối đa 4.5rem — vẫn đủ để gradient
-        đáy hero nối vào row, mà mọi khổ màn đều còn khoảng hở dưới nút.
-      */}
-      <div className="relative z-row -mt-[clamp(0.5rem,4vw,4.5rem)] pb-16">
         {/*
-          Phải đứng TRƯỚC chỗ chừa: script đồng bộ chạy đúng lúc trình duyệt đọc
-          tới đây, nên `<html data-continue-watching>` đã có mặt khi `.continue-slot`
-          bên dưới được layout. Đặt sau là chừa chỗ muộn hơn một lượt vẽ, tức là
-          vẫn dịch — chính thứ nó sinh ra để tránh.
+          §8.2 layer 3 — row đầu chồng lên đáy hero cho liền mạch, nhưng KHÔNG
+          được chồng lên chữ: `-8vw` ở màn 1920 là 154px, nuốt luôn 62px cuối của
+          khối tiêu đề + nút Phát. Kẹp lại còn tối đa 4.5rem — vẫn đủ để gradient
+          đáy hero nối vào row, mà mọi khổ màn đều còn khoảng hở dưới nút.
         */}
-        <script dangerouslySetInnerHTML={{ __html: CONTINUE_PROBE }} />
-        <div className="continue-slot">
-          <ContinueRow />
+        <div className="relative z-row -mt-[clamp(0.5rem,4vw,4.5rem)] pb-16">
+          {/*
+            Phải đứng TRƯỚC chỗ chừa: script đồng bộ chạy đúng lúc trình duyệt đọc
+            tới đây, nên `<html data-continue-watching>` đã có mặt khi `.continue-slot`
+            bên dưới được layout. Đặt sau là chừa chỗ muộn hơn một lượt vẽ, tức là
+            vẫn dịch — chính thứ nó sinh ra để tránh.
+          */}
+          <script dangerouslySetInnerHTML={{ __html: CONTINUE_PROBE }} />
+          <div className="continue-slot">
+            <ContinueRow />
+          </div>
+
+          <ContentRow
+            title="Mới cập nhật"
+            movies={homeFirstRow(feed.items, hero?.movie.slug).map(toCardMovie)}
+            href={PATH.list}
+            priority
+          />
+
+          {/* Thứ tự 3 row này do sở thích của người đang xem quyết định — xem `lib/taste.ts`. */}
+          <PersonalizedRows rows={LAZY_ROWS} />
         </div>
+      </main>
 
-        <ContentRow
-          title="Mới cập nhật"
-          movies={newly.items.slice(0, ROW_LIMIT).map(toCardMovie)}
-          href={PATH.list}
-          priority
-        />
-
-        {/* Thứ tự 3 row này do sở thích của người đang xem quyết định — xem `lib/taste.ts`. */}
-        <PersonalizedRows rows={LAZY_ROWS} />
-      </div>
+      <SiteFooter />
     </>
   );
 }

@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
 import { ROW_LIMIT } from '@/lib/constants';
+import { HERO_CANDIDATES } from '@/lib/endpoints';
 import {
   HOME_SECTIONS,
+  HOME_SHOWN,
+  SECTION_FETCH_LIMIT,
+  excludeShown,
   fetchHomeSection,
+  homeFirstRow,
   homeSectionOf,
   isHomeSection,
   toCardMovie,
@@ -109,21 +114,86 @@ describe('section trang chủ', () => {
   });
 });
 
-describe('GET /api/home/[section]', () => {
-  it('lọc loại phim + giới hạn số phim NGAY Ở API, trả về card đã cắt', async () => {
-    const fetchMock = mockFetch(shapeB);
+describe('loại trùng giữa các section', () => {
+  const slugs = (n: number) => Array.from({ length: n }, (_, i) => ({ slug: `phim-${i}` }));
 
-    const res = await GET(new Request('http://localhost/api/home/phim-bo'), {
-      params: { section: 'phim-bo' },
+  it('xin dư đúng chừng có thể bị loại — luôn còn đủ ROW_LIMIT', () => {
+    expect(SECTION_FETCH_LIMIT - HOME_SHOWN).toBeGreaterThanOrEqual(ROW_LIMIT);
+  });
+
+  it('row đầu bỏ phim đang ở hero, vẫn đủ ROW_LIMIT', () => {
+    const row = homeFirstRow(slugs(24), 'phim-1').map((m) => m.slug);
+
+    expect(row).toHaveLength(ROW_LIMIT);
+    expect(row).not.toContain('phim-1');
+    expect(row[0]).toBe('phim-0');
+    expect(row.at(-1)).toBe(`phim-${ROW_LIMIT}`);
+  });
+
+  it('không có hero thì row đầu là ROW_LIMIT phim đầu', () => {
+    const row = homeFirstRow(slugs(24)).map((m) => m.slug);
+    expect(row).toEqual(slugs(ROW_LIMIT).map((m) => m.slug));
+  });
+
+  it('section loại ĐÚNG những phim đã ở màn đầu, dù hero là ứng viên nào', () => {
+    const feed = slugs(24);
+
+    for (let index = 0; index < HERO_CANDIDATES; index++) {
+      const hero = `phim-${index}`;
+      const onScreen = new Set([hero, ...homeFirstRow(feed, hero).map((m) => m.slug)]);
+      const kept = excludeShown(slugs(40), feed).map((m) => m.slug);
+
+      expect(kept.filter((slug) => onScreen.has(slug))).toEqual([]);
+      // …và không loại oan phim nào ngoài màn đầu
+      expect(kept[0]).toBe(`phim-${HOME_SHOWN}`);
+    }
+  });
+});
+
+describe('GET /api/home/[section]', () => {
+  const FEED_PATH = '/danh-sach/phim-moi-cap-nhat-v3';
+
+  /** Section `count` phim `phim-0`, `phim-1`…, cùng khuôn với fixture thật. */
+  function sectionBody(count: number) {
+    const raw = structuredClone(shapeB) as { data: { items: unknown[] } };
+    raw.data.items = Array.from({ length: count }, (_, i) => ({
+      ...(raw.data.items[0] as object),
+      slug: `phim-${i}`,
+    }));
+    return raw;
+  }
+
+  /** Nguồn "Mới cập nhật" (Shape A) chỉ gồm các slug cho trước. */
+  const feedBody = (count: number) => ({
+    items: Array.from({ length: count }, (_, i) => ({ slug: `phim-${i}` })),
+  });
+
+  /** fetch giả trả body theo pathname; đường nào không khai báo → 404. */
+  function mockRoutes(bodies: Record<string, unknown>) {
+    const fn = vi.fn(async (input: RequestInfo | URL) => {
+      const { pathname } = new URL(String(input));
+      return pathname in bodies
+        ? Response.json(bodies[pathname])
+        : new Response('', { status: 404, statusText: 'Not Found' });
     });
+    vi.stubGlobal('fetch', fn);
+    return fn;
+  }
+
+  const get = (section: string) =>
+    GET(new Request(`http://localhost/api/home/${section}`), { params: { section } });
+
+  it('lọc loại phim NGAY Ở API, xin dư để loại trùng, trả về card đã cắt', async () => {
+    const fetchMock = mockRoutes({ '/v1/api/danh-sach/phim-bo': shapeB, [FEED_PATH]: feedBody(0) });
+
+    const res = await get('phim-bo');
     const body = (await res.json()) as { items: Record<string, unknown>[] };
 
     expect(res.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const url = new URL(String((fetchMock.mock.calls[0] as unknown[])[0]));
-    expect(url.pathname).toBe('/v1/api/danh-sach/phim-bo');
-    expect(url.searchParams.get('limit')).toBe(String(ROW_LIMIT));
+    const urls = fetchMock.mock.calls.map((call) => new URL(String((call as unknown[])[0])));
+    const list = urls.find((url) => url.pathname === '/v1/api/danh-sach/phim-bo');
+    expect(list?.searchParams.get('limit')).toBe(String(SECTION_FETCH_LIMIT));
 
     expect(body.items.length).toBeGreaterThan(0);
     expect(body.items.length).toBeLessThanOrEqual(ROW_LIMIT);
@@ -131,39 +201,48 @@ describe('GET /api/home/[section]', () => {
   });
 
   it('tự khai Cache-Control 5 phút — Next không tự thêm cho route handler ISR', async () => {
-    mockFetch(shapeB);
+    mockRoutes({ '/v1/api/danh-sach/phim-bo': shapeB, [FEED_PATH]: feedBody(0) });
 
-    const res = await GET(new Request('http://localhost/api/home/phim-bo'), {
-      params: { section: 'phim-bo' },
-    });
-    const cacheControl = res.headers.get('cache-control') ?? '';
+    const cacheControl = (await get('phim-bo')).headers.get('cache-control') ?? '';
 
     expect(cacheControl).toContain('max-age=300');
     expect(cacheControl).toContain('s-maxage=300');
   });
 
   it('API lờ `limit` đi thì vẫn không vượt ROW_LIMIT', async () => {
-    const raw = structuredClone(shapeB) as { data: { items: unknown[] } };
-    raw.data.items = Array.from({ length: 40 }, (_, i) => ({
-      ...(raw.data.items[0] as object),
-      slug: `phim-${i}`,
-    }));
-    mockFetch(raw);
+    mockRoutes({ '/v1/api/danh-sach/phim-le': sectionBody(64), [FEED_PATH]: feedBody(0) });
 
-    const res = await GET(new Request('http://localhost/api/home/phim-le'), {
-      params: { section: 'phim-le' },
-    });
+    const body = (await (await get('phim-le')).json()) as { items: unknown[] };
+
+    expect(body.items).toHaveLength(ROW_LIMIT);
+  });
+
+  it('bỏ mọi phim đã có ở hero + "Mới cập nhật", vẫn trả đủ ROW_LIMIT', async () => {
+    // "Phim bộ" trùng gần hết màn đầu — đúng tình huống đo được 25/09/2026.
+    mockRoutes({ '/v1/api/danh-sach/phim-bo': sectionBody(40), [FEED_PATH]: feedBody(24) });
+
+    const body = (await (await get('phim-bo')).json()) as { items: { slug: string }[] };
+    const shown = feedBody(HOME_SHOWN).items.map((m) => m.slug);
+
+    expect(body.items).toHaveLength(ROW_LIMIT);
+    expect(body.items.filter((m) => shown.includes(m.slug))).toEqual([]);
+  });
+
+  it('nguồn "Mới cập nhật" hỏng → section vẫn trả, chỉ là không loại trùng', async () => {
+    // v3 lẫn phao `/v1/api/home` đều 404
+    mockRoutes({ '/v1/api/danh-sach/hoat-hinh': sectionBody(20) });
+
+    const res = await get('hoat-hinh');
     const body = (await res.json()) as { items: unknown[] };
 
+    expect(res.status).toBe(200);
     expect(body.items).toHaveLength(ROW_LIMIT);
   });
 
   it('section ngoài whitelist → 404, KHÔNG gọi KKPhim', async () => {
     const fetchMock = mockFetch(shapeB);
 
-    const res = await GET(new Request('http://localhost/api/home/tv-shows'), {
-      params: { section: 'tv-shows' },
-    });
+    const res = await get('tv-shows');
 
     expect(res.status).toBe(404);
     expect(fetchMock).not.toHaveBeenCalled();

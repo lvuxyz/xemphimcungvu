@@ -113,7 +113,7 @@ Và một endpoint của chính app:
 
 | Route | Nguồn | Nơi dùng |
 |---|---|---|
-| `/api/home/{phim-bo,phim-le,hoat-hinh}` | `getListByType(type, { limit: 16 })` → `toCardMovie` | 3 section lazy của trang chủ (`LazyRow`) — ISR 5 phút, chỉ trả field card |
+| `/api/home/{phim-bo,phim-le,hoat-hinh}` | `getListByType(type, { limit: 33 })` → `excludeShown` → `toCardMovie` | 3 section lazy của trang chủ (`LazyRow`) — ISR 5 phút, 16 phim không trùng màn đầu, chỉ trả field card |
 
 Ba hàm gộp ở tầng trên, để page không phải tự ghép:
 
@@ -134,7 +134,20 @@ client  Phim bộ · Phim lẻ · Hoạt hình — mỗi section gọi /api/home
 
 Trang chủ có đúng **4 section**, mỗi section tối đa `ROW_LIMIT = 16` phim → trần
 64 card lấy từ API. TV Shows, quốc gia và thể loại không còn trên trang chủ; lối
-vào của chúng là menu Navbar và "Xem tất cả" → trang danh sách có phân trang.
+vào của chúng là menu Navbar, chân trang và "Xem tất cả" → trang danh sách có phân
+trang.
+
+**Không phim nào hiện hai lần.** Nguồn "Mới cập nhật" gần như toàn phim bộ, và cả
+hai nguồn cùng xếp theo lần cập nhật cuối — trước đây "Phim bộ" trùng 12/16 phim với
+row đầu (cả 6 card nhìn thấy đầu tiên), 64 card chỉ có 48 phim. Giờ row đầu bỏ phim
+đang ở hero (`homeFirstRow`), còn `/api/home/*` xin 33 phim rồi bỏ mọi phim đã có ở
+màn đầu (`excludeShown`) — nguồn so sánh là cùng lời gọi v3 của RSC (`getHomeFeed`),
+trúng data cache của Next nên không thêm request nào tới KKPhim.
+
+Hero: tên, dòng meta, thể loại, và tóm tắt 2–3 dòng lấy từ chính lời gọi chi tiết
+vốn đã có để lấy trailer (0 request thêm). Tóm tắt ẩn ở điện thoại và khi màn thấp
+hơn 700px; trailer chỉ phát ở máy có chuột (hero điện thoại là khung dọc, video 16:9
+bị letterbox).
 
 Khi nào một section lazy được tải (`LazyRow` + `useHasScrolled`):
 

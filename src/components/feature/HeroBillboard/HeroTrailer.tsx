@@ -26,6 +26,7 @@ interface HeroTrailerProps {
  *   rời viewport        → pause (IntersectionObserver)
  *   reduced motion      → không phát (§9.4)
  *   mạng/máy yếu        → HeroBillboard không truyền trailerUrl xuống nữa
+ *   màn cảm ứng         → như trên: hero dọc, video 16:9 bị letterbox
  *
  * Ba điều kiện phải đúng ĐỒNG THỜI thì iframe mới được gắn: đã chờ đủ 2.5s,
  * hero còn trong viewport, và tab đang hiện. Nhúng YouTube kéo theo ~1MB

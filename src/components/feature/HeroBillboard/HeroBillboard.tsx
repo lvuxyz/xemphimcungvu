@@ -19,7 +19,26 @@ interface HeroBillboardProps {
   images: MovieImages;
   /** §8.2 — link YouTube. Rỗng thì hero giữ ảnh tĩnh. */
   trailerUrl?: string;
+  /**
+   * Tóm tắt phim, CHỮ THƯỜNG đã tính ở server (`toPlainText`) — sanitize kéo theo
+   * DOMPurify, không để nó lọt vào bundle client chỉ vì một đoạn văn.
+   */
+  synopsis?: string;
 }
+
+/** Số thể loại đầu tiên hiện dưới tên phim. Quá ba thì thành một dòng liệt kê. */
+const HERO_GENRES = 3;
+
+/**
+ * Tên dài hơn mốc này thì hạ một bậc cỡ chữ tiêu đề.
+ *
+ * Ở cỡ 60px khối tiêu đề chỉ chứa ~16 ký tự mỗi dòng, nên tên phim tiếng Việt dài
+ * (không hiếm — "… (Nơi Biển Bắt Đầu)") lên 3–4 dòng. Cộng với dòng tóm tắt, tên 4
+ * dòng bị đẩy lên đè navbar ở khổ 1280×720, nơi hero chỉ cao 576px (đo thật: đỉnh
+ * chữ ở y=24 trong khi navbar cao 64). Hạ cỡ chữ theo độ dài giữ được tóm tắt mà
+ * không phải cắt tên phim.
+ */
+const HERO_LONG_TITLE = 24;
 
 /**
  * §8.2 — HeroBillboard.
@@ -35,8 +54,27 @@ interface HeroBillboardProps {
  * `backdrop` và `poster`), nên title luôn dựng bằng chữ. `images.logos` vẫn được
  * đọc phòng khi API bổ sung sau.
  */
-export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardProps) {
-  const { reducedMotion, budget } = useDevice();
+export function HeroBillboard({
+  movie,
+  images,
+  trailerUrl = '',
+  synopsis = '',
+}: HeroBillboardProps) {
+  const { reducedMotion, budget, canHover } = useDevice();
+
+  /**
+   * Trailer chỉ phát ở máy có chuột thật.
+   *
+   * Trên điện thoại hero là khung DỌC (375×480 ở 375px) mà video YouTube là 16:9:
+   * iframe phóng 135% vẫn chỉ phủ được một dải ngang giữa khung, trên dưới là viền
+   * đen — đo thật: ảnh hero biến mất, thay bằng video bị letterbox. Kèm theo là ~1 MB
+   * script YouTube cộng luồng video tự phát trên mạng di động.
+   *
+   * Server snapshot có `canHover = true` nên HTML vẫn như cũ; iframe chỉ gắn sau
+   * 2500ms, lúc đó giá trị thật đã về từ lâu — không có lần nhá nào trên điện thoại.
+   */
+  const playTrailer = budget.heroTrailer && canHover;
+  const genres = movie.categories.slice(0, HERO_GENRES).map((category) => category.name);
 
   /**
    * Phim hero mà người này đang xem dở thì nút chính mở lại đúng chỗ đã dừng.
@@ -98,7 +136,7 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
       </div>
 
       {/* layer 1b — trailer đè lên backdrop sau 2500ms (§8.2) */}
-      <HeroTrailer trailerUrl={budget.heroTrailer ? trailerUrl : ''} title={movie.name} />
+      <HeroTrailer trailerUrl={playTrailer ? trailerUrl : ''} title={movie.name} />
 
       {/* layer 2 — gradient trái */}
       <div
@@ -127,7 +165,14 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
               priority
             />
           ) : (
-            <h1 className="text-balance text-3xl font-extrabold leading-[1.05] tracking-[-0.02em] text-text-primary drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] md:text-5xl lg:text-6xl">
+            <h1
+              className={cn(
+                'text-balance font-extrabold leading-[1.05] tracking-[-0.02em] text-text-primary drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]',
+                movie.name.length > HERO_LONG_TITLE
+                  ? 'text-2xl md:text-4xl lg:text-5xl'
+                  : 'text-3xl md:text-5xl lg:text-6xl',
+              )}
+            >
               {movie.name}
             </h1>
           )}
@@ -138,10 +183,37 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
             </p>
           )}
 
+          {/*
+            Thể loại là cụm riêng trong cùng hàng `flex-wrap`: màn rộng thì nó đứng
+            ngay sau dòng meta, điện thoại thì tự xuống dòng mới — không cần hai bố
+            cục cho hai khổ.
+          */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm drop-shadow-md">
             <MatchScore score={matchScore(movie)} />
             <span className="text-text-secondary">{metaLine(movie)}</span>
+            {genres.length > 0 && (
+              <span className="text-text-primary/85">{genres.join(' • ')}</span>
+            )}
           </div>
+
+          {/*
+            Tóm tắt là thứ cho người xem một lý do để bấm Phát — trước đây hero chỉ
+            có tên và dòng meta. Dữ liệu có sẵn từ chính lời gọi lấy trailer, và chữ
+            nằm trong HTML server nên không có lần dịch nào sau hydrate.
+
+            Chỉ hiện khi CÒN CHỖ, vì khối chữ neo đáy hero và mọi dòng thêm vào đều
+            đẩy tên phim lên phía navbar:
+            · ẩn ở điện thoại — hero là khung dọc 480px, thêm chữ là che mặt diễn
+              viên, mà ở khổ đó ảnh mới là thứ bán phim
+            · ẩn khi màn thấp hơn 700px — hero co còn 480px; đo thật ở 1280×600,
+              tóm tắt đẩy đỉnh tên phim lên y=48, dưới mép navbar (64)
+            · 2 dòng, 3 dòng từ `lg`
+          */}
+          {synopsis && (
+            <p className="hidden max-w-xl text-sm leading-relaxed text-text-primary/85 drop-shadow-md md:text-base sm:[@media(min-height:700px)]:line-clamp-2 lg:[@media(min-height:700px)]:line-clamp-3">
+              {synopsis}
+            </p>
+          )}
 
           {/*
             Nhãn nút chính đổi được sau khi hydrate, nên hai nút phải chịu được
@@ -172,7 +244,14 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
             </Button>
             <Button href={routes.detail(movie.slug)} variant="secondary" size="lg">
               <InfoIcon />
-              Thông tin<span className="hidden sm:inline">&nbsp;khác</span>
+              {/*
+                Bọc cả nhãn trong MỘT span: `Button` là flex có `gap-2`, nên để
+                "khác" đứng thành phần tử flex riêng là cộng 8px gap vào khoảng
+                trắng sẵn có — hở ~12px giữa hai chữ, đo thật ở khổ ≥ 640px.
+              */}
+              <span>
+                Thông tin<span className="hidden sm:inline"> khác</span>
+              </span>
             </Button>
           </div>
         </div>
