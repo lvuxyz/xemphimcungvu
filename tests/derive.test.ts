@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cardQualityLabel,
   episodeBadgeLabel,
   episodeLabel,
   firstEpisodeHref,
@@ -185,5 +186,22 @@ describe('movieTitle', () => {
   /** API trả `year: 0` khi không biết — không được đẻ ra "Tên (0)". */
   it('bỏ phần năm khi API không trả', () => {
     expect(movieTitle({ name: 'Phim Không Rõ Năm', year: 0 })).toBe('Phim Không Rõ Năm');
+  });
+});
+
+describe('cardQualityLabel', () => {
+  /** FHD là mặc định của ~97% phim — in lên mọi card là nhiễu, không phải thông tin. */
+  it('ẩn nhãn FHD', () => {
+    expect(cardQualityLabel('FHD')).toBe('');
+    expect(cardQualityLabel(' fhd ')).toBe('');
+  });
+
+  it('giữ nhãn đáng biết trước khi bấm', () => {
+    expect(cardQualityLabel('CAM')).toBe('CAM');
+    expect(cardQualityLabel('HD')).toBe('HD');
+  });
+
+  it('không có nhãn thì không có gì để hiện', () => {
+    expect(cardQualityLabel('')).toBe('');
   });
 });

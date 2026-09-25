@@ -7,7 +7,7 @@ import { SmartImage } from '@/components/ui/SmartImage';
 import { cn } from '@/lib/cn';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { HOVER_DELAY, PLACEHOLDER_BACKDROP, PLACEHOLDER_POSTER } from '@/lib/constants';
-import { episodeBadgeLabel, matchScore, parseEpisodeBadge } from '@/lib/derive';
+import { cardQualityLabel, episodeBadgeLabel, matchScore, parseEpisodeBadge } from '@/lib/derive';
 import type { CardMovie } from '@/types/movie';
 import { useWatchRatio } from '@/store/useWatchStore';
 import { useHoverDelay } from '@/hooks/useHoverDelay';
@@ -123,6 +123,7 @@ export function MovieCard({
   };
 
   const badgeLabel = episodeBadgeLabel(parseEpisodeBadge(movie.episodeCurrent));
+  const qualityLabel = cardQualityLabel(movie.quality);
 
   /**
    * Đọc từ store dùng chung, không phải từ localStorage: trang chủ có hơn trăm
@@ -180,9 +181,9 @@ export function MovieCard({
             className="object-cover"
           />
 
-          {movie.quality && (
+          {qualityLabel && (
             <span className="absolute left-1.5 top-1.5 rounded-[3px] bg-bg-base/75 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-text-primary backdrop-blur-sm">
-              {movie.quality}
+              {qualityLabel}
             </span>
           )}
 

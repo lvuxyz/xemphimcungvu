@@ -92,6 +92,19 @@ export function episodeBadgeLabel(badge: EpisodeBadge): string {
   }
 }
 
+/**
+ * Nhãn chất lượng đè lên ảnh card — CHỈ khi khác FHD.
+ *
+ * FHD là mặc định của gần như mọi phim (1115/1152 phim khảo sát 25/09/2026, và
+ * 62/64 card trang chủ): in nó lên mọi card không cho người xem biết thêm điều gì,
+ * chỉ thêm một mảng chữ che ảnh. Nhãn còn lại mới là thứ đáng biết trước khi bấm —
+ * nhất là "CAM".
+ */
+export function cardQualityLabel(quality: string): string {
+  const label = quality.trim();
+  return label.toUpperCase() === 'FHD' ? '' : label;
+}
+
 /** Phim bộ hay phim lẻ — quyết định UI hiện grid chọn tập hay không. */
 export function isSeries(m: Pick<Movie, 'type'>): boolean {
   return m.type === 'series' || m.type === 'tvshows' || m.type === 'hoathinh';
