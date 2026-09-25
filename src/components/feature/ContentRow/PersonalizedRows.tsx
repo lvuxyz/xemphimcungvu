@@ -21,10 +21,12 @@ const NO_LIST: readonly ListedMovie[] = [];
  *
  *   · lượt render đầu ở client dùng ĐÚNG thứ tự của server (store còn rỗng), nên
  *     không có hydration mismatch
- *   · lúc đảo, mọi row đều đang là khung chờ cùng chiều cao và chưa row nào fetch —
- *     không dịch pixel, không request nào bị bỏ đi
+ *   · lúc đảo, mọi row đều đang là khung chờ và chưa row nào fetch — không request
+ *     nào bị bỏ đi. Khung chờ ảnh ngang đều cao bằng nhau; khung poster của "Phim
+ *     chiếu rạp" thì cao hơn, nên nó KHÔNG được lên chỗ đầu — chỗ duy nhất có thể
+ *     đang ló trong màn đầu (xem `LAZY_ROWS` ở `app/page.tsx`)
  *
- * Và nó KHÔNG làm tăng số request: vẫn 3 row, vẫn `LazyRow` chờ viewport. Đảo thứ
+ * Và nó KHÔNG làm tăng số request: vẫn bấy nhiêu row, vẫn `LazyRow` chờ viewport. Đảo thứ
  * tự chỉ đổi row nào được gọi trước — cùng số lời gọi, trả về thứ đáng xem hơn.
  *
  * ⚠️ `key` theo VỊ TRÍ, không theo `row.id`. Nghe như ngược với mọi lời khuyên về
@@ -71,8 +73,8 @@ export function PersonalizedRows({ rows }: { rows: readonly TasteRow[] }) {
     <>
       {ordered.map((row, index) => {
         /**
-         * Chỉ section có route cache sẵn (`/api/home/*`) mới dựng được. Ba row loại
-         * phim hiện tại thì luôn có; `personalizeRows` chỉ đổi nguồn một row sang
+         * Chỉ section có route cache sẵn (`/api/home/*`) mới dựng được. Bốn row
+         * hiện tại thì luôn có; `personalizeRows` chỉ đổi nguồn một row sang
          * thể loại khi trang có sẵn row thể loại — mà trang chủ không còn row nào.
          */
         const section = homeSectionOf(row.source);

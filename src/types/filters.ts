@@ -11,6 +11,12 @@ export const TYPE_LIST = [
   'phim-vietsub',
   'phim-thuyet-minh',
   'phim-long-tieng',
+  /**
+   * Ngoài danh sách của §3.1, nhưng API nhận: 903 phim có cờ `chieurap`, lọc được
+   * theo thể loại / quốc gia / năm như mọi `type_list` khác (kiểm tra 25/09/2026).
+   * Không phải một LOẠI phim như bốn giá trị đầu — cắt ngang phim lẻ và hoạt hình.
+   */
+  'phim-chieu-rap',
 ] as const;
 
 export type TypeList = (typeof TYPE_LIST)[number];

@@ -6,13 +6,16 @@ import {
   HOME_SECTIONS,
   HOME_SHOWN,
   SECTION_FETCH_LIMIT,
+  THEATRICAL_SECTION,
   excludeShown,
   fetchHomeSection,
   homeFirstRow,
+  homeSectionLayout,
   homeSectionOf,
   isHomeSection,
   toCardMovie,
 } from '@/lib/home';
+import { MAX_LIMIT } from '@/types/filters';
 import { normalizeList } from '@/lib/normalize';
 import { GET } from '@/app/api/home/[section]/route';
 
@@ -94,13 +97,20 @@ describe('toCardMovie', () => {
 });
 
 describe('section trang chủ', () => {
-  it('đúng ba section lazy, đều là loại phim lọc ở phía API', () => {
-    expect([...HOME_SECTIONS]).toEqual(['phim-bo', 'phim-le', 'hoat-hinh']);
+  it('đúng bốn section lazy, đều lọc ở phía API', () => {
+    expect([...HOME_SECTIONS]).toEqual(['phim-bo', 'phim-chieu-rap', 'phim-le', 'hoat-hinh']);
+  });
+
+  it('chỉ "Phim chiếu rạp" là row poster', () => {
+    expect(HOME_SECTIONS.filter((s) => homeSectionLayout(s) === 'poster')).toEqual([
+      THEATRICAL_SECTION,
+    ]);
   });
 
   it('ánh xạ nguồn danh sách → section', () => {
     expect(homeSectionOf({ kind: 'type', type: 'phim-bo' })).toBe('phim-bo');
     expect(homeSectionOf({ kind: 'type', type: 'hoat-hinh' })).toBe('hoat-hinh');
+    expect(homeSectionOf({ kind: 'type', type: 'phim-chieu-rap' })).toBe('phim-chieu-rap');
     // Không còn trên trang chủ → không có route cache
     expect(homeSectionOf({ kind: 'type', type: 'tv-shows' })).toBeNull();
     expect(homeSectionOf({ kind: 'category', slug: 'hanh-dong' })).toBeNull();
@@ -117,8 +127,15 @@ describe('section trang chủ', () => {
 describe('loại trùng giữa các section', () => {
   const slugs = (n: number) => Array.from({ length: n }, (_, i) => ({ slug: `phim-${i}` }));
 
-  it('xin dư đúng chừng có thể bị loại — luôn còn đủ ROW_LIMIT', () => {
-    expect(SECTION_FETCH_LIMIT - HOME_SHOWN).toBeGreaterThanOrEqual(ROW_LIMIT);
+  it('xin dư đúng chừng có thể bị loại — luôn còn đủ ROW_LIMIT, vẫn dưới trần API', () => {
+    // mất tối đa màn đầu + 16 phim "Phim chiếu rạp" đã giữ
+    expect(SECTION_FETCH_LIMIT - HOME_SHOWN - ROW_LIMIT).toBeGreaterThanOrEqual(ROW_LIMIT);
+    expect(SECTION_FETCH_LIMIT).toBeLessThanOrEqual(MAX_LIMIT);
+  });
+
+  it('bỏ cả phim mà section khác đã giữ', () => {
+    const kept = excludeShown(slugs(60), [], slugs(3)).map((m) => m.slug);
+    expect(kept[0]).toBe('phim-3');
   });
 
   it('row đầu bỏ phim đang ở hero, vẫn đủ ROW_LIMIT', () => {
@@ -154,11 +171,11 @@ describe('GET /api/home/[section]', () => {
   const FEED_PATH = '/danh-sach/phim-moi-cap-nhat-v3';
 
   /** Section `count` phim `phim-0`, `phim-1`…, cùng khuôn với fixture thật. */
-  function sectionBody(count: number) {
+  function sectionBody(count: number, from = 0) {
     const raw = structuredClone(shapeB) as { data: { items: unknown[] } };
     raw.data.items = Array.from({ length: count }, (_, i) => ({
       ...(raw.data.items[0] as object),
-      slug: `phim-${i}`,
+      slug: `phim-${from + i}`,
     }));
     return raw;
   }
@@ -226,6 +243,48 @@ describe('GET /api/home/[section]', () => {
 
     expect(body.items).toHaveLength(ROW_LIMIT);
     expect(body.items.filter((m) => shown.includes(m.slug))).toEqual([]);
+  });
+
+  it('section theo loại phim bỏ phim mà "Phim chiếu rạp" đang giữ', async () => {
+    mockRoutes({
+      '/v1/api/danh-sach/phim-le': sectionBody(60),
+      // chiếu rạp giữ phim-10 … phim-25
+      [`/v1/api/danh-sach/${THEATRICAL_SECTION}`]: sectionBody(40, 10),
+      [FEED_PATH]: feedBody(0),
+    });
+
+    const body = (await (await get('phim-le')).json()) as { items: { slug: string }[] };
+    const slugs = body.items.map((m) => m.slug);
+
+    expect(slugs).toHaveLength(ROW_LIMIT);
+    expect(slugs.slice(0, 10)).toEqual(Array.from({ length: 10 }, (_, i) => `phim-${i}`));
+    expect(slugs[10]).toBe('phim-26');
+  });
+
+  it('"Phim chiếu rạp" không tự loại theo chính nó', async () => {
+    const fetchMock = mockRoutes({
+      [`/v1/api/danh-sach/${THEATRICAL_SECTION}`]: sectionBody(40),
+      [FEED_PATH]: feedBody(0),
+    });
+
+    const body = (await (await get(THEATRICAL_SECTION)).json()) as { items: { slug: string }[] };
+    const theatricalCalls = fetchMock.mock.calls.filter((call) =>
+      String((call as unknown[])[0]).includes(THEATRICAL_SECTION),
+    );
+
+    expect(body.items[0]?.slug).toBe('phim-0');
+    expect(theatricalCalls).toHaveLength(1);
+  });
+
+  it('danh sách chiếu rạp hỏng → section khác vẫn trả đủ', async () => {
+    // chỉ có section chính; chiếu rạp, v3 và phao `/home` đều 404
+    mockRoutes({ '/v1/api/danh-sach/phim-bo': sectionBody(20) });
+
+    const res = await get('phim-bo');
+    const body = (await res.json()) as { items: unknown[] };
+
+    expect(res.status).toBe(200);
+    expect(body.items).toHaveLength(ROW_LIMIT);
   });
 
   it('nguồn "Mới cập nhật" hỏng → section vẫn trả, chỉ là không loại trùng', async () => {

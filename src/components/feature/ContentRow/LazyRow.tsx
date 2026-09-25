@@ -1,14 +1,15 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { cn } from '@/lib/cn';
 import { CACHE } from '@/lib/constants';
-import { fetchHomeSection, type HomeSection } from '@/lib/home';
+import { fetchHomeSection, homeSectionLayout, type HomeSection } from '@/lib/home';
 import { queryKeys } from '@/lib/query-keys';
 import { useInView } from '@/hooks/useInView';
 import { useHasScrolled } from '@/hooks/useHasScrolled';
 import { useHoverPreviewEnabled } from '@/hooks/useDevice';
 import { CardSkeleton } from '@/components/ui/Skeleton';
-import { ContentRow } from './ContentRow';
+import { ContentRow, ROW_CARD_WIDTH } from './ContentRow';
 
 interface LazyRowProps {
   title: string;
@@ -65,7 +66,9 @@ export function LazyRow({ title, section, href }: LazyRowProps) {
     retry: 1,
   });
 
-  const withMeta = !useHoverPreviewEnabled();
+  const variant = homeSectionLayout(section);
+  // Cùng luật với `ContentRow`: card poster luôn có khối tên dưới ảnh.
+  const withMeta = !useHoverPreviewEnabled() || variant === 'poster';
 
   if (isError || (data && data.length === 0)) return null;
 
@@ -88,13 +91,14 @@ export function LazyRow({ title, section, href }: LazyRowProps) {
           Thiếu hai thứ đó thì dữ liệu về là row cao thêm 8px (desktop) hoặc 80px
           (điện thoại) và mọi thứ bên dưới giật theo.
 
-          `overflow-hidden` là BẮT BUỘC: 6 ô `shrink-0` rộng hơn màn hình, thiếu
+          Số ô = số card lấp kín khổ rộng nhất (6 ảnh ngang, 8 poster).
+          `overflow-hidden` là BẮT BUỘC: các ô `shrink-0` rộng hơn màn hình, thiếu
           nó thì cả trang cuộn ngang được 160px ở màn 1366 (đo thật).
         */}
         <div className="flex gap-2 overflow-hidden px-row py-1" aria-hidden="true">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-[45%] shrink-0 sm:w-[30%] lg:w-[19%] 2xl:w-[16%]">
-              <CardSkeleton meta={withMeta} />
+          {Array.from({ length: variant === 'poster' ? 8 : 6 }).map((_, i) => (
+            <div key={i} className={cn('shrink-0', ROW_CARD_WIDTH[variant])}>
+              <CardSkeleton aspect={variant === 'poster' ? 'poster' : 'backdrop'} meta={withMeta} />
             </div>
           ))}
         </div>
@@ -108,5 +112,7 @@ export function LazyRow({ title, section, href }: LazyRowProps) {
    * thì khung chờ chưa từng dựng, `inView` là `false` — row tự chờ observer như cũ,
    * không mount 16 card cho một row còn nằm tận cuối trang.
    */
-  return <ContentRow title={title} movies={data} href={href} mountedInView={inView} />;
+  return (
+    <ContentRow title={title} movies={data} variant={variant} href={href} mountedInView={inView} />
+  );
 }

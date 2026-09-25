@@ -10,11 +10,32 @@ import { useInView } from '@/hooks/useInView';
 import { useDevice, useHoverPreviewEnabled } from '@/hooks/useDevice';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/ui/icons';
 import { CardSkeleton } from '@/components/ui/Skeleton';
+import { IMAGE_SIZES } from '@/lib/image';
 import { MovieCard } from '../MovieCard/MovieCard';
+
+export type RowVariant = 'backdrop' | 'poster';
+
+/**
+ * Bề rộng một card theo breakpoint, cho từng kiểu row.
+ *
+ * DÙNG CHUNG với khung chờ của `LazyRow`: lệch nhau là cả hàng đổi bề rộng đúng lúc
+ * dữ liệu về. `IMAGE_SIZES.posterRowCard` cũng khai theo đúng thang của `poster`.
+ */
+export const ROW_CARD_WIDTH: Record<RowVariant, string> = {
+  backdrop: 'w-[45%] sm:w-[30%] lg:w-[19%] 2xl:w-[16%]',
+  poster: 'w-[36%] sm:w-[24%] lg:w-[15%] 2xl:w-[12.5%]',
+};
 
 interface ContentRowProps {
   title: string;
   movies: CardMovie[];
+  /**
+   * `backdrop` — ảnh ngang 16:9, có HoverPreview (mặc định).
+   * `poster`   — poster 2:3, tên phim luôn hiện dưới ảnh, KHÔNG có HoverPreview:
+   *              preview là khung 16:9 cùng bề rộng card, mà card poster hẹp hơn
+   *              card ngang ~20% — hàng nút và chip của preview không còn chỗ.
+   */
+  variant?: RowVariant;
   /** Link "Xem tất cả" ở tiêu đề row */
   href?: string;
   /**
@@ -42,6 +63,7 @@ interface ContentRowProps {
 export function ContentRow({
   title,
   movies,
+  variant = 'backdrop',
   href,
   priority = false,
   mountedInView = false,
@@ -49,7 +71,9 @@ export function ContentRow({
   const { ref, canScrollPrev, canScrollNext, scrollNext, scrollPrev, originFor } =
     useRowScroll<HTMLUListElement>();
   const { cols, canHover } = useDevice();
-  const withMeta = !useHoverPreviewEnabled();
+  const poster = variant === 'poster';
+  // Card poster luôn có khối tên dưới ảnh; card ngang chỉ có khi không có preview.
+  const withMeta = !useHoverPreviewEnabled() || poster;
 
   /**
    * Row đầu (nằm ngay dưới hero) và row `LazyRow` vừa dựng đều BIẾT mình đang ở
@@ -187,7 +211,8 @@ export function ContentRow({
             <li
               key={`${movie.slug}-${index}`}
               className={cn(
-                'row-item relative z-0 w-[45%] focus-within:z-30 hover:z-30 sm:w-[30%] lg:w-[19%] 2xl:w-[16%]',
+                'row-item relative z-0 focus-within:z-30 hover:z-30',
+                ROW_CARD_WIDTH[variant],
                 hasEntered && 'row-item-enter',
               )}
               // §9.3 — stagger 40ms/item, dừng sau 8 item
@@ -216,6 +241,9 @@ export function ContentRow({
                 */
                 <MovieCard
                   movie={movie}
+                  variant={poster ? 'grid' : 'row'}
+                  enableHoverPreview={!poster}
+                  sizes={poster ? IMAGE_SIZES.posterRowCard : undefined}
                   eager={priority && index < cols}
                   transformOrigin={originFor(index, movies.length, cols)}
                   tabIndex={index === rovingIndex ? 0 : -1}
@@ -224,7 +252,7 @@ export function ContentRow({
               ) : (
                 // Giữ đúng chỗ để không gây CLS khi card mount (§12.1) — kể cả khối
                 // tên/năm dưới ảnh ở máy không có HoverPreview.
-                <CardSkeleton meta={withMeta} />
+                <CardSkeleton aspect={poster ? 'poster' : 'backdrop'} meta={withMeta} />
               )}
             </li>
           ))}

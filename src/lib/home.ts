@@ -1,13 +1,15 @@
 /**
- * Dữ liệu trang chủ: bốn section, và hình dạng card đi qua `/api/home/*`.
+ * Dữ liệu trang chủ: năm section, và hình dạng card đi qua `/api/home/*`.
  *
- *   Mới cập nhật   RSC, nằm sẵn trong HTML      `/danh-sach/phim-moi-cap-nhat-v3`
- *   Phim bộ        lazy, `/api/home/phim-bo`     `/v1/api/danh-sach/phim-bo?limit=33`
- *   Phim lẻ        lazy, `/api/home/phim-le`     `/v1/api/danh-sach/phim-le?limit=33`
- *   Hoạt hình      lazy, `/api/home/hoat-hinh`   `/v1/api/danh-sach/hoat-hinh?limit=33`
+ *   Mới cập nhật     RSC, nằm sẵn trong HTML          `/danh-sach/phim-moi-cap-nhat-v3`
+ *   Phim bộ          lazy, `/api/home/phim-bo`         `/v1/api/danh-sach/phim-bo?limit=49`
+ *   Phim chiếu rạp   lazy, `/api/home/phim-chieu-rap`  `/v1/api/danh-sach/phim-chieu-rap?limit=49`
+ *   Phim lẻ          lazy, `/api/home/phim-le`         `/v1/api/danh-sach/phim-le?limit=49`
+ *   Hoạt hình        lazy, `/api/home/hoat-hinh`       `/v1/api/danh-sach/hoat-hinh?limit=49`
  *
- * Mỗi section trả đúng 16 phim, KHÔNG trùng phim nào đã có ở hero hay "Mới cập
- * nhật" — xin 33 là để còn đủ 16 sau khi loại trùng (`SECTION_FETCH_LIMIT`).
+ * Mỗi section trả đúng 16 phim, KHÔNG trùng phim nào đã có ở hero, ở "Mới cập
+ * nhật", hay (với ba section theo loại phim) ở "Phim chiếu rạp" — xin 49 là để
+ * còn đủ 16 sau khi loại trùng (`SECTION_FETCH_LIMIT`).
  *
  * Dùng ở cả ba nơi — RSC trang chủ, route handler, và `LazyRow` trên trình duyệt —
  * nên file này KHÔNG được import thứ gì chỉ chạy ở server.
@@ -32,10 +34,11 @@ export const HOME_SHOWN = ROW_LIMIT + 1;
  *
  * Nguồn "Mới cập nhật" gần như là phim bộ (17/24 phim, đo 25/09/2026), và cả hai
  * nguồn cùng xếp theo thời gian cập nhật — nên section "Phim bộ" xin 16 phim thì
- * 12 phim trùng với row đầu, cả 6 card nhìn thấy đầu tiên đều trùng. Tệ nhất là
- * trùng hết `HOME_SHOWN` phim, nên xin thêm đúng chừng đó là luôn còn đủ.
+ * 12 phim trùng với row đầu, cả 6 card nhìn thấy đầu tiên đều trùng. Tệ nhất một
+ * section mất `HOME_SHOWN` phim cho màn đầu và `ROW_LIMIT` phim cho "Phim chiếu
+ * rạp", nên xin thêm đúng chừng đó là luôn còn đủ. Vẫn dưới trần 64 của API.
  */
-export const SECTION_FETCH_LIMIT = ROW_LIMIT + HOME_SHOWN;
+export const SECTION_FETCH_LIMIT = ROW_LIMIT + HOME_SHOWN + ROW_LIMIT;
 
 /**
  * Row "Mới cập nhật": `ROW_LIMIT` phim đầu của nguồn, BỎ phim đang nằm trên hero —
@@ -52,7 +55,8 @@ export function homeFirstRow<T extends { slug: string }>(
 }
 
 /**
- * Bỏ khỏi một section mọi phim đã có ở màn đầu (hero + "Mới cập nhật").
+ * Một section sau khi loại trùng: bỏ mọi phim đã có ở màn đầu (hero + "Mới cập
+ * nhật"), và mọi phim trong `claimed` — phim mà section khác đã giữ.
  *
  * Loại theo `HOME_SHOWN` phim đầu của nguồn chứ không theo đúng phim hero: route
  * không biết phim nào được chọn làm hero (bộ chọn còn xét backdrop và trailer),
@@ -61,26 +65,37 @@ export function homeFirstRow<T extends { slug: string }>(
 export function excludeShown<T extends { slug: string }>(
   items: readonly T[],
   feed: readonly { slug: string }[],
+  claimed: readonly { slug: string }[] = [],
 ): T[] {
-  const shown = new Set(feed.slice(0, HOME_SHOWN).map((movie) => movie.slug));
+  const shown = new Set([...feed.slice(0, HOME_SHOWN), ...claimed].map((movie) => movie.slug));
   return items.filter((movie) => !shown.has(movie.slug)).slice(0, ROW_LIMIT);
 }
 
 /**
- * Ba section lazy, lọc theo loại phim ngay ở API (`/v1/api/danh-sach/{type}`) chứ
- * không kéo một danh sách chung về rồi lọc ở client.
+ * Bốn section lazy, lọc ngay ở API (`/v1/api/danh-sach/{type}`) chứ không kéo một
+ * danh sách chung về rồi lọc ở client.
  *
- * Đồng thời là WHITELIST của `/api/home/[section]`: route đó chỉ nhận đúng ba giá
+ * Đồng thời là WHITELIST của `/api/home/[section]`: route đó chỉ nhận đúng các giá
  * trị này, nên nó không thành một proxy mở tới KKPhim mà ai cũng nhét được cache
  * key tuỳ ý vào.
  */
 export const HOME_SECTIONS = [
   'phim-bo',
+  'phim-chieu-rap',
   'phim-le',
   'hoat-hinh',
 ] as const satisfies readonly TypeList[];
 
 export type HomeSection = (typeof HOME_SECTIONS)[number];
+
+/**
+ * Section duy nhất KHÔNG phải một loại phim: nó cắt ngang phim lẻ và hoạt hình
+ * (đo 25/09/2026: 2/16 phim trùng "Phim lẻ", và có cả hoạt hình chiếu rạp). Ba
+ * section theo loại phim thì vốn rời nhau, nên chỉ cần một luật: phim nào "Phim
+ * chiếu rạp" đã giữ thì section khác bỏ ra — nó là danh sách đặc thù hơn, phim
+ * đứng ở đó có lý do hơn.
+ */
+export const THEATRICAL_SECTION = 'phim-chieu-rap' satisfies HomeSection;
 
 export function isHomeSection(value: string): value is HomeSection {
   return (HOME_SECTIONS as readonly string[]).includes(value);
@@ -89,6 +104,15 @@ export function isHomeSection(value: string): value is HomeSection {
 /** Section trang chủ ứng với một nguồn danh sách, `null` nếu nguồn đó không phải section. */
 export function homeSectionOf(source: ListSource): HomeSection | null {
   return source.kind === 'type' && isHomeSection(source.type) ? source.type : null;
+}
+
+/**
+ * Kiểu card của một section. "Phim chiếu rạp" dùng poster 2:3 — một row khác nhịp
+ * giữa bốn row ảnh ngang giống hệt nhau, và poster rạp vốn là ảnh được thiết kế
+ * để đứng một mình.
+ */
+export function homeSectionLayout(section: HomeSection): 'backdrop' | 'poster' {
+  return section === THEATRICAL_SECTION ? 'poster' : 'backdrop';
 }
 
 export const homeSectionUrl = (section: HomeSection) => `/api/home/${section}`;

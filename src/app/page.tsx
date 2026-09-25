@@ -3,6 +3,7 @@ import { ContentRow } from '@/components/feature/ContentRow/ContentRow';
 import { PersonalizedRows } from '@/components/feature/ContentRow/PersonalizedRows';
 import { ContinueRow } from '@/components/feature/ContinueRow/ContinueRow';
 import { CONTINUE_PROBE } from '@/components/feature/ContinueRow/continue-probe';
+import { ExploreChips } from '@/components/feature/ExploreChips/ExploreChips';
 import { SiteFooter } from '@/components/feature/SiteFooter/SiteFooter';
 import { getHeroSpotlight, getHomeFeed } from '@/lib/endpoints';
 import { homeFirstRow, toCardMovie } from '@/lib/home';
@@ -31,13 +32,20 @@ interface HomeRow {
 }
 
 /**
- * Ba section còn lại của trang chủ. KHÔNG fetch ở RSC: mỗi section tự gọi
+ * Bốn section còn lại của trang chủ. KHÔNG fetch ở RSC: mỗi section tự gọi
  * `/api/home/{type}` khi người xem cuộn gần tới (`LazyRow`).
  *
- * Trang chủ cố ý chỉ có bốn section tính cả "Mới cập nhật" — TV Shows, quốc gia
- * và thể loại đã rời trang chủ, lối vào của chúng là menu Navbar và các trang
- * danh sách. Hệ quả cho cá nhân hoá: không còn row thể loại nào để nhường chỗ cho
- * "Vì bạn đã xem X", nên `personalizeRows` ở đây chỉ còn đảo thứ tự ba row này.
+ * TV Shows, quốc gia và thể loại đã rời trang chủ, lối vào của chúng là dải chip
+ * "Khám phá", menu Navbar và các trang danh sách. Hệ quả cho cá nhân hoá: không
+ * còn row thể loại nào để nhường chỗ cho "Vì bạn đã xem X", nên `personalizeRows`
+ * ở đây chỉ còn đảo thứ tự các row này.
+ *
+ * ⚠️ "Phim chiếu rạp" KHÔNG được đứng đầu danh sách. Nó là row poster, cao và hẹp
+ * card khác các row còn lại, mà `PersonalizedRows` giữ khung theo VỊ TRÍ — row nào
+ * dời vào chỗ 0 thì khung chờ ở chỗ đó đổi hình. Chỗ 0 là chỗ duy nhất có thể đang
+ * ló trong màn hình đầu (điện thoại), nên đổi hình ở đó là layout shift thấy được.
+ * Row này không có khoá sở thích (điểm luôn 0), sắp xếp lại đứng yên, nên nó chỉ
+ * có thể TỤT xuống chứ không bao giờ lên được chỗ 0 — miễn là nó không bắt đầu ở đó.
  */
 const LAZY_ROWS: HomeRow[] = [
   {
@@ -45,6 +53,12 @@ const LAZY_ROWS: HomeRow[] = [
     title: 'Phim bộ',
     source: { kind: 'type', type: 'phim-bo' },
     href: routes.listByType('phim-bo'),
+  },
+  {
+    id: 'type-phim-chieu-rap',
+    title: 'Phim chiếu rạp',
+    source: { kind: 'type', type: 'phim-chieu-rap' },
+    href: routes.listByType('phim-chieu-rap'),
   },
   {
     id: 'type-phim-le',
@@ -64,7 +78,7 @@ const LAZY_ROWS: HomeRow[] = [
  * Trang chủ (§6) — thứ tự fetch:
  *
  *   1. RSC   : `/danh-sach/phim-moi-cap-nhat-v3` → chọn hero, dựng "Mới cập nhật"
- *   2. Client: 3 section còn lại, mỗi section một request khi cuộn gần tới
+ *   2. Client: 4 section còn lại, mỗi section một request khi cuộn gần tới
  *
  * Đúng MỘT request danh sách ở RSC. Trước đây là hai (`/v1/api/home` song song
  * với v3), nhưng kiểm tra thật 24/09/2026 cho thấy hai endpoint trả CÙNG 24 phim
@@ -125,7 +139,9 @@ export default async function HomePage() {
             priority
           />
 
-          {/* Thứ tự 3 row này do sở thích của người đang xem quyết định — xem `lib/taste.ts`. */}
+          <ExploreChips />
+
+          {/* Thứ tự các row này do sở thích của người đang xem quyết định — xem `lib/taste.ts`. */}
           <PersonalizedRows rows={LAZY_ROWS} />
         </div>
       </main>

@@ -317,3 +317,39 @@ describe('Danh sách của tôi làm tín hiệu thứ hai', () => {
     );
   });
 });
+
+describe('personalizeRows — row trang chủ hiện tại', () => {
+  /** Đúng thứ tự `LAZY_ROWS` của `app/page.tsx`. */
+  const HOME_ROWS: TasteRow[] = [
+    { id: 'type-phim-bo', title: 'Phim bộ', source: { kind: 'type', type: 'phim-bo' }, href: '/a' },
+    {
+      id: 'type-phim-chieu-rap',
+      title: 'Phim chiếu rạp',
+      source: { kind: 'type', type: 'phim-chieu-rap' },
+      href: '/b',
+    },
+    { id: 'type-phim-le', title: 'Phim lẻ', source: { kind: 'type', type: 'phim-le' }, href: '/c' },
+    {
+      id: 'type-hoat-hinh',
+      title: 'Hoạt hình',
+      source: { kind: 'type', type: 'hoat-hinh' },
+      href: '/d',
+    },
+  ];
+
+  /**
+   * Row poster cao hơn các row khác, mà `PersonalizedRows` giữ khung theo VỊ TRÍ:
+   * nó dời vào chỗ 0 — chỗ duy nhất có thể đang ló trong màn đầu — là khung ở đó
+   * đổi hình ngay trước mắt người xem. Không sở thích nào được đưa nó lên đó.
+   */
+  it('"Phim chiếu rạp" không bao giờ lên chỗ đầu', () => {
+    const tastes: MovieType[] = ['single', 'hoathinh', 'series', 'tvshows'];
+
+    for (const type of tastes) {
+      const entries = [entry('a', { type, finished: 3 }), entry('b', { type, finished: 3 })];
+      const ids = personalizeRows(HOME_ROWS, entries, { now: NOW }).map((r) => r.id);
+
+      expect(ids[0]).not.toBe('type-phim-chieu-rap');
+    }
+  });
+});

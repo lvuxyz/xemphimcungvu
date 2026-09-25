@@ -7,6 +7,7 @@ const COLUMNS = [
     links: [
       { label: 'Phim bộ', href: routes.listByType('phim-bo') },
       { label: 'Phim lẻ', href: routes.listByType('phim-le') },
+      { label: 'Phim chiếu rạp', href: routes.listByType('phim-chieu-rap') },
       { label: 'Hoạt hình', href: routes.listByType('hoat-hinh') },
       { label: 'TV Shows', href: routes.listByType('tv-shows') },
       { label: 'Tất cả phim', href: routes.list() },
@@ -32,7 +33,7 @@ const COLUMNS = [
  * khoảng 3:1, dưới mức AA cho chữ cỡ này (§13.4).
  *
  * `prefetch={false}`: mặc định Next prefetch mọi `<Link>` lọt vào viewport, tức
- * là cuộn tới đáy trang chủ là bảy request RSC cho những trang ít ai bấm từ đây.
+ * là cuộn tới đáy trang chủ là tám request RSC cho những trang ít ai bấm từ đây.
  */
 export function SiteFooter() {
   return (

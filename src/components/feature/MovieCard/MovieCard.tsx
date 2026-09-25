@@ -26,6 +26,11 @@ interface MovieCardProps {
   transformOrigin?: string;
   /** Tắt HoverPreview ở nơi không đủ chỗ phóng to (grid, my-list) */
   enableHoverPreview?: boolean;
+  /**
+   * Ghi đè `sizes` của ảnh khi card đứng trong bố cục khác row / grid mặc định —
+   * row poster trang chủ hẹp hơn ô grid, dùng `sizes` của grid là tải ảnh to hơn cần.
+   */
+  sizes?: string;
   priority?: boolean;
   /**
    * `loading="eager"` mà KHÔNG kèm preload như `priority` — cho trang card đầu
@@ -43,6 +48,7 @@ export function MovieCard({
   variant = 'row',
   transformOrigin = 'center',
   enableHoverPreview = true,
+  sizes,
   priority = false,
   eager = false,
   className,
@@ -164,7 +170,7 @@ export function MovieCard({
             fallbackSrc={isRow ? PLACEHOLDER_BACKDROP : PLACEHOLDER_POSTER}
             alt={`${movie.name} (${movie.year})`}
             fill
-            sizes={isRow ? IMAGE_SIZES.rowCard : IMAGE_SIZES.gridCard}
+            sizes={sizes ?? (isRow ? IMAGE_SIZES.rowCard : IMAGE_SIZES.gridCard)}
             priority={priority}
             loading={eager && !priority ? 'eager' : undefined}
             /*

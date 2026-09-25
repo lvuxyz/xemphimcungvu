@@ -93,7 +93,7 @@ Mọi endpoint của §3 đều đi qua `lib/endpoints.ts` — không nơi nào 
 |---|---|---|
 | `/v1/api/home` | `getHome` | chỉ còn là phao của trang chủ khi v3 hỏng (xem sai lệch #11) |
 | `/danh-sach/phim-moi-cap-nhat-v3` | `getNewlyUpdated` | RSC trang chủ — request danh sách DUY NHẤT: hero + row "Mới cập nhật" |
-| `/v1/api/danh-sach/{type}` | `getListByType` | `/danh-sach/[type]` · `/api/home/{phim-bo,phim-le,hoat-hinh}` |
+| `/v1/api/danh-sach/{type}` | `getListByType` | `/danh-sach/[type]` · `/api/home/{phim-bo,phim-chieu-rap,phim-le,hoat-hinh}` |
 | `/v1/api/danh-sach` | `getList` | `/danh-sach` |
 | `/v1/api/the-loai/{slug}` | `getByCategory` | `/the-loai/[slug]` · "Có thể bạn thích" |
 | `/v1/api/quoc-gia/{slug}` | `getByCountry` | `/quoc-gia/[slug]` |
@@ -113,7 +113,7 @@ Và một endpoint của chính app:
 
 | Route | Nguồn | Nơi dùng |
 |---|---|---|
-| `/api/home/{phim-bo,phim-le,hoat-hinh}` | `getListByType(type, { limit: 33 })` → `excludeShown` → `toCardMovie` | 3 section lazy của trang chủ (`LazyRow`) — ISR 5 phút, 16 phim không trùng màn đầu, chỉ trả field card |
+| `/api/home/{phim-bo,phim-chieu-rap,phim-le,hoat-hinh}` | `getListByType(type, { limit: 49 })` → `excludeShown` → `toCardMovie` | 4 section lazy của trang chủ (`LazyRow`) — ISR 5 phút, 16 phim không trùng section nào khác, chỉ trả field card |
 
 Ba hàm gộp ở tầng trên, để page không phải tự ghép:
 
@@ -128,21 +128,28 @@ Ba hàm gộp ở tầng trên, để page không phải tự ghép:
 ```
 RSC     /danh-sach/phim-moi-cap-nhat-v3                    (1 request danh sách, ISR 5 phút)
   └─ rồi images + chi tiết của 3 ứng viên hero            (song song)
-client  Phim bộ · Phim lẻ · Hoạt hình — mỗi section gọi /api/home/{type}
+client  Phim bộ · Phim chiếu rạp · Phim lẻ · Hoạt hình — mỗi section gọi /api/home/{type}
         khi cuộn gần tới (LazyRow)
 ```
 
-Trang chủ có đúng **4 section**, mỗi section tối đa `ROW_LIMIT = 16` phim → trần
-64 card lấy từ API. TV Shows, quốc gia và thể loại không còn trên trang chủ; lối
-vào của chúng là menu Navbar, chân trang và "Xem tất cả" → trang danh sách có phân
-trang.
+Trang chủ có đúng **5 section**, mỗi section tối đa `ROW_LIMIT = 16` phim → trần
+80 card lấy từ API. TV Shows, quốc gia và thể loại không còn row riêng; lối vào của
+chúng là dải chip "Khám phá" (`ExploreChips` — 15 link viết cứng, Server Component,
+0 request, `prefetch={false}`), menu Navbar, chân trang và "Xem tất cả".
+
+"Phim chiếu rạp" dùng `type_list = phim-chieu-rap` — không có trong §3.1 nhưng API
+nhận (903 phim, lọc được như mọi loại khác). Đây là row poster 2:3 duy nhất, tên phim
+luôn hiện dưới ảnh, KHÔNG có HoverPreview (preview 16:9 cùng bề rộng card poster thì
+hàng nút không còn chỗ). Nó không bao giờ đứng ở chỗ đầu của các row lazy — xem chú
+thích `LAZY_ROWS` về khung chờ giữ theo vị trí.
 
 **Không phim nào hiện hai lần.** Nguồn "Mới cập nhật" gần như toàn phim bộ, và cả
 hai nguồn cùng xếp theo lần cập nhật cuối — trước đây "Phim bộ" trùng 12/16 phim với
 row đầu (cả 6 card nhìn thấy đầu tiên), 64 card chỉ có 48 phim. Giờ row đầu bỏ phim
-đang ở hero (`homeFirstRow`), còn `/api/home/*` xin 33 phim rồi bỏ mọi phim đã có ở
-màn đầu (`excludeShown`) — nguồn so sánh là cùng lời gọi v3 của RSC (`getHomeFeed`),
-trúng data cache của Next nên không thêm request nào tới KKPhim.
+đang ở hero (`homeFirstRow`), còn `/api/home/*` xin 49 phim rồi bỏ mọi phim đã có ở
+màn đầu, và (với ba section theo loại phim) mọi phim "Phim chiếu rạp" đang giữ
+(`excludeShown`). Các nguồn so sánh là đúng lời gọi của RSC (`getHomeFeed`) và của
+section chiếu rạp — trúng data cache của Next nên không thêm request nào tới KKPhim.
 
 Hero: tên, dòng meta, thể loại, và tóm tắt 2–3 dòng lấy từ chính lời gọi chi tiết
 vốn đã có để lấy trailer (0 request thêm). Tóm tắt ẩn ở điện thoại và khi màn thấp
@@ -152,9 +159,9 @@ bị letterbox).
 Khi nào một section lazy được tải (`LazyRow` + `useHasScrolled`):
 
 - **Chưa cuộn**: chỉ khi section lộ ≥ 64px trong màn hình. Ở 1920×1080, 1366×768,
-  1280×720 cả ba nằm dưới mép → **0 request lúc mở trang**. Ở 375×812 "Phim bộ" lộ
-  124px ngay từ đầu nên nó tải luôn — để khung xám có tiêu đề nằm đó chờ người xem
-  chạm vào trang thì trông như trang hỏng.
+  1280×720 và (từ khi có dải chip) 375×812, mọi section đều nằm dưới mép → **0 request
+  lúc mở trang**. Section nào lộ thật thì vẫn tải luôn — để khung xám có tiêu đề nằm
+  đó chờ người xem chạm vào trang thì trông như trang hỏng.
 - **Đã cuộn**: nới 200px để dữ liệu về trước khi section lọt vào màn hình.
 
 Cache và chống request thừa: TanStack Query (5 phút, dedupe theo key, `signal` huỷ
@@ -703,11 +710,12 @@ sở thích. Giờ `markCompleted()` đếm số tập đã xong và giữ entry
 không còn là "đang xem" nhưng vẫn là "đã xem"). Nó tách khỏi `clearWatchProgress`
 ("Xem từ đầu") vì hai việc nói hai điều trái ngược nhau về cùng một tập.
 
-> ⚠️ Từ 24/09/2026 trang chủ chỉ còn 3 row lazy (Phim bộ · Phim lẻ · Hoạt hình — xem
-> "Thứ tự fetch trang chủ"). Không còn row thể loại nào để nhường chỗ, nên row "Vì bạn
-> đã xem X" không xuất hiện nữa; cá nhân hoá trên trang chủ chỉ còn đảo thứ tự ba row
-> đó. Logic trong `lib/taste.ts` giữ nguyên; muốn có lại thì phải thêm row thể loại VÀ
-> cho `/api/home` nhận nguồn thể loại (whitelist hiện chỉ có ba loại phim —
+> ⚠️ Từ 24/09/2026 trang chủ không còn row thể loại (row lazy hiện tại: Phim bộ · Phim
+> chiếu rạp · Phim lẻ · Hoạt hình — xem "Thứ tự fetch trang chủ"). Không còn row thể
+> loại nào để nhường chỗ, nên row "Vì bạn đã xem X" không xuất hiện nữa; cá nhân hoá
+> trên trang chủ chỉ còn đảo thứ tự các row đó ("Phim chiếu rạp" không có khoá sở
+> thích nên chỉ tụt xuống, không bao giờ lên chỗ đầu). Logic trong `lib/taste.ts` giữ nguyên; muốn có lại thì phải thêm row thể loại VÀ
+> cho `/api/home` nhận nguồn thể loại (whitelist hiện chỉ có bốn `type_list` —
 > `PersonalizedRows` bỏ qua row nào không có section tương ứng).
 
 **Thứ tự 10 row lazy** theo trọng số, sắp ĐỨNG YÊN (row cùng điểm giữ nguyên thứ tự
