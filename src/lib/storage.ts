@@ -645,6 +645,155 @@ export function clearWatchData(): number {
   return removed;
 }
 
+/* ------------------------- xuất / nhập lịch sử ------------------------- */
+
+/**
+ * Dữ liệu xem chỉ sống trong trình duyệt này — không tài khoản, không server.
+ * Xuất ra file là cách DUY NHẤT để người xem tự mang nó sang máy khác, hoặc giữ
+ * lại trước khi xoá dữ liệu duyệt web. File chứa đúng index (đã có đủ tuple tiến
+ * độ của từng tập), nên nhập lại dựng được cả key `watch:` lẫn index.
+ */
+export const HISTORY_EXPORT_KIND = 'xemphimcungvu/watch-history';
+const HISTORY_EXPORT_VERSION = 1;
+
+export interface HistoryExport {
+  kind: typeof HISTORY_EXPORT_KIND;
+  v: number;
+  exportedAt: number;
+  entries: WatchIndexEntry[];
+}
+
+export function exportWatchHistory(now: number = Date.now()): HistoryExport {
+  return {
+    kind: HISTORY_EXPORT_KIND,
+    v: HISTORY_EXPORT_VERSION,
+    exportedAt: now,
+    entries: readIndex().entries,
+  };
+}
+
+/**
+ * Đọc file người dùng chọn. `null` khi file không phải bản xuất của app này —
+ * nơi gọi báo lỗi thay vì nhập một mảng rỗng rồi nói "đã nhập 0 phim".
+ *
+ * File đi qua đúng `sanitizeEntry` như index đọc từ storage: nó là dữ liệu
+ * người dùng đưa vào, có thể đã bị sửa tay, nên entry méo bị bỏ chứ không làm
+ * sập trang.
+ */
+export function parseWatchHistory(raw: unknown): WatchIndexEntry[] | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const file = raw as Partial<HistoryExport>;
+  if (file.kind !== HISTORY_EXPORT_KIND || file.v !== HISTORY_EXPORT_VERSION) return null;
+  if (!Array.isArray(file.entries)) return null;
+
+  return file.entries.map(sanitizeEntry).filter((e): e is WatchIndexEntry => e !== null);
+}
+
+/**
+ * Gộp hai entry của CÙNG một phim — nhập file từ máy khác không được làm mất
+ * tiến độ đang có ở máy này.
+ *
+ *   · từng tập: giữ tuple mới hơn
+ *   · `finished`: lấy số lớn hơn — cộng dồn thì nhập cùng một file hai lần là
+ *     nhân đôi số tập đã xem hết
+ *   · `lastEp` / snapshot: theo bên được xem gần hơn
+ */
+function mergeEntry(a: WatchIndexEntry, b: WatchIndexEntry): WatchIndexEntry {
+  const [newer, older] = a.updatedAt >= b.updatedAt ? [a, b] : [b, a];
+
+  const eps: Record<string, WatchTuple> = { ...older.eps };
+  for (const [ep, tuple] of Object.entries(newer.eps)) {
+    const other = eps[ep];
+    if (!other || tuple[2] >= other[2]) eps[ep] = tuple;
+  }
+
+  return {
+    slug: newer.slug,
+    lastEp:
+      // Cùng quy tắc với `markCompleted`: tập đã hết không còn trong `eps` thì
+      // trỏ về tập dở mới nhất, để "Tiếp tục xem" vẫn mở được.
+      eps[newer.lastEp] ? newer.lastEp : (newestEp(eps)?.[0] ?? newer.lastEp),
+    eps,
+    updatedAt: newer.updatedAt,
+    finished: Math.max(a.finished, b.finished),
+    snapshot: newer.snapshot ?? older.snapshot,
+  };
+}
+
+/**
+ * Gộp index hiện có với entry nhập vào, mới nhất trước, cắt theo trần. Hàm
+ * thuần — phần chạm storage nằm ở `importWatchHistory`.
+ */
+export function mergeWatchEntries(
+  current: readonly WatchIndexEntry[],
+  incoming: readonly WatchIndexEntry[],
+): { entries: WatchIndexEntry[]; added: number; updated: number } {
+  const bySlug = new Map(current.map((e) => [e.slug, e]));
+  let added = 0;
+  let updated = 0;
+
+  for (const entry of incoming) {
+    const existing = bySlug.get(entry.slug);
+    if (existing) updated++;
+    else added++;
+    bySlug.set(entry.slug, existing ? mergeEntry(existing, entry) : entry);
+  }
+
+  return { entries: byRecency([...bySlug.values()]), added, updated };
+}
+
+/**
+ * Nhập lịch sử từ file. Trả về số phim mới và số phim đã gộp, hoặc `null` nếu
+ * file không hợp lệ hay storage không dùng được.
+ */
+export function importWatchHistory(raw: unknown): { added: number; updated: number } | null {
+  const incoming = parseWatchHistory(raw);
+  if (!incoming || !safeStorage()) return null;
+
+  const merged = mergeWatchEntries(readIndex().entries, incoming);
+  const kept = merged.entries.slice(0, WATCH_INDEX_LIMIT).map((entry) => ({
+    ...entry,
+    eps: capEps(entry.slug, entry.eps),
+  }));
+  merged.entries.slice(WATCH_INDEX_LIMIT).forEach(dropEntryKeys);
+
+  // Key rời là bản ghi bền của từng tập (xem `getWatchProgress`) — ghi lại cho khớp index.
+  for (const entry of kept) {
+    for (const [ep, [position, duration, updatedAt]] of Object.entries(entry.eps)) {
+      writeJson(watchKey(entry.slug, ep), {
+        position,
+        duration,
+        updatedAt,
+      } satisfies WatchProgress);
+    }
+  }
+
+  writeIndex({ v: WATCH_INDEX_VERSION, entries: kept });
+  return { added: merged.added, updated: merged.updated };
+}
+
+/* ------------------------- lưu trữ bền ------------------------- */
+
+/**
+ * Xin trình duyệt đánh dấu storage của site là "bền" — không tự dọn khi máy
+ * thiếu dung lượng.
+ *
+ * Chỉ là lời XIN: Chrome tự quyết theo mức độ dùng site, Firefox hỏi người dùng
+ * một lần, Safari có thể vẫn xoá dữ liệu của site lâu không mở. Nên đây là lớp
+ * giảm rủi ro, còn lớp chắc chắn là file xuất ở trên.
+ *
+ * Trả về trạng thái sau cùng; `false` khi trình duyệt không hỗ trợ.
+ */
+export async function requestPersistentStorage(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.persist) return false;
+  try {
+    if (await navigator.storage.persisted()) return true;
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
 /**
  * `writeJson` gọi `pruneWatchProgress` khi hết quota, mà `writeIndex` lại đi qua
  * `writeJson` — thiếu cờ này thì một lần hết quota là đệ quy không đáy.

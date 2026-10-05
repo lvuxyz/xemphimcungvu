@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { Button, IconButton } from '@/components/ui/Button';
 import { CloseIcon } from '@/components/ui/icons';
@@ -12,7 +12,12 @@ import { groupByDay } from '@/lib/history';
 import { BLUR_DATA_URL } from '@/lib/image';
 import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
 import { routes } from '@/lib/routes';
-import type { WatchIndexEntry } from '@/lib/storage';
+import {
+  exportWatchHistory,
+  importWatchHistory,
+  requestPersistentStorage,
+  type WatchIndexEntry,
+} from '@/lib/storage';
 import { resumePoint, useWatchStore } from '@/store/useWatchStore';
 import { useUIStore } from '@/store/useUIStore';
 import { useDevice } from '@/hooks/useDevice';
@@ -88,10 +93,33 @@ export function WatchHistory() {
     );
   }
 
+  /**
+   * Thanh công cụ có ở MỌI trạng thái đã nạp, kể cả lúc rỗng: máy mới chưa xem gì
+   * chính là lúc người ta cần nút "Nhập" nhất.
+   */
+  const header = (
+    <div className="flex flex-wrap items-end justify-between gap-3 pr-row">
+      <ListHeader title="Lịch sử xem" count={entries.length} />
+      <div className="flex flex-wrap items-center gap-1 pl-row">
+        <HistoryTransfer canExport={hasData} onImported={refresh} />
+        {entries.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearAll}
+            className={cn(confirming && 'font-semibold text-danger hover:text-danger')}
+          >
+            {confirming ? 'Chắc chắn xoá? Bấm lại để xoá.' : 'Xoá toàn bộ'}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
   if (!personalized && hasData) {
     return (
       <main className="pb-16">
-        <ListHeader title="Lịch sử xem" count={0} />
+        {header}
         <EmptyState
           title="Lịch sử đang ẩn vì bạn đã tắt cá nhân hoá"
           hint="Bật lại Cá nhân hoá trong menu ở thanh điều hướng để xem. Dữ liệu vẫn còn nguyên."
@@ -103,10 +131,10 @@ export function WatchHistory() {
   if (entries.length === 0) {
     return (
       <main className="pb-16">
-        <ListHeader title="Lịch sử xem" count={0} />
+        {header}
         <EmptyState
           title="Chưa có phim nào trong lịch sử"
-          hint="Phim bạn xem sẽ hiện ở đây, chỉ lưu trên máy này."
+          hint="Phim bạn xem sẽ hiện ở đây, chỉ lưu trên máy này. Có file lịch sử từ máy khác thì bấm Nhập."
         />
       </main>
     );
@@ -116,17 +144,7 @@ export function WatchHistory() {
 
   return (
     <main className="pb-16">
-      <div className="flex flex-wrap items-end justify-between gap-3 pr-row">
-        <ListHeader title="Lịch sử xem" count={entries.length} />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClearAll}
-          className={cn(confirming && 'font-semibold text-danger hover:text-danger')}
-        >
-          {confirming ? 'Chắc chắn xoá? Bấm lại để xoá.' : 'Xoá toàn bộ lịch sử'}
-        </Button>
-      </div>
+      {header}
 
       {groups.map((group) => (
         <section key={group.key} className="mt-6" aria-labelledby={`history-${group.key}`}>
@@ -150,6 +168,86 @@ export function WatchHistory() {
         </section>
       ))}
     </main>
+  );
+}
+
+/**
+ * Nút Xuất / Nhập lịch sử.
+ *
+ * Site không có tài khoản và không lưu gì trên server, nên file này là đường
+ * duy nhất để mang lịch sử sang máy khác, hoặc giữ lại trước khi xoá dữ liệu
+ * duyệt web. Nhập là GỘP, không ghi đè: tiến độ đang có ở máy này không mất.
+ */
+function HistoryTransfer({
+  canExport,
+  onImported,
+}: {
+  canExport: boolean;
+  onImported: () => void;
+}) {
+  const pushToast = useUIStore((s) => s.pushToast);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const onExport = () => {
+    const data = exportWatchHistory();
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const day = new Date(data.exportedAt).toISOString().slice(0, 10);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lich-su-xem-${day}.json`;
+    link.click();
+    // Trả URL ở nhịp sau: thu hồi ngay trong cùng tick làm Safari tải về file rỗng.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const onFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Xoá giá trị để chọn lại CÙNG file vẫn bắn `change`.
+    event.target.value = '';
+    if (!file) return;
+
+    let result: ReturnType<typeof importWatchHistory> = null;
+    try {
+      result = importWatchHistory(JSON.parse(await file.text()));
+    } catch {
+      result = null;
+    }
+
+    if (!result) {
+      pushToast('File này không phải lịch sử xem của xemphimcungvu', { variant: 'danger' });
+      return;
+    }
+
+    onImported();
+    void requestPersistentStorage();
+    pushToast(
+      `Đã nhập ${result.added} phim mới${result.updated > 0 ? `, gộp ${result.updated} phim đã có` : ''}`,
+      { variant: 'success' },
+    );
+  };
+
+  return (
+    <>
+      {canExport && (
+        <Button variant="ghost" size="sm" onClick={onExport}>
+          Xuất file
+        </Button>
+      )}
+      <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
+        Nhập file
+      </Button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={onFile}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+    </>
   );
 }
 
