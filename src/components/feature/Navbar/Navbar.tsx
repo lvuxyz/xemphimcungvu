@@ -216,7 +216,7 @@ function PrefsMenu() {
           )}
         >
           <div className="w-[18rem] rounded-card bg-bg-elevated/95 p-1 shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md">
-            <PersonalizationToggle />
+            <PersonalizationToggle onNavigate={() => setOpen(false)} />
           </div>
         </div>
       )}
