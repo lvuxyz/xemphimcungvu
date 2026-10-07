@@ -8,9 +8,55 @@ export function Skeleton({ className }: { className?: string }) {
   return <div aria-hidden="true" className={cn('skeleton rounded-card', className)} />;
 }
 
-export function CardSkeleton({ aspect = 'backdrop' }: { aspect?: 'backdrop' | 'poster' }) {
-  return (
+export function CardSkeleton({
+  aspect = 'backdrop',
+  meta = false,
+}: {
+  aspect?: 'backdrop' | 'poster';
+  /**
+   * Thêm khung chờ cho khối chữ dưới ảnh. Bật đúng khi card thật có khối đó —
+   * card row chỉ có nó khi KHÔNG có HoverPreview (`useHoverPreviewEnabled`).
+   */
+  meta?: boolean;
+}) {
+  const media = (
     <Skeleton className={aspect === 'poster' ? 'aspect-poster w-full' : 'aspect-backdrop w-full'} />
+  );
+
+  if (!meta) return media;
+
+  return (
+    <div aria-hidden="true">
+      {media}
+      <CardMetaSkeleton />
+    </div>
+  );
+}
+
+/**
+ * Khung chờ của khối tên · tên gốc · năm dưới ảnh card (`MovieCard`).
+ *
+ * Cùng padding, cùng khoảng cách dòng và cùng class cỡ chữ với khối thật, mỗi dòng
+ * giữ một `&nbsp;` — nên chiều cao ra đúng line-height của khối thật thay vì một
+ * con số đo tay rồi lệch khi ai đó đổi cỡ chữ. Thiếu khối này thì trên điện thoại
+ * khung chờ thấp hơn row thật 80px (đo ở 375px: 143px → 223px), và dữ liệu về là
+ * cả phần trang bên dưới giật xuống.
+ */
+function CardMetaSkeleton() {
+  const bar = 'skeleton inline-block rounded-sm align-top';
+
+  return (
+    <div className="space-y-1 p-2">
+      <p className="text-xs">
+        <span className={cn(bar, 'w-3/4')}>&nbsp;</span>
+      </p>
+      <p className="text-[11px]">
+        <span className={cn(bar, 'w-1/2')}>&nbsp;</span>
+      </p>
+      <div className="flex text-[10px]">
+        <span className={cn(bar, 'w-8')}>&nbsp;</span>
+      </div>
+    </div>
   );
 }
 

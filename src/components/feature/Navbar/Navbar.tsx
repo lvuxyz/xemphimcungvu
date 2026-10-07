@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
-import type { Taxonomy } from '@/types/movie';
 import { ChevronDownIcon, SettingsIcon } from '@/components/ui/icons';
 import { PATH, routes } from '@/lib/routes';
 import { usePresence } from '@/hooks/usePresence';
+import { useTaxonomyLinks, type TaxonomyKind } from '@/hooks/useTaxonomyLinks';
 import { MobileMenu } from './MobileMenu';
 import { PersonalizationToggle } from './PersonalizationToggle';
 import { SearchBox } from './SearchBox';
@@ -26,19 +26,12 @@ const MENU = [
  *   ngưỡng chuyển    : scrollY > 60
  *   trạng thái sau   : bg-base/95 + backdrop-blur(12px)
  *   transition       : 300ms
+ *
+ * Navbar là Client Component (§2.3 — cần scroll listener và search). Ba danh mục
+ * Thể loại / Quốc gia / Năm KHÔNG đi kèm trang nữa: mỗi menu tự tải danh sách của
+ * nó lúc được mở lần đầu (`useTaxonomyLinks`).
  */
-interface NavbarProps {
-  categories: Taxonomy[];
-  countries: Taxonomy[];
-  years: number[];
-}
-
-/**
- * Navbar là Client Component (§2.3 — cần scroll listener và search), nhưng dữ liệu
- * danh mục do RSC truyền xuống: import thẳng mock ở đây sẽ kéo cả bộ dữ liệu vào
- * bundle initial và phá ngân sách §12.1.
- */
-export function Navbar({ categories, countries, years }: NavbarProps) {
+export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
 
@@ -123,19 +116,9 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
             </li>
           ))}
 
-          <MegaMenu
-            label="Thể loại"
-            items={categories.map((c) => ({ label: c.name, href: routes.category(c.slug) }))}
-          />
-          <MegaMenu
-            label="Quốc gia"
-            items={countries.map((c) => ({ label: c.name, href: routes.country(c.slug) }))}
-          />
-          <MegaMenu
-            label="Năm"
-            items={years.slice(0, 24).map((y) => ({ label: String(y), href: routes.year(y) }))}
-            columns={4}
-          />
+          <MegaMenu label="Thể loại" kind="categories" />
+          <MegaMenu label="Quốc gia" kind="countries" />
+          <MegaMenu label="Năm" kind="years" limit={24} columns={4} />
         </ul>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-3">
@@ -147,7 +130,7 @@ export function Navbar({ categories, countries, years }: NavbarProps) {
             Danh sách của tôi
           </Link>
           <PrefsMenu />
-          <MobileMenu menu={MENU} categories={categories} countries={countries} years={years} />
+          <MobileMenu menu={MENU} />
         </div>
       </nav>
     </header>
@@ -227,11 +210,14 @@ function PrefsMenu() {
 /** §8.1 — mega dropdown cho Thể loại / Quốc gia / Năm. */
 function MegaMenu({
   label,
-  items,
+  kind,
+  limit,
   columns = 3,
 }: {
   label: string;
-  items: { label: string; href: string }[];
+  kind: TaxonomyKind;
+  /** Chỉ hiện N mục đầu (danh sách năm dài hơn trăm mục). */
+  limit?: number;
   columns?: number;
 }) {
   const [open, setOpen] = useState(false);
@@ -254,7 +240,15 @@ function MegaMenu({
    */
   const { mounted, visible } = usePresence(open, 150);
 
-  if (items.length === 0) return null;
+  /**
+   * Tải khi MỞ, không phải khi trang dựng. Rê chuột vào là mở, nên request bắt
+   * đầu đúng lúc con trỏ chạm chữ "Thể loại"; lần mở sau lấy từ cache.
+   *
+   * Không còn `return null` khi danh sách rỗng như bản cũ: giờ lúc chưa mở thì
+   * danh sách LUÔN rỗng, ẩn nút theo nó là không bao giờ mở được menu.
+   */
+  const { data, isError } = useTaxonomyLinks(kind, open);
+  const items = data && limit !== undefined ? data.slice(0, limit) : data;
 
   return (
     <li
@@ -314,16 +308,29 @@ function MegaMenu({
             className="w-max max-w-[min(90vw,44rem)] rounded-card bg-bg-elevated/95 p-4 shadow-elev-2 ring-1 ring-white/10 backdrop-blur-md"
             style={{ columnCount: columns, columnGap: '1.5rem' }}
           >
-            {items.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="block break-inside-avoid py-1 text-sm text-text-secondary transition-colors duration-micro ease-standard hover:text-accent-hover"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {items && items.length > 0 ? (
+              items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="block break-inside-avoid py-1 text-sm text-text-secondary transition-colors duration-micro ease-standard hover:text-accent-hover"
+                >
+                  {item.label}
+                </Link>
+              ))
+            ) : isError || items ? (
+              <p className="py-1 text-sm text-text-muted">Không tải được danh mục.</p>
+            ) : (
+              // Đang tải — vài vạch cùng nhịp dòng với link thật, chia đúng số cột.
+              <div aria-busy="true" aria-label={`Đang tải ${label.toLowerCase()}`}>
+                {Array.from({ length: columns * 4 }).map((_, i) => (
+                  <span key={i} className="block break-inside-avoid py-1 text-sm">
+                    <span className="skeleton inline-block w-20 rounded-sm align-top">&nbsp;</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

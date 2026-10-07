@@ -43,6 +43,39 @@ export interface Movie {
   countries: Taxonomy[];
 }
 
+/**
+ * Phần của `Movie` mà một CARD thật sự đọc — MovieCard, HoverPreview, và nút
+ * "Danh sách của tôi" (lưu cả loại phim + slug taxonomy để tính sở thích).
+ *
+ * Đây là hình dạng đi qua `/api/home/*` và vào HTML của row đầu trang chủ. Khai
+ * bằng type chứ không chỉ bằng hàm cắt (`toCardMovie`) để TypeScript chặn được
+ * chiều ngược lại: card mà đọc thêm một field ngoài danh sách này là lỗi biên
+ * dịch, không phải một ô trống lặng lẽ trên trang chủ.
+ *
+ * Mọi `Movie` đều gán được vào đây, nên nơi khác (grid, modal) vẫn truyền thẳng.
+ */
+export type CardMovie = Pick<
+  Movie,
+  | 'id'
+  | 'slug'
+  | 'name'
+  | 'originName'
+  | 'type'
+  | 'poster'
+  | 'thumb'
+  | 'year'
+  | 'episodeCurrent'
+  | 'quality'
+  | 'duration'
+> & {
+  /** Chỉ đủ để tính "% phù hợp" (`matchScore`). */
+  tmdb: Pick<RatingSource, 'vote_average' | 'vote_count'>;
+  imdb: Pick<RatingSource, 'vote_average' | 'vote_count'>;
+  /** Chip thể loại ở HoverPreview + tín hiệu sở thích. Không cần `id`. */
+  categories: Pick<Taxonomy, 'name' | 'slug'>[];
+  countries: Pick<Taxonomy, 'name' | 'slug'>[];
+};
+
 export interface MovieDetail extends Movie {
   /** HTML thô từ API — PHẢI đi qua `lib/sanitize.ts` trước khi render (§14.4) */
   content: string;

@@ -15,6 +15,7 @@ const TITLES: Record<string, string> = {
   'phim-vietsub': 'Phim Vietsub',
   'phim-thuyet-minh': 'Phim thuyết minh',
   'phim-long-tieng': 'Phim lồng tiếng',
+  'phim-chieu-rap': 'Phim chiếu rạp',
 };
 
 interface Props {

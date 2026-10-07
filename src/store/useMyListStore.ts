@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Movie } from '@/types/movie';
+import type { CardMovie, Movie } from '@/types/movie';
 
 /**
  * "Danh sách của tôi" — lưu localStorage, không có backend (§1.2).
@@ -35,7 +35,7 @@ export interface MyListEntry {
   countries?: string[];
 }
 
-function toEntry(movie: Movie): MyListEntry {
+function toEntry(movie: CardMovie): MyListEntry {
   return {
     slug: movie.slug,
     name: movie.name,
@@ -55,9 +55,9 @@ function toEntry(movie: Movie): MyListEntry {
 interface MyListState {
   entries: MyListEntry[];
 
-  add: (movie: Movie) => void;
+  add: (movie: CardMovie) => void;
   remove: (slug: string) => void;
-  toggle: (movie: Movie) => boolean;
+  toggle: (movie: CardMovie) => boolean;
   has: (slug: string) => boolean;
   clear: () => void;
 }
