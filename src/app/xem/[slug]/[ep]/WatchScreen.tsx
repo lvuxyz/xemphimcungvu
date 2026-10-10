@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import { episodeLabel, resolveEpisode } from '@/lib/derive';
-import { routes } from '@/lib/routes';
+import { routes, TIME_PARAM } from '@/lib/routes';
 import { readStartTime } from '@/lib/search-params';
 import type { MovieDetailResult } from '@/types/movie';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
@@ -40,10 +40,35 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
    * ngay ở lần render ĐẦU của nó (`skipResumePrompt`), muộn hơn là hộp thoại
    * "xem tiếp" đã kịp hiện rồi mới bị mốc `?t=` ghi đè.
    *
-   * Cố ý KHÔNG đọc lại khi đổi tập: `goToEpisode` dùng `replace` nên URL tập mới
-   * không còn `?t=`, mà mốc thời gian của tập cũ thì không có nghĩa gì ở tập mới.
+   * Đọc xong là XOÁ `?t=` khỏi URL ngay (effect bên dưới) — xem chú thích ở đó.
    */
   const [startAt] = useState(readStartTime);
+
+  /**
+   * `?t=` là lệnh dùng MỘT lần, không phải trạng thái của trang.
+   *
+   * Để nó nằm lại trên URL thì sai ở hai chỗ:
+   *
+   *   · F5 sau khi đã xem thêm 20 phút → tua NGƯỢC về mốc cũ, không hỏi gì (mốc
+   *     `?t=` còn tắt luôn prompt "xem tiếp"), rồi lượt ghi kế tiếp đè mất tiến độ
+   *     thật.
+   *   · Đổi tập → `WatchScreen` của tập mới đọc `window.location` lúc RENDER, mà Next
+   *     chỉ đổi URL lúc COMMIT. Tập mới đọc phải URL tập cũ, nên nó mở ở đúng mốc
+   *     `?t=` của tập trước.
+   *
+   * Xoá rồi thì F5 rơi về tiến độ đã lưu (có prompt), và tập kế đọc được một URL sạch.
+   *
+   * `null` chứ không phải `history.state`: Next 14.2 tự chép state nội bộ sang rồi
+   * đồng bộ router với URL mới. Truyền state có `__NA` thì Next coi là lời gọi của
+   * chính nó và bỏ qua bước đồng bộ — router vẫn giữ `?t=` và ghi lại nó lên URL
+   * ở lần cập nhật sau.
+   */
+  useEffect(() => {
+    if (startAt === undefined) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(TIME_PARAM);
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }, [startAt]);
 
   const server = episodes[0];
   const list = server?.episodes ?? [];

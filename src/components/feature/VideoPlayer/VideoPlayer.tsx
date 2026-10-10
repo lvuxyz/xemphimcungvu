@@ -21,8 +21,9 @@ interface VideoPlayerProps {
   linkEmbed: string;
   onEnded?: () => void;
   /**
-   * Giây lấy từ `?t=` trên URL — mở đúng phút đã chia sẻ, và F5 giữ nguyên chỗ
-   * đang xem (§2.4). Bỏ trống thì rơi về tiến độ lưu trong localStorage.
+   * Giây lấy từ `?t=` trên URL — mở đúng phút đã chia sẻ (§2.4). Áp một lần rồi
+   * `WatchScreen` xoá nó khỏi URL, nên F5 rơi về tiến độ lưu trong localStorage —
+   * cũng là thứ được dùng khi bỏ trống.
    */
   startAt?: number;
   /** Thoát trình phát — nút ← ở thanh trên (§1.4 L3). */
