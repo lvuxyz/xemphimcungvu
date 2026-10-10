@@ -36,7 +36,7 @@ export default async function WatchPage({ params }: Props) {
   if (!detail || !detail.movie.slug) notFound();
 
   /**
-   * §2.4 — `?t=` KHÔNG đọc ở đây nữa, mà ở `WatchScreen` phía client.
+   * §2.4 — `?t=` KHÔNG đọc ở đây nữa, mà ở `VideoPlayer` phía client.
    *
    * Chạm vào `searchParams` trong Server Component là đủ để Next coi cả route là
    * dynamic, và khi đó `generateStaticParams` bên trên thành vô nghĩa: header
