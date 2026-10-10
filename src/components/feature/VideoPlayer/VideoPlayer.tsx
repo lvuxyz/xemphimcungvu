@@ -1,8 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PLAYER } from '@/lib/constants';
 import { formatTime } from '@/lib/derive';
+import { TIME_PARAM } from '@/lib/routes';
+import { startTimeFrom } from '@/lib/search-params';
 import { getPlayerSettings, savePlayerSettings, type WatchSnapshot } from '@/lib/storage';
 import { useHls, type PlaybackSource } from '@/hooks/useHls';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -20,11 +23,6 @@ interface VideoPlayerProps {
   linkM3u8: string;
   linkEmbed: string;
   onEnded?: () => void;
-  /**
-   * Giây lấy từ `?t=` trên URL — mở đúng phút đã chia sẻ, và F5 giữ nguyên chỗ
-   * đang xem (§2.4). Bỏ trống thì rơi về tiến độ lưu trong localStorage.
-   */
-  startAt?: number;
   /** Thoát trình phát — nút ← ở thanh trên (§1.4 L3). */
   onBack?: () => void;
   /** Sang tập kế. Bỏ trống ở phim lẻ / tập cuối → nút tự ẩn. */
@@ -72,7 +70,6 @@ export function VideoPlayer({
   linkM3u8,
   linkEmbed,
   onEnded,
-  startAt,
   onBack,
   onNext,
   nextLabel,
@@ -121,6 +118,43 @@ export function VideoPlayer({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [seekFlash, setSeekFlash] = useState<{ dir: 1 | -1; key: number } | null>(null);
+
+  /**
+   * §2.4 — giây lấy từ `?t=`: mở đúng phút từ card "Tiếp tục xem" / hero.
+   *
+   * Đọc ở ĐÂY chứ không ở `WatchScreen`, vì hai ràng buộc cùng lúc:
+   *
+   *   · phải đi qua `useSearchParams()` — `window.location` lúc render của một lượt
+   *     điều hướng mềm vẫn là URL cũ (xem `startTimeFrom`)
+   *   · mà `useSearchParams()` trong component được render tĩnh thì Next bắt bọc
+   *     Suspense và bỏ render tĩnh tới boundary đó; component này `ssr: false` nên
+   *     không bao giờ chạy ở server, không vướng chuyện đó
+   *
+   * `useState` để chốt giá trị ĐẦU TIÊN: effect bên dưới xoá `?t=` khỏi URL, và
+   * `useSearchParams()` sẽ đổi theo — đọc lại lúc đó thì prompt "xem tiếp" (vốn bị
+   * tắt vì có `?t=`) bật lên giữa chừng. Mỗi tập là một lần mount mới (đổi `[ep]`
+   * là đổi segment), nên chốt một lần là đúng cho cả tập.
+   */
+  const searchParams = useSearchParams();
+  const [startAt] = useState(() => startTimeFrom(searchParams));
+
+  /**
+   * `?t=` là lệnh dùng MỘT lần, không phải trạng thái của trang: để nó nằm lại thì
+   * F5 sau khi đã xem thêm 20 phút sẽ tua NGƯỢC về mốc cũ, không hỏi gì (mốc `?t=`
+   * tắt luôn prompt "xem tiếp"), rồi lượt ghi kế tiếp đè mất tiến độ thật. Xoá rồi
+   * thì F5 rơi về tiến độ đã lưu, có prompt.
+   *
+   * `null` chứ không phải `history.state`: Next 14.2 tự chép state nội bộ sang rồi
+   * đồng bộ router với URL mới. Truyền state có `__NA` thì Next coi là lời gọi của
+   * chính nó và bỏ qua bước đồng bộ — router vẫn giữ `?t=` và ghi lại nó lên URL
+   * ở lần cập nhật sau.
+   */
+  useEffect(() => {
+    if (startAt === undefined) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(TIME_PARAM);
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }, [startAt]);
 
   const { saved, showResumePrompt, handleTimeUpdate, resume, restart } = useWatchProgress(
     slug,

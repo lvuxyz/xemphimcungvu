@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { parseListFilters, parseStartTime, serializeListFilters, withFilters } from '@/lib/search-params';
+import {
+  parseListFilters,
+  parseStartTime,
+  serializeListFilters,
+  startTimeFrom,
+  withFilters,
+} from '@/lib/search-params';
 import { routes } from '@/lib/routes';
 import { DEFAULT_LIMIT, MAX_LIMIT } from '@/types/filters';
 import { deaccent, matchesSearch, searchKey } from '@/lib/text';
@@ -119,6 +125,18 @@ describe('parseStartTime — §2.4 `?t=` trên trang phát', () => {
 
   it('lấy giá trị đầu khi `t` bị lặp', () => {
     expect(parseStartTime({ t: ['120', '900'] })).toBe(120);
+  });
+});
+
+describe('startTimeFrom — `?t=` từ `useSearchParams()` phía client', () => {
+  it('đọc cùng quy tắc với parseStartTime', () => {
+    expect(startTimeFrom(new URLSearchParams('t=754'))).toBe(754);
+    expect(startTimeFrom(new URLSearchParams('t=abc'))).toBeUndefined();
+    expect(startTimeFrom(new URLSearchParams(''))).toBeUndefined();
+  });
+
+  it('lấy giá trị đầu khi `t` bị lặp', () => {
+    expect(startTimeFrom(new URLSearchParams('t=120&t=900'))).toBe(120);
   });
 });
 
