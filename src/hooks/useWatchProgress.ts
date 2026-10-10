@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import {
   clearWatchProgress,
@@ -133,11 +133,25 @@ export function useWatchProgress(
    *
    * Trên iOS/Android, chuyển app hay khoá máy KHÔNG chắc bắn `pagehide` —
    * `visibilitychange` là sự kiện duy nhất gần như luôn tới. Nghe cả hai.
+   *
+   * ⚠️ `useLayoutEffect`, KHÔNG phải `useEffect`: rời trình phát bằng điều hướng
+   * mềm (nút ←, đổi tập, auto-next) thì chỉ có cleanup lúc unmount ghi được vị trí.
+   * Cleanup của `useEffect` chạy SAU khi React đã gỡ ref `<video>` (về `null`) và
+   * sau khi `useHls` destroy hls.js (duration về `NaN`) — lượt ghi cuối im lặng
+   * không làm gì. Cleanup của layout effect chạy trước cả hai.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
+    /**
+     * Chỉ ghi khi lượt tải này ĐÃ PHÁT ít nhất một đoạn (`played` không rỗng).
+     *
+     * Video không tự phát, nên lúc prompt "Tiếp tục xem từ 12:34" còn đang chờ thì
+     * `currentTime` là 0 — F5 hay chuyển tab ở đúng lúc đó mà ghi là mốc 0 đè lên
+     * tiến độ thật. Mở hé một tập rồi rời đi cũng vậy: entry nhận `lastEp` mới ở
+     * mốc 0 và cả phim rơi khỏi "Tiếp tục xem", dù tập trước vẫn đang dở.
+     */
     const flush = () => {
       const video = videoRef.current;
-      if (video) persist(video.currentTime, video.duration);
+      if (video && video.played.length > 0) persist(video.currentTime, video.duration);
     };
 
     const onVisibility = () => {
