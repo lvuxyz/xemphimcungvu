@@ -172,7 +172,14 @@ export function HeroBillboard({ movie, images, trailerUrl = '' }: HeroBillboardP
             </Button>
             <Button href={routes.detail(movie.slug)} variant="secondary" size="lg">
               <InfoIcon />
-              Thông tin<span className="hidden sm:inline">&nbsp;khác</span>
+              {/*
+                Bọc cả nhãn trong MỘT span: `Button` là `inline-flex gap-2`, nên
+                "Thông tin" (text node) và span "khác" thành hai flex item và bị
+                chèn thêm 8px — ra "Thông tin   khác".
+              */}
+              <span>
+                Thông tin<span className="hidden sm:inline">&nbsp;khác</span>
+              </span>
             </Button>
           </div>
         </div>
