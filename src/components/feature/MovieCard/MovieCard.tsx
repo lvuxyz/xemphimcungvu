@@ -142,7 +142,7 @@ export function MovieCard({
         tabIndex={tabIndex}
         onFocus={() => onFocusCard?.()}
         className={cn(
-          'group block overflow-hidden rounded-card bg-bg-elevated',
+          'group block overflow-hidden rounded-card bg-raised',
           'transition-[box-shadow,transform,opacity] duration-standard ease-standard',
           'focus-visible:outline-offset-4',
           // Ngón tay không có hover: phản hồi chạm là cách duy nhất báo "đã nhận"

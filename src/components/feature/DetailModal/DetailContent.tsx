@@ -17,6 +17,10 @@ import { EpisodePicker } from './EpisodePicker';
  * §8.5 — thân nội dung chi tiết, dùng CHUNG cho modal (intercepting route)
  * và trang full `/phim/[slug]`. Một nguồn sự thật, hai khung chứa.
  *
+ * Khung chứa nào cũng dựng bằng `.surface-elevated`: mọi thứ bên trong tô nền
+ * theo bậc tương đối (`surface`, `raised`), nên không phần nào ở đây phải biết
+ * nó đang nằm trên modal hay trên trang.
+ *
  * Thứ tự nội dung bám đúng §8.5:
  *   1. backdrop hero
  *   2. title + originName
@@ -57,7 +61,7 @@ export function DetailContent({ detail, related = [] }: DetailContentProps) {
         />
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/40 to-transparent"
+          className="absolute inset-0 bg-gradient-to-t from-surface via-surface/40 to-transparent"
         />
 
         <div className="absolute inset-x-0 bottom-0 space-y-3 p-6 md:p-8">

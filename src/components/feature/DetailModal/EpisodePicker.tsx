@@ -111,7 +111,7 @@ export function EpisodePicker({
                   layout === 'list' && 'text-left',
                   isCurrent
                     ? 'bg-[color:var(--accent-soft)] font-medium text-accent-hover ring-1 ring-accent'
-                    : 'bg-bg-elevated text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+                    : 'bg-raised text-text-secondary hover:bg-raised-hover hover:text-text-primary',
                 )}
               >
                 {layout === 'list' ? episodeLabel(episode.name) : episode.name}

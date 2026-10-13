@@ -2,7 +2,7 @@
 export default function MovieDetailLoading() {
   return (
     <main className="mx-auto max-w-5xl pb-16 pt-16">
-      <div className="overflow-hidden rounded-modal bg-bg-elevated shadow-elev-2">
+      <div className="surface-elevated overflow-hidden rounded-modal shadow-elev-2">
         <div className="skeleton aspect-backdrop w-full" />
 
         <div className="grid gap-8 p-6 md:grid-cols-[1fr_16rem] md:p-8">
