@@ -46,8 +46,17 @@ export function DetailContent({ detail, related = [] }: DetailContentProps) {
 
   return (
     <article>
-      {/* 1 — backdrop hero */}
-      <header className="relative aspect-backdrop w-full overflow-hidden">
+      {/*
+        1 — backdrop hero.
+
+        Khối chữ nằm TRONG luồng (không `absolute`), và header không `overflow-hidden`:
+        16:9 chỉ là chiều cao tối thiểu, chữ dài hơn thì header tự cao theo. Đo thật
+        ở 375px: header 211px mà tên 3 dòng + tên gốc + hai nút cao 226px — bản
+        `absolute bottom-0` cũ đẩy khối chữ lòi qua mép trên 15px rồi bị cắt.
+        Ảnh và gradient vẫn `absolute inset-0` nên phủ kín dù header cao bao nhiêu;
+        góc bo đã do panel chứa (`rounded-modal overflow-hidden`) cắt.
+      */}
+      <header className="relative flex aspect-backdrop w-full flex-col justify-end">
         <SmartImage
           src={backdrop}
           fallbackSrc={PLACEHOLDER_BACKDROP}
@@ -64,7 +73,7 @@ export function DetailContent({ detail, related = [] }: DetailContentProps) {
           className="absolute inset-0 bg-gradient-to-t from-surface via-surface/40 to-transparent"
         />
 
-        <div className="absolute inset-x-0 bottom-0 space-y-3 p-6 md:p-8">
+        <div className="relative space-y-3 p-6 md:p-8">
           {/* 2 — title + originName */}
           <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-[-0.02em] md:text-4xl">
             {movie.name}
