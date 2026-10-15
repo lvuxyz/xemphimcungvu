@@ -9,7 +9,7 @@ import type { Person } from '@/types/movie';
  *
  *   avatar tròn 80px, lazy load
  *   tên + vai diễn, 2 dòng, ellipsis
- *   không có ảnh → hiện initials trên nền --bg-elevated
+ *   không có ảnh → hiện initials trên nền `raised` (nổi một bậc so với mặt chứa)
  */
 export function CastRow({ people }: { people: Person[] }) {
   // §14.1 — /peoples fail thì ẩn hẳn, không hiện lỗi.
@@ -24,7 +24,7 @@ export function CastRow({ people }: { people: Person[] }) {
       <ul className="scroll-x gap-4 pb-2" role="list">
         {people.map((person) => (
           <li key={`${person.id}-${person.character ?? person.job ?? ''}`} className="row-item w-20">
-            <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-pill bg-bg-elevated">
+            <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-pill bg-raised">
               {person.profile ? (
                 <SmartImage
                   src={person.profile}

@@ -245,12 +245,12 @@ export function HeroBillboard({
             <Button href={routes.detail(movie.slug)} variant="secondary" size="lg">
               <InfoIcon />
               {/*
-                Bọc cả nhãn trong MỘT span: `Button` là flex có `gap-2`, nên để
-                "khác" đứng thành phần tử flex riêng là cộng 8px gap vào khoảng
-                trắng sẵn có — hở ~12px giữa hai chữ, đo thật ở khổ ≥ 640px.
+                Bọc cả nhãn trong MỘT span: `Button` là `inline-flex gap-2`, nên
+                "Thông tin" (text node) và span "khác" thành hai flex item và bị
+                chèn thêm 8px — ra "Thông tin   khác".
               */}
               <span>
-                Thông tin<span className="hidden sm:inline"> khác</span>
+                Thông tin<span className="hidden sm:inline">&nbsp;khác</span>
               </span>
             </Button>
           </div>

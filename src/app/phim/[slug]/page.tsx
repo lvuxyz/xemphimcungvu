@@ -59,7 +59,7 @@ export default async function MovieDetailPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-5xl pb-16 pt-16">
-      <div className="overflow-hidden rounded-modal bg-bg-elevated shadow-elev-2">
+      <div className="surface-elevated overflow-hidden rounded-modal shadow-elev-2">
         <DetailContent detail={detail} related={related} />
       </div>
     </main>

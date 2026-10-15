@@ -299,7 +299,8 @@
   .skeleton {
     position: relative;
     overflow: hidden;
-    background-color: var(--bg-elevated);
+    /* Tương đối với mặt chứa: skeleton của modal nằm trên panel --bg-elevated */
+    background-color: rgb(var(--raised-rgb));
   }
 
   .skeleton::after {
