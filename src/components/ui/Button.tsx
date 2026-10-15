@@ -12,11 +12,23 @@ const base =
   'active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40';
 
 const variants: Record<Variant, string> = {
-  /** Nút Play chính — nền trắng, chữ tối, đúng ngữ pháp thị giác của hero */
-  primary: 'bg-text-primary text-bg-base hover:bg-text-primary/80',
-  secondary: 'bg-bg-hover/80 text-text-primary backdrop-blur-sm hover:bg-bg-hover',
-  ghost: 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-  accent: 'bg-accent text-[color:var(--accent-contrast)] hover:bg-accent-hover',
+  /** Nút Play chính — sáng rực rỡ, gradient ngọc trai, shadow phát quang nhẹ, hover nổi */
+  primary:
+    'bg-gradient-to-b from-white via-white/95 to-neutral-200 text-bg-base font-bold ' +
+    'shadow-[0_4px_20px_-2px_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.5)] ' +
+    'hover:from-white hover:to-white hover:shadow-[0_6px_28px_rgba(255,255,255,0.6)] ' +
+    'hover:scale-[1.03]',
+  /** Nút phụ / Thông tin — frosted glassmorphism kính mờ cao cấp với viền ánh sáng */
+  secondary:
+    'bg-white/10 text-text-primary backdrop-blur-md border border-white/20 ' +
+    'shadow-[0_4px_16px_rgba(0,0,0,0.35)] ' +
+    'hover:bg-white/20 hover:border-white/40 hover:shadow-[0_6px_24px_rgba(255,255,255,0.15)] ' +
+    'hover:scale-[1.03]',
+  ghost: 'text-text-secondary hover:bg-white/10 hover:text-text-primary hover:scale-[1.02]',
+  accent:
+    'bg-gradient-to-r from-accent via-accent to-accent-hover text-[color:var(--accent-contrast)] font-bold ' +
+    'shadow-[0_4px_20px_rgba(145,132,217,0.35)] ' +
+    'hover:shadow-[0_6px_28px_rgba(145,132,217,0.55)] hover:scale-[1.03]',
 };
 
 const sizes: Record<Size, string> = {
@@ -105,11 +117,11 @@ export function IconButton({
       title={label}
       aria-pressed={active || undefined}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-pill',
-        'bg-bg-base/60 text-text-primary ring-1 ring-white/25 backdrop-blur-sm',
-        'transition-[background-color,transform,box-shadow] duration-micro ease-standard',
-        'hover:bg-bg-hover hover:ring-white/60 active:scale-95',
-        active && 'bg-accent text-[color:var(--accent-contrast)] ring-accent',
+        'inline-flex shrink-0 items-center justify-center rounded-full',
+        'bg-white/10 text-text-primary border border-white/15 backdrop-blur-md shadow-md',
+        'transition-all duration-micro ease-standard',
+        'hover:bg-white/25 hover:border-white/35 hover:scale-105 hover:shadow-lg active:scale-95',
+        active && 'bg-accent/30 text-accent-hover border-accent/60 shadow-[0_0_16px_rgba(145,132,217,0.5)]',
         dimensions,
         className,
       )}

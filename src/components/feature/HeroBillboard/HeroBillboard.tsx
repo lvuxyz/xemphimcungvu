@@ -228,7 +228,7 @@ export function HeroBillboard({
               còn chỗ trên MỘT dòng. Còn lại đúng một cú nhích ngang ~30px của nút
               phụ — CLS cỡ 0.002, trong khi ngưỡng "tốt" là 0.1.
           */}
-          <div className="flex flex-wrap items-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3.5 pt-1.5">
             <Button
               href={
                 resume
@@ -237,13 +237,18 @@ export function HeroBillboard({
               }
               variant="primary"
               size="lg"
-              className="sm:min-w-[8.75rem]"
+              className="group sm:min-w-[9.25rem] shadow-[0_6px_24px_rgba(255,255,255,0.4)]"
             >
-              <PlayIcon />
-              {resume ? 'Tiếp tục' : 'Phát'}
+              <PlayIcon className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+              <span>{resume ? 'Tiếp tục' : 'Phát'}</span>
             </Button>
-            <Button href={routes.detail(movie.slug)} variant="secondary" size="lg">
-              <InfoIcon />
+            <Button
+              href={routes.detail(movie.slug)}
+              variant="secondary"
+              size="lg"
+              className="group sm:min-w-[9.25rem]"
+            >
+              <InfoIcon className="h-5 w-5 text-text-secondary transition-transform duration-200 group-hover:scale-110 group-hover:text-white" />
               {/*
                 Bọc cả nhãn trong MỘT span: `Button` là `inline-flex gap-2`, nên
                 "Thông tin" (text node) và span "khác" thành hai flex item và bị

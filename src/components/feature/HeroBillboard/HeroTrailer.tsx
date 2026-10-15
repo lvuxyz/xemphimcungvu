@@ -403,85 +403,150 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
         />
       )}
 
-      {/* Thông báo tương tác nổi ở giữa (Feedback Badge) */}
+      {/* Thông báo tương tác nổi ở giữa (Feedback Badge chuẩn Netflix/Apple) */}
       {feedback && (
         <div
           key={feedback.id}
-          className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center animate-fade-in"
+          className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center animate-fade-scale"
         >
-          <div className="flex flex-col items-center gap-2 rounded-2xl bg-bg-base/85 px-6 py-4 text-text-primary shadow-2xl ring-1 ring-white/20 backdrop-blur-md">
-            <span className="text-3xl">
-              {feedback.icon === 'play' && <PlayIcon className="h-8 w-8 text-emerald-400" />}
-              {feedback.icon === 'pause' && <PauseIcon className="h-8 w-8 text-amber-400" />}
-              {feedback.icon === 'volume' && <VolumeIcon className="h-8 w-8 text-accent" />}
-              {feedback.icon === 'mute' && (
-                <VolumeMutedIcon className="h-8 w-8 text-text-secondary" />
+          <div className="flex flex-col items-center gap-3 rounded-3xl bg-black/80 px-8 py-5 text-text-primary shadow-[0_25px_60px_rgba(0,0,0,0.85)] ring-1 ring-white/20 backdrop-blur-2xl">
+            <div
+              className={cn(
+                'flex h-16 w-16 items-center justify-center rounded-2xl shadow-inner transition-colors',
+                feedback.icon === 'play' &&
+                  'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50 shadow-[0_0_24px_rgba(52,211,153,0.35)]',
+                feedback.icon === 'pause' &&
+                  'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/50 shadow-[0_0_24px_rgba(251,191,36,0.35)]',
+                feedback.icon === 'volume' &&
+                  'bg-accent/25 text-accent-hover ring-1 ring-accent/60 shadow-[0_0_24px_rgba(145,132,217,0.45)]',
+                feedback.icon === 'mute' &&
+                  'bg-white/10 text-text-secondary ring-1 ring-white/20',
+                feedback.icon === 'replay' &&
+                  'bg-sky-500/20 text-sky-400 ring-1 ring-sky-500/50 shadow-[0_0_24px_rgba(56,189,248,0.35)]',
               )}
-              {feedback.icon === 'replay' && <ReplayIcon className="h-8 w-8 text-sky-400" />}
-            </span>
-            <span className="text-sm font-semibold tracking-wide drop-shadow-md">
-              {feedback.text}
-            </span>
+            >
+              {feedback.icon === 'play' && <PlayIcon className="h-8 w-8 translate-x-0.5" />}
+              {feedback.icon === 'pause' && <PauseIcon className="h-8 w-8" />}
+              {feedback.icon === 'volume' && <VolumeIcon className="h-8 w-8" />}
+              {feedback.icon === 'mute' && (
+                <VolumeMutedIcon className="h-8 w-8" />
+              )}
+              {feedback.icon === 'replay' && <ReplayIcon className="h-8 w-8" />}
+            </div>
+            <div className="flex flex-col items-center text-center">
+              <span className="text-base font-bold tracking-wide drop-shadow-md">
+                {feedback.text}
+              </span>
+              <span className="mt-0.5 text-xs text-text-muted">
+                {feedback.icon === 'play' || feedback.icon === 'pause'
+                  ? 'Phím tắt Space hoặc K'
+                  : feedback.icon === 'volume' || feedback.icon === 'mute'
+                    ? 'Phím tắt M'
+                    : 'Tua về 0:00'}
+              </span>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Cụm điều khiển phát trailer ở góc phải dưới (§8.2 nâng cao) */}
+      {/* Cụm điều khiển trailer góc phải dưới kiểu Frosted Glass Pill siêu đẹp */}
       {ready && (
-        <div className="pointer-events-auto absolute bottom-[12%] right-row z-20 flex items-center gap-2 rounded-pill bg-bg-base/75 p-1.5 ring-1 ring-white/15 backdrop-blur-md shadow-2xl transition-all duration-300 hover:bg-bg-base/90 hover:ring-white/30">
+        <div className="pointer-events-auto absolute bottom-[12%] right-row z-20 flex items-center gap-2 rounded-full bg-gradient-to-r from-black/70 via-black/55 to-black/70 p-2 ring-1 ring-white/20 backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.7)] transition-all duration-300 hover:ring-white/40 hover:shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
           {/* Badge trạng thái phát */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold tracking-wider uppercase text-text-primary/90">
-            <span
-              className={cn(
-                'h-2 w-2 rounded-full transition-colors duration-300',
-                isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse',
+          <div className="hidden sm:flex items-center gap-2 pl-3 pr-2 py-1 text-xs font-semibold tracking-wider uppercase text-text-primary/90">
+            <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+              {!isPaused ? (
+                <>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                </>
+              ) : (
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
               )}
-            />
-            <span className="text-[11px] font-bold">{isPaused ? 'Tạm dừng' : 'Trailer'}</span>
+            </span>
+            <span className="bg-gradient-to-r from-white via-white/95 to-white/70 bg-clip-text text-[11px] font-extrabold tracking-widest text-transparent">
+              {isPaused ? 'Tạm dừng' : 'Trailer'}
+            </span>
           </div>
 
-          <div className="hidden sm:block h-4 w-[1px] bg-white/20" />
+          <div className="hidden sm:block h-5 w-[1px] bg-gradient-to-b from-white/10 via-white/25 to-white/10" />
 
           {/* Nút Play / Pause */}
-          <IconButton
-            label={
+          <button
+            type="button"
+            aria-label={
+              isPaused
+                ? 'Tiếp tục phát trailer (Phím Space)'
+                : 'Tạm dừng trailer (Phím Space)'
+            }
+            title={
               isPaused
                 ? 'Tiếp tục phát trailer (Phím Space)'
                 : 'Tạm dừng trailer (Phím Space)'
             }
             onClick={togglePlayPause}
             className={cn(
-              'hover:bg-white/20 text-white',
-              isPaused && 'text-amber-300 ring-amber-400/50 bg-amber-500/10',
+              'group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+              'transition-all duration-200 active:scale-90',
+              isPaused
+                ? 'bg-amber-400/25 text-amber-300 ring-1 ring-amber-400/50 shadow-[0_0_16px_rgba(251,191,36,0.35)] hover:bg-amber-400/35'
+                : 'bg-white/10 text-white ring-1 ring-white/20 shadow-md hover:bg-white/25 hover:ring-white/40 hover:scale-105',
             )}
           >
-            {isPaused ? <PlayIcon className="translate-x-0.5" /> : <PauseIcon />}
-          </IconButton>
+            {isPaused ? (
+              <PlayIcon className="h-4 w-4 translate-x-0.5 transition-transform group-hover:scale-110" />
+            ) : (
+              <PauseIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+            )}
+          </button>
 
-          {/* Nút Âm thanh & Âm thanh demo */}
-          <IconButton
-            label={
+          {/* Nút Âm thanh & Âm thanh demo với visualizer equalizer */}
+          <button
+            type="button"
+            aria-label={
+              muted
+                ? 'Bật âm thanh demo trailer (Phím M)'
+                : 'Tắt âm thanh (Phím M)'
+            }
+            title={
               muted
                 ? 'Bật âm thanh demo trailer (Phím M)'
                 : 'Tắt âm thanh (Phím M)'
             }
             onClick={toggleAudio}
             className={cn(
-              'hover:bg-white/20 transition-all',
-              !muted && 'text-accent ring-accent/60 bg-accent/20',
+              'group relative flex h-10 shrink-0 items-center justify-center rounded-full px-3 gap-2',
+              'transition-all duration-200 active:scale-90',
+              !muted
+                ? 'bg-accent/30 text-accent-hover ring-1 ring-accent/60 shadow-[0_0_20px_rgba(145,132,217,0.5)] hover:bg-accent/40'
+                : 'bg-white/10 text-white/80 ring-1 ring-white/20 shadow-md hover:bg-white/25 hover:text-white hover:ring-white/40 hover:scale-105',
             )}
           >
-            {muted ? <VolumeMutedIcon /> : <VolumeIcon />}
-          </IconButton>
+            {!muted ? (
+              <>
+                <VolumeIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+                {/* 3 vạch sóng âm thanh equalizer chuyển động sống động */}
+                <div className="flex items-end gap-0.5 h-3.5" aria-hidden="true">
+                  <span className="w-0.5 rounded-full bg-accent animate-eq-1" />
+                  <span className="w-0.5 rounded-full bg-accent animate-eq-2" />
+                  <span className="w-0.5 rounded-full bg-accent animate-eq-3" />
+                </div>
+              </>
+            ) : (
+              <VolumeMutedIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+            )}
+          </button>
 
           {/* Nút Phát lại từ đầu */}
-          <IconButton
-            label="Phát lại trailer từ đầu"
+          <button
+            type="button"
+            aria-label="Phát lại trailer từ đầu"
+            title="Phát lại trailer từ đầu"
             onClick={replayTrailer}
-            className="hover:bg-white/20 text-white"
+            className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/20 shadow-md transition-all duration-200 hover:bg-white/25 hover:text-white hover:ring-white/40 hover:scale-105 active:scale-90"
           >
-            <ReplayIcon />
-          </IconButton>
+            <ReplayIcon className="h-4 w-4 transition-transform duration-300 ease-out group-hover:-rotate-90 group-hover:scale-110" />
+          </button>
         </div>
       )}
     </div>
