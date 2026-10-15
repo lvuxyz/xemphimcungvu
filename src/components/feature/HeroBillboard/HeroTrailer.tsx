@@ -138,25 +138,6 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   const [muted, setMuted] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Hiệu ứng thông báo nổi (visual feedback) khi tương tác
-  const [feedback, setFeedback] = useState<{
-    id: number;
-    icon: 'play' | 'pause' | 'volume' | 'mute' | 'replay';
-    text: string;
-  } | null>(null);
-  const feedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const showFeedback = useCallback(
-    (icon: 'play' | 'pause' | 'volume' | 'mute' | 'replay', text: string) => {
-      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
-      setFeedback({ id: Date.now(), icon, text });
-      feedbackTimerRef.current = setTimeout(() => {
-        setFeedback(null);
-      }, 1600);
-    },
-    [],
-  );
-
   const post = useCallback((payload: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(
       JSON.stringify(payload),
@@ -281,7 +262,6 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   useEffect(() => {
     return () => {
       stopCinemaDemoAudio();
-      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
     };
   }, []);
 
@@ -292,14 +272,12 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
       if (next) {
         command('pauseVideo');
         stopCinemaDemoAudio();
-        showFeedback('pause', 'Tạm dừng trailer');
       } else {
         command('playVideo');
-        showFeedback('play', 'Tiếp tục phát');
       }
       return next;
     });
-  }, [command, showFeedback]);
+  }, [command]);
 
   /** Bật hoặc tắt âm thanh + kích hoạt demo audio khi bật */
   const toggleAudio = useCallback(() => {
@@ -312,24 +290,21 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
         command('playVideo');
         setIsPaused(false);
         playCinemaDemoAudio();
-        showFeedback('volume', 'Đã bật âm thanh trailer demo');
       } else {
         // Tắt tiếng
         command('mute');
         stopCinemaDemoAudio();
-        showFeedback('mute', 'Đã tắt âm thanh');
       }
       return next;
     });
-  }, [command, showFeedback]);
+  }, [command]);
 
   /** Phát lại trailer từ đầu */
   const replayTrailer = useCallback(() => {
     command('seekTo', [0, true]);
     command('playVideo');
     setIsPaused(false);
-    showFeedback('replay', 'Phát lại từ đầu');
-  }, [command, showFeedback]);
+  }, [command]);
 
   // Phím tắt bàn phím: Phím Space / K để Play/Pause, phím M để Bật/Tắt âm thanh
   useEffect(() => {
@@ -401,52 +376,6 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
           )}
           data-motion="fade"
         />
-      )}
-
-      {/* Thông báo tương tác nổi ở giữa (Feedback Badge chuẩn Netflix/Apple) */}
-      {feedback && (
-        <div
-          key={feedback.id}
-          className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center animate-fade-scale"
-        >
-          <div className="flex flex-col items-center gap-3 rounded-3xl bg-black/80 px-8 py-5 text-text-primary shadow-[0_25px_60px_rgba(0,0,0,0.85)] ring-1 ring-white/20 backdrop-blur-2xl">
-            <div
-              className={cn(
-                'flex h-16 w-16 items-center justify-center rounded-2xl shadow-inner transition-colors',
-                feedback.icon === 'play' &&
-                  'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50 shadow-[0_0_24px_rgba(52,211,153,0.35)]',
-                feedback.icon === 'pause' &&
-                  'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/50 shadow-[0_0_24px_rgba(251,191,36,0.35)]',
-                feedback.icon === 'volume' &&
-                  'bg-accent/25 text-accent-hover ring-1 ring-accent/60 shadow-[0_0_24px_rgba(145,132,217,0.45)]',
-                feedback.icon === 'mute' &&
-                  'bg-white/10 text-text-secondary ring-1 ring-white/20',
-                feedback.icon === 'replay' &&
-                  'bg-sky-500/20 text-sky-400 ring-1 ring-sky-500/50 shadow-[0_0_24px_rgba(56,189,248,0.35)]',
-              )}
-            >
-              {feedback.icon === 'play' && <PlayIcon className="h-8 w-8 translate-x-0.5" />}
-              {feedback.icon === 'pause' && <PauseIcon className="h-8 w-8" />}
-              {feedback.icon === 'volume' && <VolumeIcon className="h-8 w-8" />}
-              {feedback.icon === 'mute' && (
-                <VolumeMutedIcon className="h-8 w-8" />
-              )}
-              {feedback.icon === 'replay' && <ReplayIcon className="h-8 w-8" />}
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <span className="text-base font-bold tracking-wide drop-shadow-md">
-                {feedback.text}
-              </span>
-              <span className="mt-0.5 text-xs text-text-muted">
-                {feedback.icon === 'play' || feedback.icon === 'pause'
-                  ? 'Phím tắt Space hoặc K'
-                  : feedback.icon === 'volume' || feedback.icon === 'mute'
-                    ? 'Phím tắt M'
-                    : 'Tua về 0:00'}
-              </span>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Cụm điều khiển trailer góc phải dưới kiểu Frosted Glass Pill siêu đẹp */}
