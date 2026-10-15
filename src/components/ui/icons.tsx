@@ -178,3 +178,11 @@ export const PipIcon = (props: IconProps) => (
     <rect x="12" y="11" width="7" height="6" rx="1" fill="currentColor" stroke="none" />
   </Icon>
 );
+
+export const ReplayIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </Icon>
+);
+
