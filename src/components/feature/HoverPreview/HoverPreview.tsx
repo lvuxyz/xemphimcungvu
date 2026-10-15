@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { episodeBadgeLabel, firstEpisodeHref, matchScore, parseEpisodeBadge } from '@/lib/derive';
-import type { Movie } from '@/types/movie';
+import type { CardMovie } from '@/types/movie';
 import { Chip, MatchScore } from '@/components/ui/Chip';
 import { IconButton } from '@/components/ui/Button';
 import { CheckIcon, ChevronDownIcon, PlayIcon, PlusIcon } from '@/components/ui/icons';
@@ -15,7 +15,7 @@ import { useUIStore } from '@/store/useUIStore';
 import { routes } from '@/lib/routes';
 
 interface HoverPreviewProps {
-  movie: Movie;
+  movie: CardMovie;
   /** §8.4 — phải theo vị trí trong row, nếu không card ở mép sẽ tràn viewport. */
   transformOrigin: string;
   reducedMotion: boolean;

@@ -54,10 +54,14 @@ export const REVALIDATE = {
 } as const;
 
 /**
- * §8.3 — số phim mỗi ContentRow xin API.
- * 18 đủ để cuộn ngang vài trang mà vẫn dưới trần 64 của §3.1.
+ * §8.3 — số phim mỗi section trang chủ xin API.
+ *
+ * 16 = gần 3 trang cuộn ở khổ desktop (5–6 card/trang) mà vẫn là một trang API
+ * duy nhất. Trang chủ có đúng 4 section, nên đây cũng là trần cứng của cả trang:
+ * tối đa 4 × 16 = 64 card lấy từ API. Xem thêm thì đã có "Xem tất cả" sang trang
+ * danh sách có phân trang.
  */
-export const ROW_LIMIT = 18;
+export const ROW_LIMIT = 16;
 
 /** §8.1 — số gợi ý tối đa trong dropdown tìm kiếm của navbar. */
 export const SEARCH_SUGGESTIONS = 8;

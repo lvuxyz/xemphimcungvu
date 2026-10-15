@@ -116,12 +116,21 @@ export function ContinueRow() {
 
   return (
     <section className="py-3" aria-labelledby="continue-heading">
-      <h2
-        id="continue-heading"
-        className="mb-2 px-row text-base font-bold tracking-[-0.01em] text-text-primary md:text-lg"
-      >
-        Tiếp tục xem
-      </h2>
+      <div className="mb-2 flex items-baseline justify-between gap-3 px-row">
+        <h2
+          id="continue-heading"
+          className="text-base font-bold tracking-[-0.01em] text-text-primary md:text-lg"
+        >
+          Tiếp tục xem
+        </h2>
+        {/* Row chỉ giữ 12 phim còn dở — phần còn lại của lịch sử nằm ở trang riêng. */}
+        <Link
+          href={routes.history()}
+          className="text-xs text-text-muted transition-colors duration-micro ease-standard hover:text-text-primary"
+        >
+          Xem lịch sử
+        </Link>
+      </div>
 
       <div className="relative">
         {canHover && (

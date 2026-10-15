@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
+import { routes } from '@/lib/routes';
 import { useUIStore } from '@/store/useUIStore';
 import { useWatchStore } from '@/store/useWatchStore';
 
@@ -22,7 +24,14 @@ const CONFIRM_TIMEOUT = 5_000;
  * Dùng ở hai chỗ: dropdown trong navbar (từ `lg` lên) và chân menu điện thoại. Cùng
  * một component để hai chỗ không bao giờ nói hai điều khác nhau.
  */
-export function PersonalizationToggle({ className }: { className?: string }) {
+export function PersonalizationToggle({
+  className,
+  onNavigate,
+}: {
+  className?: string;
+  /** Dropdown desktop không tự đóng khi đổi route — nơi chứa truyền vào để tự đóng. */
+  onNavigate?: () => void;
+}) {
   const personalized = useWatchStore((s) => s.personalized);
   const setPersonalized = useWatchStore((s) => s.setPersonalized);
   /**
@@ -112,6 +121,21 @@ export function PersonalizationToggle({ className }: { className?: string }) {
           ? 'Trang chủ sắp theo phim bạn đã xem và hiện row "Tiếp tục xem".'
           : 'Trang chủ hiện thứ tự mặc định. Trình phát vẫn nhớ chỗ đang xem của từng tập.'}
       </p>
+
+      {/* Lịch sử chỉ có nghĩa khi đang được đem ra hiện và có thứ để hiện. */}
+      {personalized && hasData && (
+        <Link
+          href={routes.history()}
+          onClick={onNavigate}
+          className={cn(
+            'mt-2 flex min-h-[44px] w-full items-center rounded-card px-1 text-left',
+            'text-[13px] text-text-secondary transition-colors duration-micro ease-standard',
+            'hover:bg-bg-hover hover:text-text-primary',
+          )}
+        >
+          Xem lịch sử xem
+        </Link>
+      )}
 
       {/* Không có gì để xoá thì đừng mời xoá — nút chỉ hiện khi thật sự có dữ liệu. */}
       {hasData && (

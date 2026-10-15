@@ -424,11 +424,29 @@ export async function getTaxonomies(opts: Fetchable = {}): Promise<Taxonomies> {
   return { categories, countries, years };
 }
 
+/**
+ * Nguồn của màn đầu trang chủ — hero và row "Mới cập nhật" — kèm phao dự phòng.
+ *
+ * `/v1/api/home` trả cùng nội dung theo cùng thứ tự nhưng thiếu `thumb_url`, nên nó
+ * chỉ là phao khi v3 hỏng. Một hàm dùng chung vì HAI nơi phải thấy cùng một danh
+ * sách: RSC trang chủ dựng row từ nó, còn `/api/home/*` loại khỏi section những
+ * phim đã có trong đó. Cùng URL, cùng `revalidate` → cùng một mục data cache của
+ * Next, nên lời gọi thứ hai không chạm tới KKPhim.
+ */
+export async function getHomeFeed(opts: Fetchable = {}): Promise<MovieListResult> {
+  return getNewlyUpdated(1, 'v3', opts).catch(() => getHome(opts).catch(() => EMPTY_LIST));
+}
+
 export interface HeroSpotlight {
   movie: Movie;
   images: MovieImages;
   /** §8.2 — link YouTube; rỗng là chuyện thường, hero giữ ảnh tĩnh (§17 rủi ro #5). */
   trailerUrl: string;
+  /**
+   * Mô tả phim, HTML THÔ từ API — nơi dùng phải tự đưa qua `lib/sanitize.ts`.
+   * Rỗng khi `/phim/{slug}` hỏng; hero khi đó chỉ thiếu dòng tóm tắt.
+   */
+  content: string;
 }
 
 /** Số phim đầu danh sách được đem ra cân nhắc làm hero. */
@@ -458,8 +476,9 @@ export async function getHeroSpotlight(
         getMovieImages(movie.slug, opts),
         /**
          * Ngân sách BỔ TRỢ, không phải ngân sách chi tiết — đây là chỗ duy nhất
-         * gọi `getDetail` mà không cần chi tiết: thứ lấy ra chỉ là `trailerUrl`,
-         * một đoạn trang trí chỉ chạy sau 2500ms và chỉ ở tier cao.
+         * gọi `getDetail` mà không cần chi tiết: thứ lấy ra chỉ là `trailerUrl`
+         * (trang trí, chỉ chạy sau 2500ms và chỉ ở tier cao) và dòng tóm tắt dưới
+         * tên phim — cả hai mất đi thì hero vẫn đủ dùng.
          *
          * Mặc định của nó (`timeout` 8s, `retries` 2) cộng thêm việc `getDetail`
          * còn có phao `/v1/api/phim/{slug}` đứng sau, cho ra đuôi xấu nhất
@@ -477,7 +496,12 @@ export async function getHeroSpotlight(
         ),
       ]);
 
-      return { movie, images, trailerUrl: detail?.movie.trailerUrl ?? '' };
+      return {
+        movie,
+        images,
+        trailerUrl: detail?.movie.trailerUrl ?? '',
+        content: detail?.movie.content ?? '',
+      };
     }),
   );
 
