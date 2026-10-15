@@ -104,9 +104,13 @@ export const IMAGE_SIZES = {
 /**
  * Blur placeholder dùng chung cho card (§12.2) — 1 pixel màu --bg-elevated,
  * nhúng inline để không tốn thêm request.
+ *
+ * `btoa` chứ không phải `Buffer`: file này nằm trong chuỗi import của
+ * `middleware.ts`, mà edge runtime không có `Buffer`. Chuỗi toàn ASCII nên `btoa`
+ * cho ra đúng từng byte như trước.
  */
 export const BLUR_DATA_URL =
   'data:image/svg+xml;base64,' +
-  Buffer.from(
+  btoa(
     '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="12"><rect width="8" height="12" fill="#121216"/></svg>',
-  ).toString('base64');
+  );
