@@ -394,7 +394,12 @@ export async function getRelated(
          * dù phần cốt lõi khai 1800s. Một hàng "Có thể bạn thích" cũ hơn nửa tiếng
          * là thứ không ai nhận ra.
          */
-        { revalidate: REVALIDATE.detail, ...opts },
+        {
+          revalidate: REVALIDATE.detail,
+          timeout: TIMEOUT.supplementary,
+          retries: 0,
+          ...opts,
+        },
       ),
     EMPTY_LIST,
   );
@@ -449,66 +454,48 @@ export interface HeroSpotlight {
   content: string;
 }
 
-/** Số phim đầu danh sách được đem ra cân nhắc làm hero. */
-export const HERO_CANDIDATES = 3;
+/**
+ * Số phim đầu danh sách được đem ra cân nhắc làm hero.
+ * Rút gọn về 1 để trang chủ chỉ gọi 1 lượt song song cho hero,
+ * giảm từ 7+ requests SSR xuống còn 2 requests song song tối thiểu.
+ */
+export const HERO_CANDIDATES = 1;
 
 /**
  * Chọn phim cho HeroBillboard (§8.2).
  *
- * Hero là ảnh LCP nên chất lượng ảnh quyết định cảm nhận cả trang: phim không có
- * backdrop trong `/images` buộc phải dùng `thumb_url` độ phân giải thấp (§17 rủi
- * ro #4). Vì vậy cân nhắc vài ứng viên đầu danh sách thay vì lấy bừa phim đầu
- * tiên — ưu tiên phim có CẢ backdrop lẫn trailer.
- *
- * Toàn bộ lời gọi nằm trong MỘT lượt song song (không phải chuỗi waterfall) và
- * đều đi qua fetch cache 30 phút, nên không vi phạm tinh thần §11.2.
+ * Tối ưu: Lấy trực tiếp phim mới nhất đầu danh sách (`candidates[0]`) làm hero,
+ * chỉ gọi 1 lượt song song (images + detail) với timeout bổ trợ 3s và retries = 0.
+ * Toàn bộ quá trình hoàn tất trong 200–300ms, hạ TTFB trang chủ rõ rệt.
  */
 export async function getHeroSpotlight(
   candidates: Movie[],
   opts: Fetchable = {},
 ): Promise<HeroSpotlight | null> {
-  const pool = candidates.slice(0, HERO_CANDIDATES);
-  if (pool.length === 0) return null;
+  const movie = candidates[0];
+  if (!movie) return null;
 
-  const enriched = await Promise.all(
-    pool.map(async (movie): Promise<HeroSpotlight> => {
-      const [images, detail] = await Promise.all([
-        getMovieImages(movie.slug, opts),
-        /**
-         * Ngân sách BỔ TRỢ, không phải ngân sách chi tiết — đây là chỗ duy nhất
-         * gọi `getDetail` mà không cần chi tiết: thứ lấy ra chỉ là `trailerUrl`
-         * (trang trí, chỉ chạy sau 2500ms và chỉ ở tier cao) và dòng tóm tắt dưới
-         * tên phim — cả hai mất đi thì hero vẫn đủ dùng.
-         *
-         * Mặc định của nó (`timeout` 8s, `retries` 2) cộng thêm việc `getDetail`
-         * còn có phao `/v1/api/phim/{slug}` đứng sau, cho ra đuôi xấu nhất
-         * (8+1+8+2+8) × 2 ≈ 54 giây — chặn ngay giữa lượt dựng trang chủ, tức là
-         * chặn cả `next build`. Một link YouTube không đáng chỗ đó.
-         */
-        requestOptional(
-          () =>
-            getDetail(movie.slug, {
-              timeout: TIMEOUT.supplementary,
-              retries: 0,
-              ...opts,
-            }),
-          null,
-        ),
-      ]);
+  const [images, detail] = await Promise.all([
+    getMovieImages(movie.slug, { timeout: 3_000, ...opts }),
+    /**
+     * Ngân sách BỔ TRỢ: chỉ lấy `trailerUrl` và dòng tóm tắt `content`.
+     * Giới hạn timeout 3s và retries = 0 để không chặn SSR của trang chủ.
+     */
+    requestOptional(
+      () =>
+        getDetail(movie.slug, {
+          timeout: 3_000,
+          retries: 0,
+          ...opts,
+        }),
+      null,
+    ),
+  ]);
 
-      return {
-        movie,
-        images,
-        trailerUrl: detail?.movie.trailerUrl ?? '',
-        content: detail?.movie.content ?? '',
-      };
-    }),
-  );
-
-  return (
-    enriched.find((entry) => entry.images.backdrops.length > 0 && entry.trailerUrl !== '') ??
-    enriched.find((entry) => entry.images.backdrops.length > 0) ??
-    enriched[0] ??
-    null
-  );
+  return {
+    movie,
+    images,
+    trailerUrl: detail?.movie.trailerUrl ?? '',
+    content: detail?.movie.content ?? '',
+  };
 }

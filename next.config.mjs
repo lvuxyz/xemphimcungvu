@@ -20,6 +20,14 @@ const nextConfig = {
    */
   images: {
     /**
+     * Bật unoptimized: true để trình duyệt tải ảnh trực tiếp từ CDN của KKPhim (phimimg.com).
+     * CDN này đã phục vụ định dạng WebP tối ưu sẵn qua Cloudflare Edge.
+     * Việc này giải phóng 100% tải xử lý nén/resize ảnh khỏi CPU Node.js của server,
+     * ngăn chặn hiện tượng tắc nghẽn Event Loop làm chậm các request API và SSR.
+     */
+    unoptimized: true,
+
+    /**
      * ⚠️ Danh sách này được soi lại ở `src/lib/image.ts` (`OPTIMIZABLE_HOSTS`):
      * `poster_url` của KKPhim đôi khi trỏ sang host lạ, mà `next/image` NÉM LỖI
      * render với hostname chưa khai báo. SmartImage đọc danh sách kia để cho ảnh
