@@ -20,7 +20,8 @@ function parseYear(raw: string): number | null {
 
 export function generateMetadata({ params }: Props): Metadata {
   const year = parseYear(params.year);
-  return year ? { title: `Phim năm ${year}` } : {};
+  if (!year) notFound();
+  return { title: `Phim năm ${year}` };
 }
 
 /** §8.7 — lưới phim theo năm, `/v1/api/nam/{year}`. */

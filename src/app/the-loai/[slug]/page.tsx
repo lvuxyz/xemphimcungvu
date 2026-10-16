@@ -19,7 +19,8 @@ async function categoryName(slug: string): Promise<string | undefined> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const name = await categoryName(params.slug);
-  return name ? { title: `Phim ${name}` } : {};
+  if (!name) notFound();
+  return { title: `Phim ${name}` };
 }
 
 /** §8.7 — lưới phim theo thể loại, `/v1/api/the-loai/{slug}`. */

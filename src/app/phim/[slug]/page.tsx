@@ -12,7 +12,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Cùng URL với lời gọi trong page → Next gộp thành MỘT request cho cả lượt render.
   const detail = await nullOn404(() => getDetail(params.slug));
-  if (!detail || !detail.movie.slug) return { title: 'Không tìm thấy phim' };
+  if (!detail || !detail.movie.slug) notFound();
 
   const { movie } = detail;
   const description = toPlainText(movie.content, 160);

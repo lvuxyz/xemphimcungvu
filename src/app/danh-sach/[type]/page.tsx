@@ -25,7 +25,8 @@ interface Props {
 
 export function generateMetadata({ params }: Props): Metadata {
   const title = TITLES[params.type];
-  return title ? { title } : {};
+  if (!title) notFound();
+  return { title };
 }
 
 /** Trang danh sách theo `type_list` (§8.7). Filter đồng bộ searchParams (§6.2). */
