@@ -5,7 +5,7 @@
 export default function ModalLoading() {
   return (
     <div className="fixed inset-0 z-modal overflow-y-auto bg-bg-base/70 backdrop-blur-[8px]">
-      <div className="relative mx-auto my-8 w-[min(56rem,92vw)] overflow-hidden rounded-modal bg-bg-elevated shadow-elev-3">
+      <div className="surface-elevated relative mx-auto my-8 w-[min(56rem,92vw)] overflow-hidden rounded-modal shadow-elev-3">
         <div className="skeleton aspect-backdrop w-full" />
 
         <div className="grid gap-8 p-6 md:grid-cols-[1fr_16rem] md:p-8">

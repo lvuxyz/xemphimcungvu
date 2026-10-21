@@ -84,6 +84,16 @@ function toMovieType(v: unknown): MovieType {
   return (MOVIE_TYPES as readonly string[]).includes(raw) ? (raw as MovieType) : 'single';
 }
 
+/**
+ * KKPhim có bản ghi gõ nhầm "FDH" (khảo sát 25/09/2026: 1/1152 phim — và phim đó
+ * đang nằm ngay trên trang chủ) — sửa ở đây thì hero, preview và trang chi tiết
+ * không in lỗi đó ra.
+ */
+function toQuality(v: unknown): string {
+  const raw = str(v).trim();
+  return raw.toUpperCase() === 'FDH' ? 'FHD' : raw;
+}
+
 function toTmdbType(v: unknown): 'tv' | 'movie' | null {
   const raw = str(v).toLowerCase();
   return raw === 'tv' || raw === 'movie' ? raw : null;
@@ -116,7 +126,7 @@ function normalizeMovie(raw: RawMovieItem | undefined, cdnBase?: string): Movie 
     thumb: resolveBackdrop(thumbPath, cdnBase),
     duration: str(raw?.time),
     episodeCurrent: str(raw?.episode_current),
-    quality: str(raw?.quality),
+    quality: toQuality(raw?.quality),
     lang: str(raw?.lang),
     year: num(raw?.year),
     subExclusive: bool(raw?.sub_docquyen),

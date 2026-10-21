@@ -7,26 +7,36 @@ import { SmartImage } from '@/components/ui/SmartImage';
 import { cn } from '@/lib/cn';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { HOVER_DELAY, PLACEHOLDER_BACKDROP, PLACEHOLDER_POSTER } from '@/lib/constants';
-import { episodeBadgeLabel, matchScore, parseEpisodeBadge } from '@/lib/derive';
-import type { Movie } from '@/types/movie';
+import { cardQualityLabel, episodeBadgeLabel, matchScore, parseEpisodeBadge } from '@/lib/derive';
+import type { CardMovie } from '@/types/movie';
 import { useWatchRatio } from '@/store/useWatchStore';
 import { useHoverDelay } from '@/hooks/useHoverDelay';
 import { usePresence } from '@/hooks/usePresence';
-import { useDevice } from '@/hooks/useDevice';
+import { useDevice, useHoverPreviewEnabled } from '@/hooks/useDevice';
 import { MatchScore } from '@/components/ui/Chip';
 import { routes } from '@/lib/routes';
 import { useInTitleModal } from '../DetailModal/modal-context';
 import { HoverPreview } from '../HoverPreview/HoverPreview';
 
 interface MovieCardProps {
-  movie: Movie;
+  movie: CardMovie;
   /** `row` dùng thumb 16:9 (carousel), `grid` dùng poster 2:3 (trang danh sách) — §7.5 */
   variant?: 'row' | 'grid';
   /** §8.4 — edge-aware transform-origin, do ContentRow tính và truyền xuống */
   transformOrigin?: string;
   /** Tắt HoverPreview ở nơi không đủ chỗ phóng to (grid, my-list) */
   enableHoverPreview?: boolean;
+  /**
+   * Ghi đè `sizes` của ảnh khi card đứng trong bố cục khác row / grid mặc định —
+   * row poster trang chủ hẹp hơn ô grid, dùng `sizes` của grid là tải ảnh to hơn cần.
+   */
+  sizes?: string;
   priority?: boolean;
+  /**
+   * `loading="eager"` mà KHÔNG kèm preload như `priority` — cho trang card đầu
+   * của row đầu trang chủ, xem `ContentRow`.
+   */
+  eager?: boolean;
   className?: string;
   /** §13.1 — roving tabindex do ContentRow điều phối */
   tabIndex?: number;
@@ -38,7 +48,9 @@ export function MovieCard({
   variant = 'row',
   transformOrigin = 'center',
   enableHoverPreview = true,
+  sizes,
   priority = false,
+  eager = false,
   className,
   tabIndex,
   onFocusCard,
@@ -49,7 +61,8 @@ export function MovieCard({
    * vì chồng thêm một entry lịch sử. Xem `DetailModal/modal-context.ts`.
    */
   const inModal = useInTitleModal();
-  const { canHover, reducedMotion, budget, tier } = useDevice();
+  const { canHover, reducedMotion, tier } = useDevice();
+  const hoverPreviewEnabled = useHoverPreviewEnabled();
   const { isHovered, onMouseEnter, onMouseLeave, cancel } = useHoverDelay();
   const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefetchedRef = useRef(false);
@@ -63,7 +76,7 @@ export function MovieCard({
    * hướng, vừa giật vừa che mất hàng bên cạnh. Mạng yếu cũng tắt: preview tải
    * thêm một ảnh thumb nữa cho mỗi card người dùng lướt qua.
    */
-  const previewEnabled = enableHoverPreview && canHover && budget.hoverPreview;
+  const previewEnabled = enableHoverPreview && hoverPreviewEnabled;
   const { mounted, visible } = usePresence(previewEnabled && isHovered);
 
   /**
@@ -116,6 +129,7 @@ export function MovieCard({
   };
 
   const badgeLabel = episodeBadgeLabel(parseEpisodeBadge(movie.episodeCurrent));
+  const qualityLabel = cardQualityLabel(movie.quality);
 
   /**
    * Đọc từ store dùng chung, không phải từ localStorage: trang chủ có hơn trăm
@@ -142,7 +156,7 @@ export function MovieCard({
         tabIndex={tabIndex}
         onFocus={() => onFocusCard?.()}
         className={cn(
-          'group block overflow-hidden rounded-card bg-bg-elevated',
+          'group block overflow-hidden rounded-card bg-raised',
           'transition-[box-shadow,transform,opacity] duration-standard ease-standard',
           'focus-visible:outline-offset-4',
           // Ngón tay không có hover: phản hồi chạm là cách duy nhất báo "đã nhận"
@@ -156,16 +170,26 @@ export function MovieCard({
             fallbackSrc={isRow ? PLACEHOLDER_BACKDROP : PLACEHOLDER_POSTER}
             alt={`${movie.name} (${movie.year})`}
             fill
-            sizes={isRow ? IMAGE_SIZES.rowCard : IMAGE_SIZES.gridCard}
+            sizes={sizes ?? (isRow ? IMAGE_SIZES.rowCard : IMAGE_SIZES.gridCard)}
             priority={priority}
+            loading={eager && !priority ? 'eager' : undefined}
+            /*
+              `low` KHÔNG phải để card tải chậm lại, mà để chặn hai thứ:
+                · React tự chèn `<link rel=preload>` cho MỌI <img> không phải
+                  `lazy` — trừ khi `fetchPriority="low"`. Đo trên HTML đã build:
+                  thiếu dòng này là 6 thẻ preload card đứng cạnh preload của hero.
+                · Chrome nâng ảnh trong viewport lên High sau layout, tức là tranh
+                  băng thông đúng lúc hero (LCP, `fetchpriority=high`) còn đang tải.
+            */
+            fetchPriority={eager && !priority ? 'low' : undefined}
             placeholder="blur"
             blurDataURL={BLUR_DATA_URL}
             className="object-cover"
           />
 
-          {movie.quality && (
+          {qualityLabel && (
             <span className="absolute left-1.5 top-1.5 rounded-[3px] bg-bg-base/75 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-text-primary backdrop-blur-sm">
-              {movie.quality}
+              {qualityLabel}
             </span>
           )}
 

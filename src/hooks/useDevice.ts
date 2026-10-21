@@ -24,6 +24,19 @@ export function useCanHover(): boolean {
   return useDevice().canHover;
 }
 
+/**
+ * Card trong row có HoverPreview hay không — và vì thế, có khối chữ tên/năm nằm
+ * sẵn dưới ảnh hay không (không preview thì tên phim phải hiện sẵn).
+ *
+ * Một chỗ duy nhất vì BA nơi phải ra cùng đáp án: `MovieCard` (khối chữ thật), và
+ * khung chờ của `ContentRow` + `LazyRow`. Lệch nhau là row đổi chiều cao đúng lúc
+ * dữ liệu về — ~72px trên điện thoại, cả phần trang bên dưới nhảy theo.
+ */
+export function useHoverPreviewEnabled(): boolean {
+  const { canHover, budget } = useDevice();
+  return canHover && budget.hoverPreview;
+}
+
 export function useIsOnline(): boolean {
   return useDevice().network.online;
 }

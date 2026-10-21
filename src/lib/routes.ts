@@ -23,6 +23,7 @@ export const PATH = {
   home: '/',
   list: '/danh-sach',
   myList: '/danh-sach-cua-toi',
+  history: '/lich-su',
   search: '/tim-kiem',
   detail: '/phim',
   watch: '/xem',
@@ -64,9 +65,7 @@ export const routes = {
   /** Kết quả tìm kiếm. Từ khoá rỗng → trang tìm kiếm trống, không kèm query thừa. */
   search: (keyword: string) => {
     const trimmed = keyword.trim();
-    return trimmed
-      ? `${PATH.search}?${SEARCH_PARAM}=${encodeURIComponent(trimmed)}`
-      : PATH.search;
+    return trimmed ? `${PATH.search}?${SEARCH_PARAM}=${encodeURIComponent(trimmed)}` : PATH.search;
   },
 
   list: () => PATH.list,
@@ -75,6 +74,7 @@ export const routes = {
   country: (slug: string) => `${PATH.country}/${slug}`,
   year: (year: number | string) => `${PATH.year}/${year}`,
   myList: () => PATH.myList,
+  history: () => PATH.history,
 } as const;
 
 /**

@@ -79,6 +79,23 @@ describe('normalizeList — /v1/api/home', () => {
   });
 });
 
+describe('normalizeList — chất lượng video', () => {
+  const qualityOf = (quality: unknown) =>
+    normalizeList({ items: [{ slug: 'a', quality }] }).items[0]?.quality;
+
+  it('sửa lỗi gõ "FDH" của KKPhim về "FHD"', () => {
+    expect(qualityOf('FDH')).toBe('FHD');
+    expect(qualityOf(' fdh ')).toBe('FHD');
+  });
+
+  it('giữ nguyên mọi nhãn khác', () => {
+    expect(qualityOf('FHD')).toBe('FHD');
+    expect(qualityOf('HD')).toBe('HD');
+    expect(qualityOf('CAM')).toBe('CAM');
+    expect(qualityOf(undefined)).toBe('');
+  });
+});
+
 describe('normalizeDetail — Shape C (/phim/{slug}, episodes tách ngoài)', () => {
   const result = normalizeDetail(shapeC);
 

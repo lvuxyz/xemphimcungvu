@@ -198,7 +198,7 @@ function DetailModalPanel({ detail, related = [] }: DetailModalProps) {
         aria-label={detail.movie.name}
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="relative flex max-h-[90vh] w-[min(56rem,92vw)] flex-col overflow-hidden rounded-modal bg-bg-elevated shadow-elev-3 outline-none"
+        className="surface-elevated relative flex max-h-[90vh] w-[min(56rem,92vw)] flex-col overflow-hidden rounded-modal shadow-elev-3 outline-none"
         /**
          * §8.5 — shared element: card ở row biến hình thành modal.
          * `layoutId` khớp với card nguồn; khi chưa khớp được (mở trực tiếp

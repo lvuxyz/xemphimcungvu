@@ -12,7 +12,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Cùng URL với lời gọi trong page → Next gộp thành MỘT request cho cả lượt render.
   const detail = await nullOn404(() => getDetail(params.slug));
-  if (!detail || !detail.movie.slug) return { title: 'Không tìm thấy phim' };
+  if (!detail || !detail.movie.slug) notFound();
 
   const { movie } = detail;
   const description = toPlainText(movie.content, 160);
@@ -59,7 +59,7 @@ export default async function MovieDetailPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-5xl pb-16 pt-16">
-      <div className="overflow-hidden rounded-modal bg-bg-elevated shadow-elev-2">
+      <div className="surface-elevated overflow-hidden rounded-modal shadow-elev-2">
         <DetailContent detail={detail} related={related} />
       </div>
     </main>

@@ -21,6 +21,12 @@ const config: Config = {
           elevated: channel('bg-elevated'),
           hover: channel('bg-hover'),
         },
+        /* Bậc tương đối — mặt chứa quyết định màu thật, xem tokens.css */
+        surface: channel('surface'),
+        raised: {
+          DEFAULT: channel('raised'),
+          hover: channel('raised-hover'),
+        },
         text: {
           primary: channel('text-primary'),
           secondary: channel('text-secondary'),

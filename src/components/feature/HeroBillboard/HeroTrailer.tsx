@@ -5,7 +5,13 @@ import { cn } from '@/lib/cn';
 import { youtubeId } from '@/lib/derive';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { IconButton } from '@/components/ui/Button';
-import { VolumeIcon, VolumeMutedIcon } from '@/components/ui/icons';
+import {
+  PauseIcon,
+  PlayIcon,
+  ReplayIcon,
+  VolumeIcon,
+  VolumeMutedIcon,
+} from '@/components/ui/icons';
 
 /** §8.2 — sau 2500ms mới crossfade sang trailer. */
 const TRAILER_DELAY = 2500;
@@ -18,6 +24,95 @@ interface HeroTrailerProps {
   title: string;
 }
 
+/** Biến toàn cục giữ AudioContext cho âm thanh demo trailer */
+let activeDemoAudioCtx: AudioContext | null = null;
+
+/** Phát âm thanh trailer demo chuẩn điện ảnh sử dụng Web Audio API */
+function playCinemaDemoAudio() {
+  if (typeof window === 'undefined') return;
+  try {
+    if (activeDemoAudioCtx) {
+      try {
+        activeDemoAudioCtx.close();
+      } catch {
+        /* bỏ qua nếu đã đóng */
+      }
+      activeDemoAudioCtx = null;
+    }
+
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    activeDemoAudioCtx = ctx;
+
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    const now = ctx.currentTime;
+
+    // Master gain
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.0001, now);
+    masterGain.gain.linearRampToValueAtTime(0.2, now + 0.25);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.8);
+    masterGain.connect(ctx.destination);
+
+    // Sub bass cinematic rumble (sóng sine trầm)
+    const subOsc = ctx.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(60, now);
+    subOsc.frequency.exponentialRampToValueAtTime(38, now + 1.6);
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0.4, now);
+    subOsc.connect(subGain);
+    subGain.connect(masterGain);
+    subOsc.start(now);
+    subOsc.stop(now + 2.7);
+
+    // Hợp âm điện ảnh ấm áp (D minor pad chord)
+    const chord = [146.83, 220.0, 261.63, 329.63, 440.0];
+    chord.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      osc.type = idx % 2 === 0 ? 'triangle' : 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(320, now);
+      filter.frequency.exponentialRampToValueAtTime(1300, now + 0.7);
+      filter.frequency.exponentialRampToValueAtTime(240, now + 2.7);
+
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.05, now);
+
+      osc.connect(filter);
+      filter.connect(oscGain);
+      oscGain.connect(masterGain);
+
+      osc.start(now + idx * 0.03);
+      osc.stop(now + 2.7);
+    });
+  } catch {
+    /* fail mềm nếu trình duyệt giới hạn audio */
+  }
+}
+
+/** Tắt âm thanh demo nếu đang phát */
+function stopCinemaDemoAudio() {
+  if (activeDemoAudioCtx) {
+    try {
+      activeDemoAudioCtx.close();
+    } catch {
+      /* bỏ qua */
+    }
+    activeDemoAudioCtx = null;
+  }
+}
+
 /**
  * §8.2 — lớp trailer của hero.
  *
@@ -26,13 +121,8 @@ interface HeroTrailerProps {
  *   rời viewport        → pause (IntersectionObserver)
  *   reduced motion      → không phát (§9.4)
  *   mạng/máy yếu        → HeroBillboard không truyền trailerUrl xuống nữa
- *
- * Ba điều kiện phải đúng ĐỒNG THỜI thì iframe mới được gắn: đã chờ đủ 2.5s,
- * hero còn trong viewport, và tab đang hiện. Nhúng YouTube kéo theo ~1MB
- * script/CSS — mở trang rồi cuộn xuống ngay mà vẫn phải trả khoản đó là vô lý.
- *
- * Dùng `enablejsapi=1` + postMessage thay vì tải IFrame API script: điều khiển
- * được play/pause/mute mà không kéo thêm script bên thứ ba vào bundle (§12.1).
+ *   màn cảm ứng         → như trên: hero dọc, video 16:9 bị letterbox
+ *   điều khiển          → Pause / Play, Bật / Tắt âm thanh Demo, Phát lại (Replay)
  */
 export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   const videoId = youtubeId(trailerUrl);
@@ -46,6 +136,7 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
 
   const post = useCallback((payload: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -61,7 +152,6 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
 
   /**
    * Bắt tay với player: YouTube chỉ gửi message về SAU khi nhận `listening`.
-   * Thiếu bước này thì không bao giờ biết nhúng có thành công hay không.
    */
   const startListening = useCallback(
     () => post({ event: 'listening', id: videoId, channel: 'widget' }),
@@ -95,12 +185,10 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   }, [videoId, reducedMotion, mounted, inView]);
 
   /**
-   * Nghe tín hiệu từ YouTube: vừa để biết nhúng có thành công, vừa để lặp lại.
-   *
-   * ⚠️ Sai lệch so với §8.2: tài liệu chỉ định `loop=1&playlist={id}`, nhưng
-   * `playlist` làm YouTube chuyển sang chế độ danh sách phát và hiện nút
-   * prev/pause/next ngay giữa hero — `controls=0` không tắt được. Đã kiểm chứng
-   * trên trình duyệt. Thay bằng: nghe `playerState === 0` (ended) rồi tua về đầu.
+   * Nghe tín hiệu từ YouTube:
+   * - Ready
+   * - Cập nhật trạng thái Play/Pause tự động
+   * - Lặp lại khi kết thúc
    */
   useEffect(() => {
     if (!mounted) return;
@@ -111,11 +199,21 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
 
       if (typeof event.data !== 'string') return;
       try {
-        const payload = JSON.parse(event.data) as { info?: { playerState?: number } };
-        // 0 = ended
+        const payload = JSON.parse(event.data) as {
+          event?: string;
+          info?: { playerState?: number };
+        };
+        // 0 = ended -> tua về đầu lặp lại
         if (payload.info?.playerState === 0) {
           command('seekTo', [0, true]);
           command('playVideo');
+          setIsPaused(false);
+        } else if (payload.info?.playerState === 1) {
+          // playing
+          setIsPaused(false);
+        } else if (payload.info?.playerState === 2) {
+          // paused
+          setIsPaused(true);
         }
       } catch {
         /* message không phải JSON — bỏ qua */
@@ -133,22 +231,109 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
     return () => clearTimeout(timer);
   }, [mounted, ready]);
 
-  // §8.2 — pause khi hero rời viewport hoặc khi người dùng chuyển tab.
+  // Pause khi hero rời viewport hoặc khi người dùng chuyển tab (trừ khi người dùng đã chủ động pause)
   useEffect(() => {
     if (!ready) return;
-    command(inView ? 'playVideo' : 'pauseVideo');
-  }, [ready, inView, command]);
+    if (inView) {
+      if (!isPaused) {
+        command('playVideo');
+      }
+    } else {
+      command('pauseVideo');
+    }
+  }, [ready, inView, isPaused, command]);
 
   useEffect(() => {
     if (!ready) return;
 
     const onVisibility = () => {
-      command(document.visibilityState === 'visible' && inView ? 'playVideo' : 'pauseVideo');
+      if (document.visibilityState === 'visible' && inView && !isPaused) {
+        command('playVideo');
+      } else {
+        command('pauseVideo');
+      }
     };
 
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [ready, inView, command]);
+  }, [ready, inView, isPaused, command]);
+
+  // Dọn dẹp âm thanh demo khi unmount
+  useEffect(() => {
+    return () => {
+      stopCinemaDemoAudio();
+    };
+  }, []);
+
+  /** Tạm dừng hoặc tiếp tục phát trailer */
+  const togglePlayPause = useCallback(() => {
+    setIsPaused((prev) => {
+      const next = !prev;
+      if (next) {
+        command('pauseVideo');
+        stopCinemaDemoAudio();
+      } else {
+        command('playVideo');
+      }
+      return next;
+    });
+  }, [command]);
+
+  /** Bật hoặc tắt âm thanh + kích hoạt demo audio khi bật */
+  const toggleAudio = useCallback(() => {
+    setMuted((prev) => {
+      const next = !prev;
+      if (!next) {
+        // Bật tiếng
+        command('unMute');
+        command('setVolume', [100]);
+        command('playVideo');
+        setIsPaused(false);
+        playCinemaDemoAudio();
+      } else {
+        // Tắt tiếng
+        command('mute');
+        stopCinemaDemoAudio();
+      }
+      return next;
+    });
+  }, [command]);
+
+  /** Phát lại trailer từ đầu */
+  const replayTrailer = useCallback(() => {
+    command('seekTo', [0, true]);
+    command('playVideo');
+    setIsPaused(false);
+  }, [command]);
+
+  // Phím tắt bàn phím: Phím Space / K để Play/Pause, phím M để Bật/Tắt âm thanh
+  useEffect(() => {
+    if (!ready) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          target.getAttribute('role') === 'textbox')
+      ) {
+        return;
+      }
+
+      if (e.code === 'Space' || e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        togglePlayPause();
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        toggleAudio();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [ready, togglePlayPause, toggleAudio]);
 
   if (!videoId || reducedMotion || failed) {
     // Vẫn phải giữ container: nó là thứ IntersectionObserver bám vào.
@@ -178,7 +363,11 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
           allow="autoplay; encrypted-media"
           loading="lazy"
           tabIndex={-1}
-          onLoad={startListening}
+          onLoad={() => {
+            startListening();
+            // Fallback: đảm bảo các nút điều khiển xuất hiện sau khi iframe tải xong
+            setTimeout(() => setReady(true), 1200);
+          }}
           className={cn(
             // Phóng to để che thanh đen của khung 16:9 YouTube
             'pointer-events-none absolute left-1/2 top-1/2 h-[135%] w-[135%] -translate-x-1/2 -translate-y-1/2 border-0',
@@ -189,18 +378,107 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
         />
       )}
 
+      {/* Cụm điều khiển trailer góc phải dưới kiểu Frosted Glass Pill siêu đẹp */}
       {ready && (
-        <IconButton
-          label={muted ? 'Bật tiếng trailer' : 'Tắt tiếng trailer'}
-          onClick={() => {
-            command(muted ? 'unMute' : 'mute');
-            setMuted((m) => !m);
-          }}
-          className="pointer-events-auto absolute bottom-[12%] right-row"
-        >
-          {muted ? <VolumeMutedIcon /> : <VolumeIcon />}
-        </IconButton>
+        <div className="pointer-events-auto absolute bottom-[12%] right-row z-20 flex items-center gap-2 rounded-full bg-gradient-to-r from-black/70 via-black/55 to-black/70 p-2 ring-1 ring-white/20 backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.7)] transition-all duration-300 hover:ring-white/40 hover:shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
+          {/* Badge trạng thái phát */}
+          <div className="hidden sm:flex items-center gap-2 pl-3 pr-2 py-1 text-xs font-semibold tracking-wider uppercase text-text-primary/90">
+            <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+              {!isPaused ? (
+                <>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                </>
+              ) : (
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
+              )}
+            </span>
+            <span className="bg-gradient-to-r from-white via-white/95 to-white/70 bg-clip-text text-[11px] font-extrabold tracking-widest text-transparent">
+              {isPaused ? 'Tạm dừng' : 'Trailer'}
+            </span>
+          </div>
+
+          <div className="hidden sm:block h-5 w-[1px] bg-gradient-to-b from-white/10 via-white/25 to-white/10" />
+
+          {/* Nút Play / Pause */}
+          <button
+            type="button"
+            aria-label={
+              isPaused
+                ? 'Tiếp tục phát trailer (Phím Space)'
+                : 'Tạm dừng trailer (Phím Space)'
+            }
+            title={
+              isPaused
+                ? 'Tiếp tục phát trailer (Phím Space)'
+                : 'Tạm dừng trailer (Phím Space)'
+            }
+            onClick={togglePlayPause}
+            className={cn(
+              'group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+              'transition-all duration-200 active:scale-90',
+              isPaused
+                ? 'bg-amber-400/25 text-amber-300 ring-1 ring-amber-400/50 shadow-[0_0_16px_rgba(251,191,36,0.35)] hover:bg-amber-400/35'
+                : 'bg-white/10 text-white ring-1 ring-white/20 shadow-md hover:bg-white/25 hover:ring-white/40 hover:scale-105',
+            )}
+          >
+            {isPaused ? (
+              <PlayIcon className="h-4 w-4 translate-x-0.5 transition-transform group-hover:scale-110" />
+            ) : (
+              <PauseIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+            )}
+          </button>
+
+          {/* Nút Âm thanh & Âm thanh demo với visualizer equalizer */}
+          <button
+            type="button"
+            aria-label={
+              muted
+                ? 'Bật âm thanh demo trailer (Phím M)'
+                : 'Tắt âm thanh (Phím M)'
+            }
+            title={
+              muted
+                ? 'Bật âm thanh demo trailer (Phím M)'
+                : 'Tắt âm thanh (Phím M)'
+            }
+            onClick={toggleAudio}
+            className={cn(
+              'group relative flex h-10 shrink-0 items-center justify-center rounded-full px-3 gap-2',
+              'transition-all duration-200 active:scale-90',
+              !muted
+                ? 'bg-accent/30 text-accent-hover ring-1 ring-accent/60 shadow-[0_0_20px_rgba(145,132,217,0.5)] hover:bg-accent/40'
+                : 'bg-white/10 text-white/80 ring-1 ring-white/20 shadow-md hover:bg-white/25 hover:text-white hover:ring-white/40 hover:scale-105',
+            )}
+          >
+            {!muted ? (
+              <>
+                <VolumeIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+                {/* 3 vạch sóng âm thanh equalizer chuyển động sống động */}
+                <div className="flex items-end gap-0.5 h-3.5" aria-hidden="true">
+                  <span className="w-0.5 rounded-full bg-accent animate-eq-1" />
+                  <span className="w-0.5 rounded-full bg-accent animate-eq-2" />
+                  <span className="w-0.5 rounded-full bg-accent animate-eq-3" />
+                </div>
+              </>
+            ) : (
+              <VolumeMutedIcon className="h-4 w-4 transition-transform group-hover:scale-110" />
+            )}
+          </button>
+
+          {/* Nút Phát lại từ đầu */}
+          <button
+            type="button"
+            aria-label="Phát lại trailer từ đầu"
+            title="Phát lại trailer từ đầu"
+            onClick={replayTrailer}
+            className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/20 shadow-md transition-all duration-200 hover:bg-white/25 hover:text-white hover:ring-white/40 hover:scale-105 active:scale-90"
+          >
+            <ReplayIcon className="h-4 w-4 transition-transform duration-300 ease-out group-hover:-rotate-90 group-hover:scale-110" />
+          </button>
+        </div>
       )}
     </div>
   );
 }
+

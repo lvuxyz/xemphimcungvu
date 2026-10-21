@@ -97,6 +97,9 @@ export const IMAGE_SIZES = {
   hero: '(max-width: 640px) 66vw, 100vw',
   rowCard: '(max-width: 640px) 45vw, (max-width: 1024px) 30vw, (max-width: 1536px) 22vw, 16vw',
   gridCard: '(max-width: 640px) 45vw, (max-width: 1024px) 30vw, (max-width: 1536px) 16vw, 12vw',
+  /** Row poster 2:3 ở trang chủ — khớp `ROW_CARD_WIDTH.poster` của ContentRow. */
+  posterRowCard:
+    '(max-width: 640px) 36vw, (max-width: 1024px) 24vw, (max-width: 1536px) 15vw, 13vw',
   searchThumb: '40px',
   castAvatar: '80px',
 } as const;

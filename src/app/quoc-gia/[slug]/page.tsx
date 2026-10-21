@@ -19,7 +19,8 @@ async function countryName(slug: string): Promise<string | undefined> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const name = await countryName(params.slug);
-  return name ? { title: `Phim ${name}` } : {};
+  if (!name) notFound();
+  return { title: `Phim ${name}` };
 }
 
 /** §8.7 — lưới phim theo quốc gia, `/v1/api/quoc-gia/{slug}`. */

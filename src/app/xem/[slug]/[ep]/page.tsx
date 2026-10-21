@@ -10,7 +10,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const detail = await nullOn404(() => getDetail(params.slug));
-  if (!detail?.movie.slug) return { title: 'Trình phát' };
+  if (!detail?.movie.slug) notFound();
 
   const episode = resolveEpisode(detail.episodes[0]?.episodes ?? [], params.ep);
   const label = episode ? episodeLabel(episode.name) : `Tập ${params.ep}`;

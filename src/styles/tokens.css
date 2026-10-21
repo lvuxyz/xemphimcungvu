@@ -28,6 +28,27 @@
   --bg-elevated: rgb(var(--bg-elevated-rgb));
   --bg-hover: rgb(var(--bg-hover-rgb));
 
+  /**
+   * Bậc nền TƯƠNG ĐỐI — "mặt đang chứa mình" và "nổi lên một bậc so với mặt ấy".
+   *
+   * Ba bậc ở trên là tuyệt đối, nên một component tự tô `bg-bg-elevated` chỉ
+   * nhìn thấy được khi nó nằm trên `--bg-base`. Đặt nó vào panel cũng tô
+   * `--bg-elevated` là nó biến mất: đo thật trên trang chi tiết (cả modal lẫn
+   * `/phim/[slug]`), 34 phần tử cùng màu với nền cha — nút chọn tập chỉ còn chữ,
+   * avatar diễn viên không có ảnh chỉ còn hai chữ cái lơ lửng, skeleton tàng hình.
+   *
+   * Component dùng `raised` / `surface`; mặt chứa nó quyết định hai bậc ấy là gì
+   * bằng cách đổi ba biến dưới đây (xem `.surface-elevated`). Mặc định là trang.
+   *
+   * CHỈ có biến kênh, cố ý không có `--raised: rgb(var(--raised-rgb))`: biến
+   * khai báo ở `:root` được thay giá trị ngay tại `:root` rồi mới kế thừa xuống,
+   * nên nó sẽ đứng yên ở màu của trang dù panel đã đổi `--raised-rgb`. CSS thuần
+   * cần màu này thì viết thẳng `rgb(var(--raised-rgb))` tại chỗ dùng.
+   */
+  --surface-rgb: var(--bg-base-rgb);
+  --raised-rgb: var(--bg-elevated-rgb);
+  --raised-hover-rgb: var(--bg-hover-rgb);
+
   --text-primary-rgb: 255 255 255;
   --text-secondary-rgb: 161 161 168;
   --text-muted-rgb: 95 95 104;
@@ -89,4 +110,17 @@
 
   /* Font family gắn qua next/font ở app/layout.tsx */
   --font-sans: 'Be Vietnam Pro', system-ui, sans-serif;
+}
+
+/**
+ * Panel nổi (modal chi tiết, khung trang `/phim/[slug]`): tự tô nền và đổi luôn
+ * hai bậc tương đối cho mọi thứ bên trong. Dùng class này THAY cho
+ * `bg-bg-elevated` ở chỗ dựng panel — để nền và ý nghĩa của nền đi cùng nhau.
+ */
+.surface-elevated {
+  --surface-rgb: var(--bg-elevated-rgb);
+  --raised-rgb: var(--bg-hover-rgb);
+  --raised-hover-rgb: 40 40 48;
+
+  background-color: rgb(var(--surface-rgb));
 }
