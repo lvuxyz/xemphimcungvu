@@ -319,7 +319,7 @@ describe('Danh sách của tôi làm tín hiệu thứ hai', () => {
 });
 
 describe('personalizeRows — row trang chủ hiện tại', () => {
-  /** Đúng thứ tự `LAZY_ROWS` của `app/page.tsx`. */
+  /** Đúng thứ tự `LAZY_ROWS` của `app/(home)/page.tsx`. */
   const HOME_ROWS: TasteRow[] = [
     { id: 'type-phim-bo', title: 'Phim bộ', source: { kind: 'type', type: 'phim-bo' }, href: '/a' },
     {

@@ -84,3 +84,39 @@ export function RowSkeleton({ count = 6 }: { count?: number }) {
     </div>
   );
 }
+
+/**
+ * Khung chờ của các trang lưới phim (`/danh-sach`, `/the-loai`, `/quoc-gia`,
+ * `/nam`, `/tim-kiem`): `ListHeader` → `FilterBar` → `MovieGrid`.
+ *
+ * Cùng `pt-24`, cùng `px-row`, cùng số cột với khối thật để lúc dữ liệu về lưới
+ * không đổi bề rộng ô. Trước đây các trang này mượn skeleton của trang chủ (hero
+ * full-bleed + row ngang) — sai hình hoàn toàn với một lưới poster.
+ */
+export function ListPageSkeleton() {
+  return (
+    <main className="pb-16" aria-hidden="true">
+      <div className="px-row pt-24">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="mt-2 h-4 w-20" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 px-row py-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-9 w-28 rounded-pill" />
+        ))}
+      </div>
+
+      <ul
+        role="list"
+        className="grid grid-cols-2 gap-3 px-row sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6"
+      >
+        {Array.from({ length: 12 }).map((_, i) => (
+          <li key={i}>
+            <Skeleton className="aspect-poster w-full" />
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
