@@ -152,6 +152,30 @@ describe('loại trùng giữa các section', () => {
     expect(row).toEqual(slugs(ROW_LIMIT).map((m) => m.slug));
   });
 
+  it('mỗi bộ phim chỉ hiện một phần — phần đứng trước trong nguồn', () => {
+    const lupin = [4, 3, 2, 1].map((n) => ({ slug: `sieu-trom-lupin-phan-${n}` }));
+    const kept = excludeShown([...lupin, ...slugs(20)], []).map((m) => m.slug);
+
+    expect(kept.filter((slug) => slug.startsWith('sieu-trom-lupin'))).toEqual([
+      'sieu-trom-lupin-phan-4',
+    ]);
+    expect(kept).toHaveLength(ROW_LIMIT);
+  });
+
+  it('phần đã ở màn đầu hay ở section khác thì các phần còn lại cũng không hiện', () => {
+    const feed = [{ slug: 'sieu-trom-lupin-phan-2' }];
+    const items = [{ slug: 'sieu-trom-lupin-phan-1' }, { slug: 'sieu-trom-lupin' }, ...slugs(3)];
+
+    expect(excludeShown(items, feed).map((m) => m.slug)).toEqual(['phim-0', 'phim-1', 'phim-2']);
+    expect(excludeShown(items, [], feed).map((m) => m.slug)[0]).toBe('phim-0');
+  });
+
+  it('row đầu bỏ cả các phần khác của bộ phim đang ở hero', () => {
+    const feed = [{ slug: 'lupin-mua-1' }, { slug: 'lupin-mua-2' }, ...slugs(20)];
+    const row = homeFirstRow(feed, 'lupin-season-3').map((m) => m.slug);
+    expect(row[0]).toBe('phim-0');
+  });
+
   it('section loại ĐÚNG những phim đã ở màn đầu, dù hero là ứng viên nào', () => {
     const feed = slugs(24);
 
