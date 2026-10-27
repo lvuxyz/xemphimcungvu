@@ -7,7 +7,7 @@ import { MOTION } from '@/lib/constants';
 import type { CardMovie } from '@/types/movie';
 import { useRowScroll } from '@/hooks/useRowScroll';
 import { useInView } from '@/hooks/useInView';
-import { useDevice, useHoverPreviewEnabled } from '@/hooks/useDevice';
+import { useDevice } from '@/hooks/useDevice';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/ui/icons';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { IMAGE_SIZES } from '@/lib/image';
@@ -72,8 +72,6 @@ export function ContentRow({
     useRowScroll<HTMLUListElement>();
   const { cols, canHover } = useDevice();
   const poster = variant === 'poster';
-  // Card poster luôn có khối tên dưới ảnh; card ngang chỉ có khi không có preview.
-  const withMeta = !useHoverPreviewEnabled() || poster;
 
   /**
    * Row đầu (nằm ngay dưới hero) và row `LazyRow` vừa dựng đều BIẾT mình đang ở
@@ -252,7 +250,7 @@ export function ContentRow({
               ) : (
                 // Giữ đúng chỗ để không gây CLS khi card mount (§12.1) — kể cả khối
                 // tên/năm dưới ảnh ở máy không có HoverPreview.
-                <CardSkeleton aspect={poster ? 'poster' : 'backdrop'} meta={withMeta} />
+                <CardSkeleton aspect={poster ? 'poster' : 'backdrop'} />
               )}
             </li>
           ))}

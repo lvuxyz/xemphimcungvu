@@ -7,7 +7,6 @@ import { fetchHomeSection, homeSectionLayout, type HomeSection } from '@/lib/hom
 import { queryKeys } from '@/lib/query-keys';
 import { useInView } from '@/hooks/useInView';
 import { useHasScrolled } from '@/hooks/useHasScrolled';
-import { useHoverPreviewEnabled } from '@/hooks/useDevice';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { ContentRow, ROW_CARD_WIDTH } from './ContentRow';
 
@@ -67,8 +66,6 @@ export function LazyRow({ title, section, href }: LazyRowProps) {
   });
 
   const variant = homeSectionLayout(section);
-  // Cùng luật với `ContentRow`: card poster luôn có khối tên dưới ảnh.
-  const withMeta = !useHoverPreviewEnabled() || variant === 'poster';
 
   if (isError || (data && data.length === 0)) return null;
 
@@ -98,7 +95,7 @@ export function LazyRow({ title, section, href }: LazyRowProps) {
         <div className="flex gap-2 overflow-hidden px-row py-1" aria-hidden="true">
           {Array.from({ length: variant === 'poster' ? 8 : 6 }).map((_, i) => (
             <div key={i} className={cn('shrink-0', ROW_CARD_WIDTH[variant])}>
-              <CardSkeleton aspect={variant === 'poster' ? 'poster' : 'backdrop'} meta={withMeta} />
+              <CardSkeleton aspect={variant === 'poster' ? 'poster' : 'backdrop'} />
             </div>
           ))}
         </div>
