@@ -22,7 +22,8 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['entertainment', 'video'],
     icons: [
       {
-        src: '/placeholder-poster.svg',
+        /** `app/icon.svg` — cùng icon với tab trình duyệt. */
+        src: '/icon.svg',
         sizes: 'any',
         type: 'image/svg+xml',
         purpose: 'any',
