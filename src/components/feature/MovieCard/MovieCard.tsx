@@ -213,17 +213,19 @@ export function MovieCard({
           )}
         </div>
 
-        {/* Không có HoverPreview (grid, hoặc màn cảm ứng) thì tên phim phải hiện sẵn */}
-        {(!isRow || !previewEnabled) && (
-          <div className="space-y-1 p-2">
-            <p className="truncate text-xs font-medium text-text-primary">{movie.name}</p>
-            <p className="truncate text-[11px] text-text-muted">{movie.originName}</p>
-            <div className="flex items-center gap-2 text-[10px] text-text-muted">
-              {movie.year > 0 && <span>{movie.year}</span>}
-              <MatchScore score={matchScore(movie)} className="text-[10px]" />
-            </div>
+        {/*
+          Tên phim luôn hiện sẵn, kể cả card ngang có HoverPreview: nhiều phim dùng
+          chung một ảnh (các phần của cùng một bộ, ảnh mặc định của KKPhim) nên chỉ
+          nhìn ảnh thì không phân biệt được — phải rê chuột từng card mới biết.
+        */}
+        <div className="space-y-1 p-2">
+          <p className="truncate text-xs font-medium text-text-primary">{movie.name}</p>
+          <p className="truncate text-[11px] text-text-muted">{movie.originName}</p>
+          <div className="flex items-center gap-2 text-[10px] text-text-muted">
+            {movie.year > 0 && <span>{movie.year}</span>}
+            <MatchScore score={matchScore(movie)} className="text-[10px]" />
           </div>
-        )}
+        </div>
       </Link>
 
       {mounted && (

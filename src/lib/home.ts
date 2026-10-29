@@ -41,17 +41,42 @@ export const HOME_SHOWN = ROW_LIMIT + 1;
 export const SECTION_FETCH_LIMIT = ROW_LIMIT + HOME_SHOWN + ROW_LIMIT;
 
 /**
+ * Khoá "cùng một bộ phim": slug bỏ hậu tố phần/mùa. KKPhim tách mỗi phần thành
+ * một phim riêng — `sieu-trom-lupin-phan-1`…`-phan-4` — nhưng dùng chung ảnh, nên
+ * đứng cạnh nhau trên row là bốn card y hệt (đo 28/10/2026, section "Phim bộ").
+ * Trang chủ chỉ hiện MỘT phần mỗi bộ: phần đứng trước trong nguồn, tức phần mới
+ * cập nhật nhất.
+ */
+const SEASON_SUFFIX = /-(?:phan|mua|season|part|ss)-?\d+$/;
+
+export function franchiseKey(slug: string): string {
+  return slug.replace(SEASON_SUFFIX, '');
+}
+
+/** Giữ phim đầu tiên của mỗi bộ, bỏ những phim có khoá nằm trong `seen` (và thêm khoá vào đó). */
+function uniqueFranchises<T extends { slug: string }>(
+  items: readonly T[],
+  seen = new Set<string>(),
+): T[] {
+  return items.filter((movie) => {
+    const key = franchiseKey(movie.slug);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
  * Row "Mới cập nhật": `ROW_LIMIT` phim đầu của nguồn, BỎ phim đang nằm trên hero —
- * card đầu tiên ngay dưới hero lặp lại đúng phim trên hero là phí mất một chỗ.
+ * card đầu tiên ngay dưới hero lặp lại đúng phim trên hero là phí mất một chỗ —
+ * và mỗi bộ phim chỉ một phần (`franchiseKey`), kể cả bộ của phim hero.
  */
 export function homeFirstRow<T extends { slug: string }>(
   feed: readonly T[],
   heroSlug?: string,
 ): T[] {
-  return feed
-    .slice(0, HOME_SHOWN)
-    .filter((movie) => movie.slug !== heroSlug)
-    .slice(0, ROW_LIMIT);
+  const seen = new Set(heroSlug ? [franchiseKey(heroSlug)] : []);
+  return uniqueFranchises(feed.slice(0, HOME_SHOWN), seen).slice(0, ROW_LIMIT);
 }
 
 /**
@@ -61,14 +86,20 @@ export function homeFirstRow<T extends { slug: string }>(
  * Loại theo `HOME_SHOWN` phim đầu của nguồn chứ không theo đúng phim hero: route
  * không biết phim nào được chọn làm hero (bộ chọn còn xét backdrop và trailer),
  * nhưng biết chắc hero nằm trong khoảng đó — nên loại cả khoảng là vừa đủ.
+ *
+ * So theo bộ phim (`franchiseKey`), không theo slug: phần 2 đã ở "Mới cập nhật"
+ * thì phần 1 cũng không hiện lại ở "Phim bộ", và trong chính section cũng chỉ một
+ * phần mỗi bộ.
  */
 export function excludeShown<T extends { slug: string }>(
   items: readonly T[],
   feed: readonly { slug: string }[],
   claimed: readonly { slug: string }[] = [],
 ): T[] {
-  const shown = new Set([...feed.slice(0, HOME_SHOWN), ...claimed].map((movie) => movie.slug));
-  return items.filter((movie) => !shown.has(movie.slug)).slice(0, ROW_LIMIT);
+  const shown = new Set(
+    [...feed.slice(0, HOME_SHOWN), ...claimed].map((movie) => franchiseKey(movie.slug)),
+  );
+  return uniqueFranchises(items, shown).slice(0, ROW_LIMIT);
 }
 
 /**

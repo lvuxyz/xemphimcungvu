@@ -8,26 +8,13 @@ export function Skeleton({ className }: { className?: string }) {
   return <div aria-hidden="true" className={cn('skeleton rounded-card', className)} />;
 }
 
-export function CardSkeleton({
-  aspect = 'backdrop',
-  meta = false,
-}: {
-  aspect?: 'backdrop' | 'poster';
-  /**
-   * Thêm khung chờ cho khối chữ dưới ảnh. Bật đúng khi card thật có khối đó —
-   * card row chỉ có nó khi KHÔNG có HoverPreview (`useHoverPreviewEnabled`).
-   */
-  meta?: boolean;
-}) {
-  const media = (
-    <Skeleton className={aspect === 'poster' ? 'aspect-poster w-full' : 'aspect-backdrop w-full'} />
-  );
-
-  if (!meta) return media;
-
+/** Khung chờ của một `MovieCard`: ảnh + khối chữ dưới ảnh (card nào cũng có khối đó). */
+export function CardSkeleton({ aspect = 'backdrop' }: { aspect?: 'backdrop' | 'poster' }) {
   return (
     <div aria-hidden="true">
-      {media}
+      <Skeleton
+        className={aspect === 'poster' ? 'aspect-poster w-full' : 'aspect-backdrop w-full'}
+      />
       <CardMetaSkeleton />
     </div>
   );
