@@ -5,17 +5,11 @@ import { InfiniteGrid } from '@/components/feature/FilterBar/InfiniteGrid';
 import { EmptyState, ListHeader } from '@/components/feature/FilterBar/MovieGrid';
 import { getByYear, getTaxonomies, nullOn404 } from '@/lib/endpoints';
 import { parseListFilters, type RawSearchParams } from '@/lib/search-params';
+import { parseYear } from './parse-year';
 
 interface Props {
   params: { year: string };
   searchParams: RawSearchParams;
-}
-
-/** §3.1 — năm hợp lệ từ 1911 tới hiện tại (nới 2 năm cho phim sắp chiếu). */
-function parseYear(raw: string): number | null {
-  const year = Number.parseInt(raw, 10);
-  if (!Number.isFinite(year) || year < 1911 || year > new Date().getFullYear() + 2) return null;
-  return year;
 }
 
 export function generateMetadata({ params }: Props): Metadata {

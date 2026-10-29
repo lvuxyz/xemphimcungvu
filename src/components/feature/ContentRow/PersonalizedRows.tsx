@@ -24,7 +24,7 @@ const NO_LIST: readonly ListedMovie[] = [];
  *   · lúc đảo, mọi row đều đang là khung chờ và chưa row nào fetch — không request
  *     nào bị bỏ đi. Khung chờ ảnh ngang đều cao bằng nhau; khung poster của "Phim
  *     chiếu rạp" thì cao hơn, nên nó KHÔNG được lên chỗ đầu — chỗ duy nhất có thể
- *     đang ló trong màn đầu (xem `LAZY_ROWS` ở `app/page.tsx`)
+ *     đang ló trong màn đầu (xem `LAZY_ROWS` ở `app/(home)/page.tsx`)
  *
  * Và nó KHÔNG làm tăng số request: vẫn bấy nhiêu row, vẫn `LazyRow` chờ viewport. Đảo thứ
  * tự chỉ đổi row nào được gọi trước — cùng số lời gọi, trả về thứ đáng xem hơn.
