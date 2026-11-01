@@ -396,6 +396,19 @@
   .row-track {
     scroll-behavior: auto;
   }
+
+  /* Modal: vẫn fade (§9.4), bỏ scale, rút ngắn — như ngoại lệ `data-motion='fade'`. */
+  .modal-backdrop-in,
+  .modal-panel-in {
+    animation-name: modalFadeIn !important;
+    animation-duration: var(--duration-micro) !important;
+  }
+
+  .modal-backdrop-out,
+  .modal-panel-out {
+    animation-name: modalFadeOut !important;
+    animation-duration: var(--duration-micro) !important;
+  }
 }
 
 /**
@@ -419,25 +432,56 @@
 }
 
 /**
- * Chuyển trang (app/template.tsx). Chỉ fade, KHÔNG dịch chuyển: hero là ảnh
- * full-bleed chạy lên tận dưới navbar, dịch nó xuống vài pixel là lòi ra một
- * vệt nền tối ở mép trên suốt thời gian animation.
+ * Modal chi tiết (`DetailModal` + skeleton `loading.tsx` của nó). Lớp nào đứng
+ * lên màn hình TRƯỚC thì lớp đó chạy hiệu ứng mở, lớp thay vào sau thì không —
+ * xem `modal-motion.ts`. Đường cong panel bám spring cũ (stiffness 300, damping 30):
+ * vọt nhanh, đỗ êm, không nảy.
  *
- * `backwards` chứ không `both`: giữ trạng thái đầu trước khi animation chạy,
- * nhưng trả quyền lại cho `opacity` thường ngay khi xong — nếu giữ luôn
- * trạng thái cuối thì cả cây trang nằm mãi trên một layer riêng của compositor.
+ * `backwards` cho chiều mở: xong là trả `opacity`/`transform` về bình thường,
+ * không giữ panel mãi trên một layer riêng. `forwards` cho chiều đóng: phải giữ
+ * nguyên trạng thái cuối tới lúc route tháo cây. Thời lượng đóng do
+ * `DetailModal` đặt inline theo `EXIT_MS` — cùng một con số với hẹn giờ lùi route.
  */
-@keyframes pageIn {
+@keyframes modalFadeIn {
   from {
     opacity: 0;
   }
-  to {
-    opacity: 1;
+}
+
+@keyframes modalPanelIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
   }
 }
 
-.page-enter {
-  animation: pageIn var(--duration-standard) var(--ease-standard) backwards;
+@keyframes modalFadeOut {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modalPanelOut {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.modal-backdrop-in {
+  animation: modalFadeIn var(--duration-standard) var(--ease-standard) backwards;
+}
+
+.modal-panel-in {
+  animation: modalPanelIn 380ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.modal-backdrop-out {
+  animation: modalFadeOut 150ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.modal-panel-out {
+  animation: modalPanelOut 150ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 /** Hiệu ứng nổi mượt cho popup thông báo điều khiển */

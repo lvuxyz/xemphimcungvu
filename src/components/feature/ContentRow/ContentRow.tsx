@@ -60,6 +60,9 @@ interface ContentRowProps {
  * Xem chú thích `.row-track` trong styles/globals.css về việc §8.3 yêu cầu
  * `overflow: visible` nhưng CSS không cho phép, và cách đi vòng.
  */
+/** Phạm vi module: đã có row nào hiện trong phiên này chưa — xem `animateEnter`. */
+let rowsShown = false;
+
 export function ContentRow({
   title,
   movies,
@@ -113,6 +116,23 @@ export function ContentRow({
   useEffect(() => {
     if (inView) setHasEntered(true);
   }, [inView]);
+
+  /**
+   * §9.3 stagger chỉ dành cho lúc card XUẤT HIỆN lần đầu, không phải mỗi lần
+   * component mount. Back về trang chủ dựng lại mọi row: chạy lại stagger là bắt
+   * người xem chờ ~620ms để card cuối hàng đầu hiện đủ — cho thứ họ vừa thấy cách
+   * đây vài giây, chồng lên đúng lúc trang đang chuyển.
+   *
+   * Chỉ stagger ở lượt tải ĐẦU của phiên, hoặc khi `LazyRow` vừa thay khung chờ
+   * bằng card (`mountedInView`) — đó mới là "xuất hiện". Row dựng lại từ cache
+   * (Back về trang chủ) thì hiện thẳng. Server và lượt hydrate đều thấy
+   * `rowsShown = false` nên không lệch HTML.
+   */
+  const [animateEnter] = useState(() => mountedInView || !rowsShown);
+
+  useEffect(() => {
+    rowsShown = true;
+  }, []);
 
   // §13.1 — roving tabindex: chỉ một card trong row nhận Tab.
   const [rovingIndex, setRovingIndex] = useState(0);
@@ -211,7 +231,7 @@ export function ContentRow({
               className={cn(
                 'row-item relative z-0 focus-within:z-30 hover:z-30',
                 ROW_CARD_WIDTH[variant],
-                hasEntered && 'row-item-enter',
+                hasEntered && animateEnter && 'row-item-enter',
               )}
               // §9.3 — stagger 40ms/item, dừng sau 8 item
               style={{ '--stagger': Math.min(index, MOTION.staggerMax) } as React.CSSProperties}

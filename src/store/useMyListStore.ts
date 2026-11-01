@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { CardMovie, Movie } from '@/types/movie';
@@ -108,29 +108,42 @@ export const useMyListStore = create<MyListState>()(
  * viễn dù entries đã đọc về đủ. Hỏi thẳng API của persist thì không có cái bẫy đó.
  */
 export function useMyListHydrated(): boolean {
-  // Lượt render đầu luôn là `false` để khớp HTML server (§13 tránh mismatch).
-  const [hydrated, setHydrated] = useState(false);
+  /**
+   * `useSyncExternalStore` chứ không phải `useState(false)` + effect: bản đó bắt
+   * đầu bằng `false` ở MỌI lần mount, kể cả khi điều hướng mềm về trang chủ lúc
+   * store đã đọc xong từ lâu. Các row cá nhân hoá vì thế vẽ một lượt theo thứ tự
+   * "chưa biết gì", rồi tráo chỗ ngay sau đó — một lần dựng lại cả trang, chồng
+   * đúng lên lúc trang vừa hiện.
+   *
+   * Lượt hydrate vẫn nhận `getServerSnapshot` = `false` nên vẫn khớp HTML server
+   * (§13 tránh mismatch); chỉ những lần mount sau mới đọc thẳng được `true`.
+   */
+  return useSyncExternalStore(subscribeHydration, isHydrated, () => false);
+}
 
-  useEffect(() => {
-    if (useMyListStore.persist.hasHydrated()) {
-      setHydrated(true);
-      return;
-    }
+/**
+ * Storage không dùng được (Safari private mode, cookie bị chặn) → persist bỏ
+ * qua hydrate và KHÔNG bao giờ báo xong. Vẫn phải cho trang hiện ra, với danh
+ * sách rỗng, thay vì để skeleton chạy mãi. Phạm vi module: hết hạn một lần là
+ * xong cho cả phiên.
+ */
+let hydrationTimedOut = false;
 
-    const unsubscribe = useMyListStore.persist.onFinishHydration(() => setHydrated(true));
+function isHydrated(): boolean {
+  return hydrationTimedOut || useMyListStore.persist.hasHydrated();
+}
 
-    /**
-     * Storage không dùng được (Safari private mode, cookie bị chặn) → persist bỏ
-     * qua hydrate và KHÔNG bao giờ báo xong. Vẫn phải cho trang hiện ra, với
-     * danh sách rỗng, thay vì để skeleton chạy mãi.
-     */
-    const timer = setTimeout(() => setHydrated(true), 1_000);
+function subscribeHydration(onChange: () => void): () => void {
+  if (isHydrated()) return () => {};
 
-    return () => {
-      unsubscribe();
-      clearTimeout(timer);
-    };
-  }, []);
+  const unsubscribe = useMyListStore.persist.onFinishHydration(onChange);
+  const timer = setTimeout(() => {
+    hydrationTimedOut = true;
+    onChange();
+  }, 1_000);
 
-  return hydrated;
+  return () => {
+    unsubscribe();
+    clearTimeout(timer);
+  };
 }

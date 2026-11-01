@@ -1,12 +1,14 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
 import { episodeLabel, resolveEpisode } from '@/lib/derive';
 import { routes } from '@/lib/routes';
 import type { MovieDetailResult } from '@/types/movie';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
+import { useDevice } from '@/hooks/useDevice';
 import { Button } from '@/components/ui/Button';
 import { ArrowLeftIcon } from '@/components/ui/icons';
 import { EpisodePicker } from '@/components/feature/DetailModal/EpisodePicker';
@@ -19,6 +21,9 @@ const VideoPlayer = dynamic(
     loading: () => <div className="skeleton aspect-backdrop w-full rounded-card" />,
   },
 );
+
+/** Chờ bao lâu sau khi vào trang phát mới tải trước tập kế tiếp. */
+const PREFETCH_NEXT_DELAY = 8000;
 
 interface WatchScreenProps {
   detail: MovieDetailResult;
@@ -38,12 +43,33 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
   const index = episode ? list.indexOf(episode) : -1;
   const next = index >= 0 ? list[index + 1] : undefined;
 
+  /**
+   * Tải trước tập kế tiếp — đích người xem chắc chắn sẽ tới (Tập tiếp, auto-next).
+   *
+   * Link tập trong `EpisodePicker` cố ý không tự prefetch, nên không có dòng này
+   * thì mỗi lần sang tập là một vòng chờ server với màn cũ đứng im, rồi skeleton.
+   * Hoãn vài giây để không tranh băng thông với những segment HLS đầu tiên — đó
+   * mới là thứ người xem đang chờ lúc vừa vào trang. Mạng yếu thì chỉ tải lúc
+   * hết tập (`onEnded`): 10s đếm ngược thừa đủ cho một payload RSC.
+   */
+  const router = useRouter();
+  const { tier } = useDevice();
+  const nextHref = next ? routes.watch(movie.slug, next.slug) : null;
+
+  useEffect(() => {
+    if (!nextHref || tier === 'low') return;
+    const timer = setTimeout(() => router.prefetch(nextHref), PREFETCH_NEXT_DELAY);
+    return () => clearTimeout(timer);
+  }, [nextHref, tier, router]);
+
   /** §10.6 — auto next có countdown 10s và nút huỷ. */
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const onEnded = useCallback(() => {
-    if (next) setCountdown(PLAYER.autoNextCountdown);
-  }, [next]);
+    if (!nextHref) return;
+    router.prefetch(nextHref);
+    setCountdown(PLAYER.autoNextCountdown);
+  }, [nextHref, router]);
 
   /**
    * Đổi tập là `replace`, KHÔNG phải `push` (§2.3).

@@ -407,6 +407,52 @@ export async function getRelated(
   return items.filter((item) => item.slug !== movie.slug).slice(0, limit);
 }
 
+/**
+ * Dữ liệu màn chi tiết, tách theo thứ tự cần vẽ — dùng chung cho modal và trang full.
+ *
+ * Bản cũ `await getMovieBundle()` rồi MỚI `getRelated()`: modal đứng ở skeleton
+ * cho tới khi endpoint bổ trợ chậm nhất về, cộng thêm nguyên một vòng gọi
+ * `/the-loai/{slug}` nối đuôi. Đo trên build prod, cache lạnh: 2,0–2,8s từ cú
+ * bấm tới lúc thấy nội dung, trong khi riêng `getDetail` chỉ ~1s.
+ *
+ * Giờ mọi lời gọi bắn CÙNG LÚC, nhưng chỉ `detail` là thứ phải chờ:
+ *
+ *   · `detail` — cốt lõi + ảnh. Ảnh đi cùng vì backdrop là khung hero của màn:
+ *     vẽ `movie.thumb` trước rồi đổi sang backdrop là một cú nháy giữa mặt người xem
+ *   · `peoples`, `keywords`, `related` — trả PROMISE, `DetailContent` stream từng
+ *     phần qua Suspense. Không bao giờ reject: lỗi thì về rỗng (§14.1)
+ *
+ * `related` chỉ cần thể loại đầu tiên nên nối vào `getDetail` chứ không chờ cả gói.
+ * `detail` ném tiếp lỗi không phải 404 cho `error.tsx`, như trước.
+ */
+export function loadDetailScreen(slug: string): DetailScreenData {
+  const detailP = nullOn404(() => getDetail(slug));
+
+  const detail = Promise.all([detailP, getMovieImages(slug)]).then(([core, images]) =>
+    core?.movie.slug ? { ...core, images } : null,
+  );
+  const related = detailP
+    .then((core) => (core?.movie.slug ? getRelated(core.movie) : []))
+    .catch(() => []);
+
+  return {
+    detail,
+    peoples: getMoviePeoples(slug),
+    keywords: getMovieKeywords(slug),
+    related,
+  };
+}
+
+export type MovieDetailCore = MovieDetailResult & { images: MovieImages };
+
+export interface DetailScreenData {
+  /** `null` — phim không tồn tại (404 hoặc 200 rỗng). */
+  detail: Promise<MovieDetailCore | null>;
+  peoples: Promise<Person[]>;
+  keywords: Promise<Keyword[]>;
+  related: Promise<Movie[]>;
+}
+
 export interface Taxonomies {
   categories: Taxonomy[];
   countries: Taxonomy[];
