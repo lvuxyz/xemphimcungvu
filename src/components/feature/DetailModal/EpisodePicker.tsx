@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useDevice } from '@/hooks/useDevice';
 import { cn } from '@/lib/cn';
 import { episodeLabel } from '@/lib/derive';
 import { getMovieProgress } from '@/lib/storage';
@@ -52,6 +54,29 @@ export function EpisodePicker({
 
   useEffect(() => setProgress(getMovieProgress(slug)), [slug]);
 
+  /**
+   * Link tập KHÔNG tự prefetch. `/xem/[slug]/[ep]` là route tĩnh nên mỗi link
+   * lọt vào viewport kéo về NGUYÊN payload trang phát: mở modal một bộ 40 tập là
+   * vài chục request RSC xếp hàng trong 5 slot prefetch của router — đứng trước
+   * cả nút Phát lẫn tập kế tiếp, đúng hai thứ người xem sắp bấm nhất. Hai thứ đó
+   * có prefetch riêng (nút Phát là `<Link>` thường; tập kế do `WatchScreen`).
+   *
+   * Thay bằng prefetch theo ý định: chuột lướt tới, focus bàn phím, hoặc ngón tay
+   * chạm xuống — `prefetch={false}` tắt luôn cả prefetch hover sẵn có của Link,
+   * nên phải tự gắn. Mạng yếu thì thôi, như `MovieCard`.
+   */
+  const router = useRouter();
+  const { tier } = useDevice();
+  const prefetched = useRef(new Set<string>());
+  const prefetch = useCallback(
+    (href: string) => {
+      if (tier === 'low' || prefetched.current.has(href)) return;
+      prefetched.current.add(href);
+      router.prefetch(href);
+    },
+    [router, tier],
+  );
+
   if (servers.length === 0) return null;
 
   return (
@@ -98,12 +123,18 @@ export function EpisodePicker({
         {active?.episodes.map((episode) => {
           const isCurrent = currentEpisode === episode.slug;
           const watched = progress[episode.slug];
+          const href = routes.watch(slug, episode.slug);
+          const warm = () => prefetch(href);
 
           return (
             <li key={episode.slug}>
               <Link
-                href={routes.watch(slug, episode.slug)}
+                href={href}
                 replace={replaceOnSelect}
+                prefetch={false}
+                onPointerEnter={warm}
+                onFocus={warm}
+                onTouchStart={warm}
                 aria-current={isCurrent ? 'true' : undefined}
                 className={cn(
                   'relative block overflow-hidden truncate rounded-card px-2 py-2 text-center text-xs',

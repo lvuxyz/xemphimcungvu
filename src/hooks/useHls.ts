@@ -8,6 +8,26 @@ import { getPlayerSettings, savePlayerSettings } from '@/lib/storage';
 import { useDevice } from './useDevice';
 
 /**
+ * hls.js (~55KB gzip) bắt đầu tải ngay lượt render đầu của player, không chờ tới
+ * effect gắn player — bản cũ `import()` bên trong effect nên thành một bậc thác:
+ * chunk player về → mount → effect chạy → mới đi lấy hls.js → mới xin m3u8.
+ * Chỉ khi tập CÓ link m3u8: tập chỉ có link nhúng không cần tới hls.js.
+ *
+ * Lỗi thì quên promise đi: nút "Thử lại" phải được import lại từ đầu, không nhận
+ * mãi một promise đã hỏng (rớt mạng, chunk cũ sau deploy).
+ */
+let hlsModule: Promise<typeof import('hls.js')> | null = null;
+
+function loadHls() {
+  hlsModule ??= import('hls.js').catch((error: unknown) => {
+    hlsModule = null;
+    throw error;
+  });
+  return hlsModule;
+}
+
+
+/**
  * §10.1–10.2 — vòng đời hls.js và luồng fallback.
  *
  *   1. Khởi tạo hls.js với cấu hình theo chất lượng mạng (lib/hls-config.ts)
@@ -46,6 +66,9 @@ interface UseHlsOptions {
 }
 
 export function useHls({ linkM3u8, linkEmbed, onFallback, autoPlay = false }: UseHlsOptions) {
+  // Gọi trong render là cố ý (xem `loadHls`): idempotent, và sớm hơn effect một nhịp.
+  if (typeof window !== 'undefined' && linkM3u8) loadHls().catch(() => {});
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsType | null>(null);
 
@@ -95,7 +118,7 @@ export function useHls({ linkM3u8, linkEmbed, onFallback, autoPlay = false }: Us
     setRecovering(false);
 
     const attach = async () => {
-      const { default: Hls } = await import('hls.js');
+      const { default: Hls } = await loadHls();
       if (disposed) return;
 
       // Safari/iOS phát HLS thẳng, không cần MSE — nhẹ pin hơn hẳn.

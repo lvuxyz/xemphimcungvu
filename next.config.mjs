@@ -80,6 +80,16 @@ const nextConfig = {
 
   experimental: {
     optimizePackageImports: ['framer-motion'],
+
+    /**
+     * Router cache phía client giữ trang động bao lâu trước khi phải hỏi lại server.
+     *
+     * Mặc định 30s: mở lại một modal phim hay quay về trang thể loại sau nửa phút
+     * là thêm một vòng RSC kèm skeleton, cho đúng dữ liệu đã có trong tay. 120 =
+     * `REVALIDATE.search`, cache ngắn nhất phía server — không route nào hiện thứ
+     * cũ hơn chính cache của nó. F5 hay `router.refresh()` vẫn lấy bản mới.
+     */
+    staleTimes: { dynamic: 120, static: 300 },
   },
 
   /**

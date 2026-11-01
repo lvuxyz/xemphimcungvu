@@ -1,11 +1,25 @@
 'use client';
 
 import Image, { type ImageProps } from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { PLACEHOLDER_POSTER } from '@/lib/constants';
 import { IMAGE_QUALITY } from '@/lib/network';
 import { isOptimizable, isPlaceholder } from '@/lib/image';
+
+/** `useLayoutEffect` ở client, `useEffect` lúc SSR — React 18 cảnh báo layout effect trên server. */
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+/**
+ * Ảnh đã từng tải xong trong phiên này. Card mount lại (Back về trang chủ, đổi
+ * trang danh sách) bắt đầu luôn ở trạng thái "đã có" — không vẽ một khung
+ * `opacity: 0` nào để rồi fade lại thứ đã nằm sẵn trong cache trình duyệt.
+ *
+ * Khoá gồm cả `sizes`/`width`/`quality`, không chỉ URL gốc: qua optimizer thì
+ * cùng một poster ở card 180px và ở hero là hai file khác nhau — bản to chưa
+ * tải mà bị coi là "đã có" thì hiện ra trần trụi, không fade.
+ */
+const loadedSrcs = new Set<string>();
 
 interface SmartImageProps extends ImageProps {
   /** Ảnh dự phòng khi CDN trả 404. Khung 16:9 truyền `PLACEHOLDER_BACKDROP`. */
@@ -38,6 +52,7 @@ interface SmartImageProps extends ImageProps {
  *    — đúng bằng nền card — nên "blur-up" của next/image thực chất là một cú
  *    NHẢY từ ô xám sang ảnh thật. Lướt một row 18 card là 18 cú nhảy lệch pha
  *    nhau. Fade chồng lên đúng ô xám đó thì không mất thông tin gì, chỉ mượt hơn.
+ *    CHỈ ảnh thật sự còn phải tải mới fade — ảnh đã có thì hiện ngay (`loadedSrcs`).
  */
 export function SmartImage({
   quality,
@@ -48,7 +63,6 @@ export function SmartImage({
 }: SmartImageProps) {
   const src = typeof props.src === 'string' ? props.src : '';
   const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   // Card được tái sử dụng khi danh sách đổi → ảnh mới phải được thử lại từ đầu.
@@ -62,6 +76,11 @@ export function SmartImage({
   const fade = !props.priority;
 
   const finalSrc = failed ? (fallbackSrc ?? PLACEHOLDER_POSTER) : props.src;
+  const srcKey =
+    typeof finalSrc === 'string'
+      ? [finalSrc, props.sizes ?? '', props.width ?? '', quality ?? ''].join('|')
+      : '';
+  const [loaded, setLoaded] = useState(() => loadedSrcs.has(srcKey));
 
   /**
    * Nghe `load` THẲNG trên thẻ <img>, không đi qua prop `onLoad` của next/image.
@@ -74,21 +93,30 @@ export function SmartImage({
    *
    * Sự kiện DOM thì không có bộ nhớ đó, và `complete` cho biết ảnh đã xong từ
    * trước khi kịp gắn listener (cache) — hai đường này phủ hết mọi trường hợp.
+   *
+   * Layout effect chứ không phải effect thường: điều hướng của App Router chạy
+   * trong transition, effect thường chạy SAU lượt vẽ — ảnh đã cache vẫn kịp lộ
+   * ra một khung `opacity: 0` rồi fade 300ms. Kiểm `complete` trước lượt vẽ thì
+   * class mờ không bao giờ chạm tới màn hình.
    */
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const img = imgRef.current;
     if (!img) return;
 
-    if (img.complete && img.naturalWidth > 0) {
+    const markLoaded = () => {
+      if (srcKey) loadedSrcs.add(srcKey);
       setLoaded(true);
+    };
+
+    if (img.complete && img.naturalWidth > 0) {
+      markLoaded();
       return;
     }
 
-    setLoaded(false);
-    const onLoad = () => setLoaded(true);
-    img.addEventListener('load', onLoad);
-    return () => img.removeEventListener('load', onLoad);
-  }, [finalSrc]);
+    setLoaded(loadedSrcs.has(srcKey));
+    img.addEventListener('load', markLoaded);
+    return () => img.removeEventListener('load', markLoaded);
+  }, [srcKey]);
 
   // Ảnh import tĩnh (StaticImport) luôn tối ưu được — chỉ URL chuỗi mới phải xét.
   const skipOptimizer =

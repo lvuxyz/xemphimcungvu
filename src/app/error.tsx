@@ -1,12 +1,27 @@
 'use client';
 
-import { useEffect } from 'react';
+import { startTransition, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 /** §14.1 — phần cốt lõi fail thì hiện error state CÓ hành động khôi phục. */
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const router = useRouter();
+
   useEffect(() => {
     console.error(error);
   }, [error]);
+
+  /**
+   * `reset()` trần chỉ dựng lại cây từ payload ĐANG CÓ — mà payload đó chính là
+   * lỗi, nằm trong router cache tới `staleTimes.dynamic` (120s). Bấm Thử lại khi
+   * API đã sống lại vẫn ra đúng màn lỗi cũ. `refresh()` xin server bản mới,
+   * `reset()` trong cùng transition thì xoá lỗi khi bản mới về.
+   */
+  const retry = () =>
+    startTransition(() => {
+      router.refresh();
+      reset();
+    });
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center px-6 text-center">
@@ -16,7 +31,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
       </p>
       <button
         type="button"
-        onClick={reset}
+        onClick={retry}
         className="mt-8 rounded-pill bg-accent px-6 py-3 font-medium text-[color:var(--accent-contrast)] transition-colors duration-micro ease-standard hover:bg-accent-hover"
       >
         Thử lại

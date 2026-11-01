@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
+import { isDetailPath } from '@/lib/routes';
 import { youtubeId } from '@/lib/derive';
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { IconButton } from '@/components/ui/Button';
@@ -132,11 +134,28 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [inView, setInView] = useState(false);
+
+  /**
+   * Modal chi tiết mở ĐÈ lên trang chủ (slot `@modal`), trang chủ vẫn mount bên
+   * dưới và IntersectionObserver không biết gì về lớp phủ `fixed`: trailer cứ thế
+   * chạy — thậm chí mới bắt đầu tải — sau lớp `backdrop-blur`, tranh băng thông
+   * với dữ liệu của modal và bắt lớp blur toàn màn lọc lại từng khung hình video
+   * đúng lúc modal đang bung ra. Bị che thì tính như đã rời viewport.
+   */
+  const covered = isDetailPath(usePathname());
+  const visible = inView && !covered;
   const [mounted, setMounted] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [muted, setMuted] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+
+  /**
+   * Lần dừng gần nhất là do APP (rời viewport, modal che, đổi tab) chứ không phải
+   * người xem bấm. YouTube báo "paused" như nhau cho cả hai; ghi nhận nhầm thành
+   * `isPaused` thì trailer không bao giờ tự chạy lại sau khi đóng modal.
+   */
+  const autoPaused = useRef(false);
 
   const post = useCallback((payload: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -148,6 +167,14 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   const command = useCallback(
     (func: string, args: unknown[] = []) => post({ event: 'command', func, args, id: videoId }),
     [post, videoId],
+  );
+
+  const autoPause = useCallback(
+    (pause: boolean) => {
+      autoPaused.current = pause;
+      command(pause ? 'pauseVideo' : 'playVideo');
+    },
+    [command],
   );
 
   /**
@@ -177,12 +204,12 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
 
   // §8.2 — chờ 2500ms, và chỉ khi hero còn trên màn hình.
   useEffect(() => {
-    if (!videoId || reducedMotion || mounted || !inView) return;
+    if (!videoId || reducedMotion || mounted || !visible) return;
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
 
     const timer = setTimeout(() => setMounted(true), TRAILER_DELAY);
     return () => clearTimeout(timer);
-  }, [videoId, reducedMotion, mounted, inView]);
+  }, [videoId, reducedMotion, mounted, visible]);
 
   /**
    * Nghe tín hiệu từ YouTube:
@@ -211,8 +238,8 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
         } else if (payload.info?.playerState === 1) {
           // playing
           setIsPaused(false);
-        } else if (payload.info?.playerState === 2) {
-          // paused
+        } else if (payload.info?.playerState === 2 && !autoPaused.current) {
+          // paused — do người xem, không phải do app tự dừng
           setIsPaused(true);
         }
       } catch {
@@ -234,29 +261,27 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   // Pause khi hero rời viewport hoặc khi người dùng chuyển tab (trừ khi người dùng đã chủ động pause)
   useEffect(() => {
     if (!ready) return;
-    if (inView) {
-      if (!isPaused) {
-        command('playVideo');
-      }
+    if (visible) {
+      if (!isPaused) autoPause(false);
     } else {
-      command('pauseVideo');
+      autoPause(true);
     }
-  }, [ready, inView, isPaused, command]);
+  }, [ready, visible, isPaused, autoPause]);
 
   useEffect(() => {
     if (!ready) return;
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && inView && !isPaused) {
-        command('playVideo');
+      if (document.visibilityState === 'visible' && visible && !isPaused) {
+        autoPause(false);
       } else {
-        command('pauseVideo');
+        autoPause(true);
       }
     };
 
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [ready, inView, isPaused, command]);
+  }, [ready, visible, isPaused, autoPause]);
 
   // Dọn dẹp âm thanh demo khi unmount
   useEffect(() => {
@@ -269,6 +294,7 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
   const togglePlayPause = useCallback(() => {
     setIsPaused((prev) => {
       const next = !prev;
+      autoPaused.current = false;
       if (next) {
         command('pauseVideo');
         stopCinemaDemoAudio();
@@ -306,9 +332,10 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
     setIsPaused(false);
   }, [command]);
 
-  // Phím tắt bàn phím: Phím Space / K để Play/Pause, phím M để Bật/Tắt âm thanh
+  // Phím tắt bàn phím: Phím Space / K để Play/Pause, phím M để Bật/Tắt âm thanh.
+  // Modal đang che thì Space là cuộn modal, không phải bật trailer phía sau.
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || covered) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -333,7 +360,7 @@ export function HeroTrailer({ trailerUrl, title }: HeroTrailerProps) {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [ready, togglePlayPause, toggleAudio]);
+  }, [ready, covered, togglePlayPause, toggleAudio]);
 
   if (!videoId || reducedMotion || failed) {
     // Vẫn phải giữ container: nó là thứ IntersectionObserver bám vào.

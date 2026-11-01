@@ -1,6 +1,9 @@
 import { notFound } from 'next/navigation';
+import { DetailContent } from '@/components/feature/DetailModal/DetailContent';
 import { DetailModal } from '@/components/feature/DetailModal/DetailModal';
-import { getMovieBundle, getRelated, nullOn404 } from '@/lib/endpoints';
+import { pageTitle } from '@/lib/constants';
+import { movieTitle } from '@/lib/derive';
+import { loadDetailScreen } from '@/lib/endpoints';
 
 /**
  * §6.1 — intercepting route.
@@ -10,10 +13,13 @@ import { getMovieBundle, getRelated, nullOn404 } from '@/lib/endpoints';
  */
 export default async function InterceptedMovieModal({ params }: { params: { slug: string } }) {
   // §11.3 — cùng bộ dữ liệu với trang full, cùng cache của Next.
-  const detail = await nullOn404(() => getMovieBundle(params.slug));
-  if (!detail || !detail.movie.slug) notFound();
+  const { detail: detailP, ...rest } = loadDetailScreen(params.slug);
+  const detail = await detailP;
+  if (!detail) notFound();
 
-  const related = await getRelated(detail.movie);
-
-  return <DetailModal detail={detail} related={related} />;
+  return (
+    <DetailModal label={detail.movie.name} documentTitle={pageTitle(movieTitle(detail.movie))}>
+      <DetailContent detail={detail} {...rest} />
+    </DetailModal>
+  );
 }

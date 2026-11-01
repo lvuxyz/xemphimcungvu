@@ -1,10 +1,12 @@
+import { Suspense } from 'react';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { firstEpisodeHref, matchScore, metaLine, statusLabel } from '@/lib/derive';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { routes } from '@/lib/routes';
-import type { Movie, MovieDetailBundle } from '@/types/movie';
+import type { MovieDetailCore } from '@/lib/endpoints';
+import type { Keyword, Movie, Person } from '@/types/movie';
 import { Button } from '@/components/ui/Button';
 import { Chip, MatchScore } from '@/components/ui/Chip';
 import { PlayIcon } from '@/components/ui/icons';
@@ -30,15 +32,21 @@ import { EpisodePicker } from './EpisodePicker';
  *   6. cast row
  *   7. tabs server + grid tập
  *   8. "Có thể bạn thích"
+ *
+ * Mục 5, 6, 8 nhận PROMISE và stream vào sau (`loadDetailScreen`): tiêu đề, nút
+ * Phát và lưới tập hiện ngay khi phần cốt lõi về, không đứng chờ dàn diễn viên
+ * hay một vòng gọi `/the-loai` nối đuôi.
  */
 interface DetailContentProps {
-  detail: MovieDetailBundle;
-  /** §8.5 mục 8 — "Có thể bạn thích", do RSC fetch sẵn (`getRelated`). */
-  related?: Movie[];
+  detail: MovieDetailCore;
+  peoples: Promise<Person[]>;
+  keywords: Promise<Keyword[]>;
+  /** §8.5 mục 8 — "Có thể bạn thích" (`getRelated`). */
+  related: Promise<Movie[]>;
 }
 
-export function DetailContent({ detail, related = [] }: DetailContentProps) {
-  const { movie, episodes, images, peoples, keywords } = detail;
+export function DetailContent({ detail, peoples, keywords, related }: DetailContentProps) {
+  const { movie, episodes, images } = detail;
 
   const backdrop = images.backdrops[0] ?? movie.thumb;
   // §14.4 — content là HTML thô từ API, BẮT BUỘC sanitize trước khi render.
@@ -110,23 +118,18 @@ export function DetailContent({ detail, related = [] }: DetailContentProps) {
             />
           )}
 
-          {/* 5 — keyword chips, tối đa 8, click → tìm kiếm */}
-          {keywords.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {keywords.slice(0, 8).map((keyword) => (
-                <Chip
-                  key={keyword}
-                  variant="outline"
-                  href={routes.search(keyword)}
-                >
-                  {keyword}
-                </Chip>
-              ))}
-            </div>
-          )}
-
-          {/* 6 — cast row */}
-          <CastRow people={peoples} />
+          {/*
+            5 + 6 — chung MỘT boundary: hai thứ về gần như cùng lúc, tách ra thì
+            lưới tập bên dưới bị đẩy xuống hai lần. Khung chờ cao bằng hàng diễn
+            viên để lúc dữ liệu về không có gì nhảy — trường hợp hay gặp nhất.
+          */}
+          <Suspense
+            fallback={
+              <div aria-hidden="true" className="skeleton h-[7.5rem] w-full rounded-card" />
+            }
+          >
+            <KeywordsAndCast keywords={keywords} peoples={peoples} />
+          </Suspense>
 
           {/* 7 — tabs server + grid tập */}
           <EpisodePicker slug={movie.slug} servers={episodes} />
@@ -146,25 +149,56 @@ export function DetailContent({ detail, related = [] }: DetailContentProps) {
         </aside>
       </div>
 
-      {/* 8 — có thể bạn thích */}
-      {related.length > 0 && (
-        <section className="px-6 pb-8 md:px-8" aria-labelledby="related-heading">
-          <h3 id="related-heading" className="mb-3 text-sm font-bold text-text-primary">
-            Có thể bạn thích
-          </h3>
-          <ul
-            role="list"
-            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
-          >
-            {related.slice(0, 12).map((item) => (
-              <li key={item.slug}>
-                <MovieCard movie={item} variant="grid" enableHoverPreview={false} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* 8 — có thể bạn thích. Nằm cuối màn nên về muộn cũng không đẩy gì. */}
+      <Suspense fallback={null}>
+        <Related related={related} />
+      </Suspense>
     </article>
+  );
+}
+
+async function KeywordsAndCast({
+  keywords: keywordsP,
+  peoples: peoplesP,
+}: Pick<DetailContentProps, 'keywords' | 'peoples'>) {
+  const [keywords, peoples] = await Promise.all([keywordsP, peoplesP]);
+
+  return (
+    <>
+      {/* 5 — keyword chips, tối đa 8, click → tìm kiếm */}
+      {keywords.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {keywords.slice(0, 8).map((keyword) => (
+            <Chip key={keyword} variant="outline" href={routes.search(keyword)}>
+              {keyword}
+            </Chip>
+          ))}
+        </div>
+      )}
+
+      {/* 6 — cast row */}
+      <CastRow people={peoples} />
+    </>
+  );
+}
+
+async function Related({ related: relatedP }: Pick<DetailContentProps, 'related'>) {
+  const related = await relatedP;
+  if (related.length === 0) return null;
+
+  return (
+    <section className="px-6 pb-8 md:px-8" aria-labelledby="related-heading">
+      <h3 id="related-heading" className="mb-3 text-sm font-bold text-text-primary">
+        Có thể bạn thích
+      </h3>
+      <ul role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        {related.slice(0, 12).map((item) => (
+          <li key={item.slug}>
+            <MovieCard movie={item} variant="grid" enableHoverPreview={false} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
