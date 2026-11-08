@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { Button, IconButton } from '@/components/ui/Button';
 import { CloseIcon } from '@/components/ui/icons';
@@ -11,7 +12,8 @@ import { episodeLabel, formatTime } from '@/lib/derive';
 import { groupByDay } from '@/lib/history';
 import { BLUR_DATA_URL } from '@/lib/image';
 import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
-import { routes } from '@/lib/routes';
+import { preloadPlayer } from '@/lib/player-preload';
+import { PATH, routes } from '@/lib/routes';
 import {
   exportWatchHistory,
   importWatchHistory,
@@ -51,7 +53,28 @@ export function WatchHistory() {
   const forget = useWatchStore((s) => s.forget);
   const clearAll = useWatchStore((s) => s.clearAll);
   const pushToast = useUIStore((s) => s.pushToast);
-  const { canHover } = useDevice();
+  const { canHover, tier } = useDevice();
+  const router = useRouter();
+
+  /**
+   * Prefetch theo Ý ĐỊNH (lướt chuột, focus, chạm) — lưới này `prefetch={false}`
+   * nên không có nó thì mọi cú bấm là màn cũ đứng im suốt vòng `getDetail` của
+   * layout `/xem`, rồi player bật ra một phát. Mỗi href một lần, tier `low` (gồm
+   * saveData) thì thôi, như `ContinueRow`.
+   *
+   * Chỉ href trình phát mới kéo theo chunk player + hls.js: `describe()` cũng có
+   * thể trả trang phim (mở modal), nơi người ta chưa chắc đã bấm Phát.
+   */
+  const warmed = useRef(new Set<string>());
+  const warm = useCallback(
+    (href: string) => {
+      if (tier === 'low' || warmed.current.has(href)) return;
+      warmed.current.add(href);
+      router.prefetch(href);
+      if (href.startsWith(`${PATH.watch}/`)) preloadPlayer();
+    },
+    [router, tier],
+  );
 
   // Store chỉ nạp ở lúc khởi động và trang chủ — tới đây từ trang phát thì nó đã cũ.
   useEffect(() => refresh(), [refresh]);
@@ -161,6 +184,7 @@ export function WatchHistory() {
                 key={entry.slug}
                 entry={entry}
                 canHover={canHover}
+                onIntent={warm}
                 onForget={() => forget(entry.slug)}
               />
             ))}
@@ -288,13 +312,16 @@ function describe(entry: WatchIndexEntry): { href: string; status: string; ratio
 function HistoryCard({
   entry,
   canHover,
+  onIntent,
   onForget,
 }: {
   entry: WatchIndexEntry;
   canHover: boolean;
+  onIntent: (href: string) => void;
   onForget: () => void;
 }) {
   const { href, status, ratio } = describe(entry);
+  const intent = () => onIntent(href);
   /**
    * Entry dựng lại từ key cũ (`rebuildIndex`) không có snapshot. Vẫn hiện — đây là
    * chỗ duy nhất gỡ được nó — nhưng chỉ có slug để làm tên.
@@ -304,10 +331,16 @@ function HistoryCard({
 
   return (
     <li className="group relative">
-      {/* KHÔNG prefetch: cả lưới là route trình phát, cùng lý do với `ContinueRow`. */}
+      {/*
+        KHÔNG prefetch: cả lưới là route trình phát, cùng lý do với `ContinueRow`.
+        Thay bằng prefetch theo ý định (`onIntent`), xem `warm` ở `WatchHistory`.
+      */}
       <Link
         href={href}
         prefetch={false}
+        onPointerEnter={intent}
+        onFocus={intent}
+        onTouchStart={intent}
         className="block overflow-hidden rounded-card bg-bg-elevated"
       >
         <div className="relative aspect-backdrop">

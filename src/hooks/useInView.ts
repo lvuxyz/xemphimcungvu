@@ -68,5 +68,10 @@ export function useInView<T extends HTMLElement = HTMLDivElement>({
     return () => observer.disconnect();
   }, [rootMargin, threshold, once]);
 
-  return { ref, inView };
+  /**
+   * `setInView` lộ ra cho nơi gọi đo được vị trí TRƯỚC khi observer kịp báo (xem
+   * `ContentRow` lúc dựng lại từ cache). Observer vẫn chạy như thường và lần báo
+   * đầu của nó sẽ ghi đè bằng trạng thái thật.
+   */
+  return { ref, inView, setInView };
 }

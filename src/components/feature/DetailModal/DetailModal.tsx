@@ -1,26 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/cn';
-import { MOTION, pageTitle } from '@/lib/constants';
-import { movieTitle } from '@/lib/derive';
 import { isDetailPath } from '@/lib/routes';
-import type { Movie, MovieDetailBundle } from '@/types/movie';
 import { useScrollLock } from '@/hooks/useScrollLock';
-import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { IconButton } from '@/components/ui/Button';
 import { CloseIcon } from '@/components/ui/icons';
-import { DetailContent } from './DetailContent';
 import { InTitleModalContext } from './modal-context';
+import { focusRestore, modalOnScreen, trackModalLayer } from './modal-motion';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-/** Ngắn hơn lúc mở (§9.2): đóng phải dứt khoát, không bắt người dùng chờ. */
-const EXIT_MS = 200;
+/**
+ * Ngắn hơn lúc mở (§9.2): đóng phải dứt khoát, không bắt người dùng chờ.
+ * Đây là khoảng chờ CỨNG trước `router.back()` — mỗi ms ở đây là một ms trang
+ * nền chưa bấm được, nên chỉ vừa đủ để mắt thấy modal lùi đi chứ không tắt phụt.
+ */
+const EXIT_MS = 150;
 
 /**
  * Chốt chặn: modal chỉ được tồn tại khi URL còn nằm ở `/phim/{slug}`.
@@ -59,8 +58,17 @@ export function DetailModal(props: DetailModalProps) {
 }
 
 interface DetailModalProps {
-  detail: MovieDetailBundle;
-  related?: Movie[];
+  /** Tên phim — nhãn của `role="dialog"`. */
+  label: string;
+  /** `<title>` của tab khi modal mở — xem effect bên dưới. */
+  documentTitle: string;
+  /**
+   * Thân modal (`DetailContent`) do RSC dựng sẵn và truyền vào như children —
+   * KHÔNG import ở đây. Import thì nó, `sanitize` và cả DOMPurify bị kéo sang
+   * chunk client của lần mở modal đầu tiên, và phần stream (diễn viên, phim liên
+   * quan) không còn là Server Component được nữa.
+   */
+  children: ReactNode;
 }
 
 /**
@@ -73,19 +81,32 @@ interface DetailModalProps {
  *   · focus trap trong modal
  *   · trả focus về phần tử đã mở modal khi đóng
  */
-function DetailModalPanel({ detail, related = [] }: DetailModalProps) {
+function DetailModalPanel({ label, documentTitle, children }: DetailModalProps) {
   const { goBackOrHome } = useAppNavigation();
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
-  const reducedMotion = usePrefersReducedMotion();
+
+  /**
+   * Hiệu ứng mở chỉ chạy MỘT lần cho mỗi lần người dùng mở modal.
+   *
+   * Lần mở có skeleton thì skeleton (`loading.tsx`) đã bung ra rồi; chạy tiếp
+   * hiệu ứng ở đây là bắt modal đang đứng yên tụt về opacity 0 rồi bung lại — hai
+   * lượt mở chồng nhau, cộng thêm ~450ms sau khi dữ liệu đã về. Đổi sang phim
+   * liên quan cũng vậy: modal vẫn đứng đó, chỉ ruột của nó đổi.
+   *
+   * Đọc một lần lúc khởi tạo state: lúc này lớp cũ (skeleton hoặc panel của phim
+   * trước) vẫn còn trên màn hình, effect dọn của nó chưa chạy.
+   */
+  const [enter] = useState(() => !modalOnScreen());
+  useLayoutEffect(trackModalLayer, []);
 
   /**
    * Đóng modal đi hai nhịp: chạy animation thoát trước, `router.back()` sau.
    *
-   * `AnimatePresence` ở đây không cứu được: modal là một route song song, khi
+   * Không thể để route tự lo phần thoát: modal là một route song song, khi
    * `router.back()` chạy thì cả cây này bị tháo cùng route — không còn ai ở lại
-   * để chạy `exit`. Kết quả là modal mở ra có 450ms bung mượt mà rồi TẮT PHỤT
-   * lúc bấm ESC. Tự giữ 200ms rồi mới lùi route thì hai đầu cân nhau.
+   * để chạy hiệu ứng. Kết quả là modal mở ra bung mượt mà rồi TẮT PHỤT lúc bấm
+   * ESC. Tự giữ `EXIT_MS` rồi mới lùi route thì hai đầu cân nhau.
    */
   const [closing, setClosing] = useState(false);
 
@@ -111,19 +132,32 @@ function DetailModalPanel({ detail, related = [] }: DetailModalProps) {
    */
   useEffect(() => {
     const restored = document.title;
-    const next = pageTitle(movieTitle(detail.movie));
-    document.title = next;
+    document.title = documentTitle;
 
     return () => {
-      if (document.title === next) document.title = restored;
+      if (document.title === documentTitle) document.title = restored;
     };
-  }, [detail.movie]);
+  }, [documentTitle]);
 
-  // Ghi nhớ phần tử đang focus để trả lại khi đóng.
+  /**
+   * Ghi nhớ phần tử đang focus để trả lại khi đóng.
+   *
+   * `focusRestore` báo cho card biết đây là focus trả về chứ không phải người
+   * dùng Tab tới — không thì card mở lại HoverPreview ngay sau khi modal đóng.
+   * `preventScroll`: lúc này scroll lock vừa nhả, để focus() tự cuộn trang tới
+   * card là giật thêm một nhịp. `isConnected`: card mở modal có thể đã bị gỡ.
+   */
   useEffect(() => {
     triggerRef.current = document.activeElement;
     return () => {
-      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+      const el = triggerRef.current;
+      if (!(el instanceof HTMLElement) || !el.isConnected) return;
+      focusRestore.active = true;
+      try {
+        el.focus({ preventScroll: true });
+      } finally {
+        focusRestore.active = false;
+      }
     };
   }, []);
 
@@ -179,47 +213,34 @@ function DetailModalPanel({ detail, related = [] }: DetailModalProps) {
   }, []);
 
   return (
-    <motion.div
+    <div
       className={cn(
         'fixed inset-0 z-modal flex items-center justify-center overflow-y-auto overscroll-contain bg-bg-base/70 p-4 backdrop-blur-[8px]',
+        enter && 'modal-backdrop-in',
         // Đang thoát thì không nhận thêm cú bấm nào nữa — tránh `router.back()` hai lần.
-        closing && 'pointer-events-none',
+        closing && 'modal-backdrop-out pointer-events-none',
       )}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: closing ? 0 : 1 }}
-      transition={{ duration: closing ? EXIT_MS / 1000 : MOTION.standard }}
+      style={closing ? { animationDuration: `${EXIT_MS}ms` } : undefined}
       onClick={close}
-      data-motion="fade"
     >
-      <motion.div
+      {/*
+        CSS keyframes chứ không phải framer-motion: hai lớp này chỉ animate opacity
+        và scale. framer (cùng `layoutId` không khớp với card nào) là ~40KB JS phải
+        tải xong thì modal mới vẽ được ở lần mở đầu tiên.
+      */}
+      <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={detail.movie.name}
+        aria-label={label}
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="surface-elevated relative flex max-h-[90vh] w-[min(56rem,92vw)] flex-col overflow-hidden rounded-modal shadow-elev-3 outline-none"
-        /**
-         * §8.5 — shared element: card ở row biến hình thành modal.
-         * `layoutId` khớp với card nguồn; khi chưa khớp được (mở trực tiếp
-         * bằng URL) Framer Motion tự rơi về scale — vẫn không phải fade trần.
-         */
-        layoutId={reducedMotion ? undefined : `movie-card-${detail.movie.slug}`}
-        initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
-        animate={
-          closing
-            ? reducedMotion
-              ? { opacity: 0 }
-              : { opacity: 0, scale: 0.96 }
-            : { opacity: 1, scale: 1 }
-        }
-        transition={
-          closing
-            ? { duration: EXIT_MS / 1000 }
-            : reducedMotion
-              ? { duration: MOTION.micro }
-              : MOTION.spring
-        }
+        className={cn(
+          'surface-elevated relative flex max-h-[90vh] w-[min(56rem,92vw)] flex-col overflow-hidden rounded-modal shadow-elev-3 outline-none',
+          enter && 'modal-panel-in',
+          closing && 'modal-panel-out',
+        )}
+        style={closing ? { animationDuration: `${EXIT_MS}ms` } : undefined}
       >
         <IconButton
           label="Đóng"
@@ -232,11 +253,9 @@ function DetailModalPanel({ detail, related = [] }: DetailModalProps) {
         {/* Panel bị chặn chiều cao ở 90vh (§8.5 dòng góp ý): nội dung dài (ảnh nền +
             lưới tập + gợi ý liên quan) cuộn BÊN TRONG đây, nút đóng đứng yên phía trên. */}
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <InTitleModalContext.Provider value={true}>
-            <DetailContent detail={detail} related={related} />
-          </InTitleModalContext.Provider>
+          <InTitleModalContext.Provider value={true}>{children}</InTitleModalContext.Provider>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

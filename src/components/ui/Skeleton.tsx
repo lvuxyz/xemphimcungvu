@@ -80,7 +80,12 @@ export function RowSkeleton({ count = 6 }: { count?: number }) {
  * không đổi bề rộng ô. Trước đây các trang này mượn skeleton của trang chủ (hero
  * full-bleed + row ngang) — sai hình hoàn toàn với một lưới poster.
  */
-export function ListPageSkeleton() {
+export function ListPageSkeleton({
+  filters = true,
+}: {
+  /** `/tim-kiem` không có FilterBar — vẽ hàng pill thì lưới thật nhảy lên ~68px. */
+  filters?: boolean;
+} = {}) {
   return (
     <main className="pb-16" aria-hidden="true">
       <div className="px-row pt-24">
@@ -88,11 +93,13 @@ export function ListPageSkeleton() {
         <Skeleton className="mt-2 h-4 w-20" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 px-row py-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-9 w-28 rounded-pill" />
-        ))}
-      </div>
+      {filters && (
+        <div className="flex flex-wrap items-center gap-2 px-row py-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-28 rounded-pill" />
+          ))}
+        </div>
+      )}
 
       <ul
         role="list"

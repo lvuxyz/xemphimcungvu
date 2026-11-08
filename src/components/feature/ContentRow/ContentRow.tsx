@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { MOTION } from '@/lib/constants';
@@ -49,7 +49,16 @@ interface ContentRowProps {
    * hiện" thay vì chờ IntersectionObserver báo lại một khung hình sau.
    */
   mountedInView?: boolean;
+  /**
+   * Dữ liệu đã nằm sẵn trong cache lúc `LazyRow` mount (Back về trang chủ). Row tự
+   * đo vị trí của mình trước khi vẽ thay vì chờ IntersectionObserver. Chỉ có thể
+   * `true` ở client.
+   */
+  restoredFromCache?: boolean;
 }
+
+/** `useLayoutEffect` ở client, `useEffect` lúc SSR — React 18 cảnh báo layout effect trên server. */
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 /**
  * §8.3 — carousel ngang tự viết.
@@ -60,6 +69,9 @@ interface ContentRowProps {
  * Xem chú thích `.row-track` trong styles/globals.css về việc §8.3 yêu cầu
  * `overflow: visible` nhưng CSS không cho phép, và cách đi vòng.
  */
+/** Phạm vi module: đã có row nào hiện trong phiên này chưa — xem `animateEnter`. */
+let rowsShown = false;
+
 export function ContentRow({
   title,
   movies,
@@ -67,6 +79,7 @@ export function ContentRow({
   href,
   priority = false,
   mountedInView = false,
+  restoredFromCache = false,
 }: ContentRowProps) {
   const { ref, canScrollPrev, canScrollNext, scrollNext, scrollPrev, originFor } =
     useRowScroll<HTMLUListElement>();
@@ -90,7 +103,11 @@ export function ContentRow({
    *   hasEntered  — chỉ bật một lần, để card đã mount thì không bị unmount rồi
    *                 mount lại (mất state hover, ảnh nháy) khi cuộn qua cuộn lại.
    */
-  const { ref: sectionRef, inView } = useInView<HTMLElement>({
+  const {
+    ref: sectionRef,
+    inView,
+    setInView,
+  } = useInView<HTMLElement>({
     rootMargin: '100% 0px',
     once: false,
     initialInView: startsInView,
@@ -113,6 +130,48 @@ export function ContentRow({
   useEffect(() => {
     if (inView) setHasEntered(true);
   }, [inView]);
+
+  /**
+   * Back về trang chủ: dữ liệu lấy thẳng từ cache nên khung chờ của `LazyRow`
+   * chưa từng dựng và `mountedInView` là `false`. Chờ observer thì khung hình
+   * đầu sau điều hướng vẽ toàn ô xám + `row-offscreen`, rồi mới đổi sang card —
+   * một lần nháy cho thứ đã có sẵn trong bộ nhớ.
+   *
+   * Đo ngay trong layout effect (trước khi trình duyệt vẽ); setState ở đây render
+   * lại đồng bộ nên khung hình đầu đã có card. Chỉ tính row CHẠM viewport thật,
+   * không nới thêm: mount card đồng bộ nằm trong đúng lượt commit của điều hướng,
+   * mount 3–4 row một lúc trên điện thoại yếu là đổi cái nháy lấy độ trễ. Row
+   * ngoài màn hình vẫn chờ observer như cũ. `animateEnter` vẫn `false` ở nhánh
+   * này nên không stagger lại.
+   */
+  useIsomorphicLayoutEffect(() => {
+    if (!restoredFromCache) return;
+    const rect = sectionRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      setInView(true);
+      setHasEntered(true);
+    }
+    // Chỉ đo một lần lúc mount — về sau là việc của observer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * §9.3 stagger chỉ dành cho lúc card XUẤT HIỆN lần đầu, không phải mỗi lần
+   * component mount. Back về trang chủ dựng lại mọi row: chạy lại stagger là bắt
+   * người xem chờ ~620ms để card cuối hàng đầu hiện đủ — cho thứ họ vừa thấy cách
+   * đây vài giây, chồng lên đúng lúc trang đang chuyển.
+   *
+   * Chỉ stagger ở lượt tải ĐẦU của phiên, hoặc khi `LazyRow` vừa thay khung chờ
+   * bằng card (`mountedInView`) — đó mới là "xuất hiện". Row dựng lại từ cache
+   * (Back về trang chủ) thì hiện thẳng. Server và lượt hydrate đều thấy
+   * `rowsShown = false` nên không lệch HTML.
+   */
+  const [animateEnter] = useState(() => mountedInView || !rowsShown);
+
+  useEffect(() => {
+    rowsShown = true;
+  }, []);
 
   // §13.1 — roving tabindex: chỉ một card trong row nhận Tab.
   const [rovingIndex, setRovingIndex] = useState(0);
@@ -211,7 +270,7 @@ export function ContentRow({
               className={cn(
                 'row-item relative z-0 focus-within:z-30 hover:z-30',
                 ROW_CARD_WIDTH[variant],
-                hasEntered && 'row-item-enter',
+                hasEntered && animateEnter && 'row-item-enter',
               )}
               // §9.3 — stagger 40ms/item, dừng sau 8 item
               style={{ '--stagger': Math.min(index, MOTION.staggerMax) } as React.CSSProperties}

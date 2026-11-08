@@ -1,19 +1,20 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { cn } from '@/lib/cn';
 import { CACHE, SEARCH_DEBOUNCE, SEARCH_MIN_LENGTH, SEARCH_SUGGESTIONS } from '@/lib/constants';
 import { search } from '@/lib/endpoints';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { queryKeys } from '@/lib/query-keys';
-import { routes } from '@/lib/routes';
+import { PATH, routes } from '@/lib/routes';
 import { useLeavesPlayer } from '@/hooks/useLeavesPlayer';
 import { usePresence } from '@/hooks/usePresence';
 import { CloseIcon, SearchIcon } from '@/components/ui/icons';
+import { useReportListPending } from '@/components/feature/FilterBar/list-pending';
 
 /**
  * §8.1 — ô tìm kiếm.
@@ -30,6 +31,14 @@ const SEARCH_FILTERS = { limit: SEARCH_SUGGESTIONS };
 
 export function SearchBox() {
   const router = useRouter();
+  const pathname = usePathname();
+  /**
+   * Gõ từ khoá mới khi ĐANG ở `/tim-kiem` chỉ đổi searchParams: `loading.tsx`
+   * không hiện lại và lưới cũ đứng im suốt vòng RSC. Bọc push trong transition
+   * rồi báo ra store để InfiniteGrid làm mờ lưới cũ (xem `list-pending.ts`).
+   * Từ route khác thì segment đổi, skeleton đã lo phần chờ.
+   */
+  const [isPending, startTransition] = useTransition();
   /**
    * Navbar có mặt cả trên trang phát, nên gợi ý tìm kiếm cũng là một lối đi tới
    * `/phim/{slug}` từ trong player — cùng cái bẫy modal-đè-player ở §1.4 L1.
@@ -87,11 +96,15 @@ export function SearchBox() {
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [open]);
 
+  useReportListPending('search', isPending);
+
   const submit = () => {
     const trimmed = keyword.trim();
     if (!trimmed) return;
     setOpen(false);
-    router.push(routes.search(trimmed));
+    const href = routes.search(trimmed);
+    if (pathname === PATH.search) startTransition(() => router.push(href));
+    else router.push(href);
   };
 
   return (

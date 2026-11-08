@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type HlsType from 'hls.js';
 import type { ErrorData, Level } from 'hls.js';
 import { hlsConfigFor, maxHeightForTier } from '@/lib/hls-config';
+import { loadHls } from '@/lib/player-preload';
 import { getPlayerSettings, savePlayerSettings } from '@/lib/storage';
 import { useDevice } from './useDevice';
 
@@ -46,6 +47,13 @@ interface UseHlsOptions {
 }
 
 export function useHls({ linkM3u8, linkEmbed, onFallback, autoPlay = false }: UseHlsOptions) {
+  /**
+   * Gọi trong render là cố ý: idempotent (một promise dùng chung, xem
+   * `lib/player-preload.ts`), và sớm hơn effect một nhịp. Thường thì `WatchScreen`
+   * hoặc cú bấm Phát đã khởi động nó từ trước — dòng này là lưới đỡ.
+   */
+  if (typeof window !== 'undefined' && linkM3u8) loadHls().catch(() => {});
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsType | null>(null);
 
@@ -95,7 +103,7 @@ export function useHls({ linkM3u8, linkEmbed, onFallback, autoPlay = false }: Us
     setRecovering(false);
 
     const attach = async () => {
-      const { default: Hls } = await import('hls.js');
+      const { default: Hls } = await loadHls();
       if (disposed) return;
 
       // Safari/iOS phát HLS thẳng, không cần MSE — nhẹ pin hơn hẳn.
