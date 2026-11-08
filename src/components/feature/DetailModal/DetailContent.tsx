@@ -13,7 +13,7 @@ import { PlayIcon } from '@/components/ui/icons';
 import { MyListButton } from './MyListButton';
 import { CastRow } from '../CastRow/CastRow';
 import { MovieCard } from '../MovieCard/MovieCard';
-import { EpisodePicker } from './EpisodePicker';
+import { EpisodePicker, PlayIntent } from './EpisodePicker';
 
 /**
  * §8.5 — thân nội dung chi tiết, dùng CHUNG cho modal (intercepting route)
@@ -91,10 +91,15 @@ export function DetailContent({ detail, peoples, keywords, related }: DetailCont
           )}
 
           <div className="flex flex-wrap gap-3 pt-1">
-            <Button href={firstEpisodeHref(movie.slug, episodes[0]?.episodes[0]?.slug)} variant="primary">
-              <PlayIcon />
-              Phát
-            </Button>
+            <PlayIntent hasM3u8={Boolean(episodes[0]?.episodes[0]?.linkM3u8)}>
+              <Button
+                href={firstEpisodeHref(movie.slug, episodes[0]?.episodes[0]?.slug)}
+                variant="primary"
+              >
+                <PlayIcon />
+                Phát
+              </Button>
+            </PlayIntent>
             <MyListButton movie={movie} />
           </div>
         </div>

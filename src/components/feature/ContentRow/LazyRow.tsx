@@ -1,6 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/cn';
 import { CACHE } from '@/lib/constants';
 import { fetchHomeSection, homeSectionLayout, type HomeSection } from '@/lib/home';
@@ -55,6 +56,17 @@ export function LazyRow({ title, section, href }: LazyRowProps) {
     once: true,
   });
 
+  /**
+   * Dữ liệu có sẵn trong cache NGAY lúc mount (Back về trang chủ trong 5 phút) —
+   * chụp một lần ở lượt render đầu, đổi về sau cũng không tính. Server không bao
+   * giờ có cache này (LazyRow không có dữ liệu lúc SSR) nên giá trị chỉ có thể
+   * `true` ở client, và cũng chỉ ở client mới dựng `ContentRow` theo nhánh này.
+   */
+  const queryClient = useQueryClient();
+  const [restoredFromCache] = useState(
+    () => queryClient.getQueryData(queryKeys.homeSection(section)) !== undefined,
+  );
+
   const { data, isError } = useQuery({
     queryKey: queryKeys.homeSection(section),
     queryFn: ({ signal }) => fetchHomeSection(section, { signal }),
@@ -106,10 +118,18 @@ export function LazyRow({ title, section, href }: LazyRowProps) {
   /**
    * `inView` ở đây là của khung chờ: dữ liệu về SAU khi nó lọt tầm nhìn thì row
    * thật cũng đang ở đó. Dữ liệu có sẵn từ cache lúc mount (quay lại trang chủ)
-   * thì khung chờ chưa từng dựng, `inView` là `false` — row tự chờ observer như cũ,
-   * không mount 16 card cho một row còn nằm tận cuối trang.
+   * thì khung chờ chưa từng dựng, `inView` là `false` — không mount 16 card cho
+   * một row còn nằm tận cuối trang. Thay vào đó `restoredFromCache` báo cho row tự
+   * đo vị trí trước khi vẽ, để row ĐANG nằm trong màn hình không nháy ô chờ.
    */
   return (
-    <ContentRow title={title} movies={data} variant={variant} href={href} mountedInView={inView} />
+    <ContentRow
+      title={title}
+      movies={data}
+      variant={variant}
+      href={href}
+      mountedInView={inView}
+      restoredFromCache={restoredFromCache}
+    />
   );
 }

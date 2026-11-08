@@ -407,6 +407,9 @@ export async function getRelated(
   return items.filter((item) => item.slug !== movie.slug).slice(0, limit);
 }
 
+/** Thời gian ảnh được chờ thêm sau khi chi tiết về — xem `loadDetailScreen`. */
+const DETAIL_IMAGES_GRACE_MS = 300;
+
 /**
  * Dữ liệu màn chi tiết, tách theo thứ tự cần vẽ — dùng chung cho modal và trang full.
  *
@@ -418,17 +421,55 @@ export async function getRelated(
  * Giờ mọi lời gọi bắn CÙNG LÚC, nhưng chỉ `detail` là thứ phải chờ:
  *
  *   · `detail` — cốt lõi + ảnh. Ảnh đi cùng vì backdrop là khung hero của màn:
- *     vẽ `movie.thumb` trước rồi đổi sang backdrop là một cú nháy giữa mặt người xem
+ *     vẽ `movie.thumb` trước rồi đổi sang backdrop là một cú nháy giữa mặt người xem.
+ *     Nhưng ảnh chỉ được chờ thêm `DETAIL_IMAGES_GRACE_MS` sau khi cốt lõi về,
+ *     quá hạn thì dùng luôn `movie.thumb` (xem chú thích trong hàm)
  *   · `peoples`, `keywords`, `related` — trả PROMISE, `DetailContent` stream từng
  *     phần qua Suspense. Không bao giờ reject: lỗi thì về rỗng (§14.1)
  *
  * `related` chỉ cần thể loại đầu tiên nên nối vào `getDetail` chứ không chờ cả gói.
  * `detail` ném tiếp lỗi không phải 404 cho `error.tsx`, như trước.
  */
-export function loadDetailScreen(slug: string): DetailScreenData {
+export function loadDetailScreen(
+  slug: string,
+  { imagesGraceMs = DETAIL_IMAGES_GRACE_MS }: { imagesGraceMs?: number } = {},
+): DetailScreenData {
   const detailP = nullOn404(() => getDetail(slug));
 
-  const detail = Promise.all([detailP, getMovieImages(slug)]).then(([core, images]) =>
+  /* Ảnh chỉ được GIA HẠN ngắn sau khi phần cốt lõi về, không được giữ cả màn.
+     Trước đây `detail` chờ trọn `/images` (trần `TIMEOUT.supplementary` = 5s): cache
+     lạnh mà TMDB chậm thì tiêu đề, nút Phát, lưới tập đứng ở skeleton chỉ vì một
+     tấm backdrop vốn đã có `movie.thumb` thay thế.
+
+     Thua cuộc đua thì màn vẽ bằng `movie.thumb` và GIỮ NGUYÊN — không stream
+     backdrop vào sau, nên không có cú nháy mà ghi chú phía trên tránh. Lời gọi
+     ảnh vẫn chạy tiếp và lấp data cache: lần mở sau của phim này có backdrop.
+     Mốc 300ms tính từ lúc `detailP` xong chứ không từ cú bấm, để ảnh nhanh hơn
+     chi tiết (ca thường gặp) luôn thắng. `detailP` reject thì đua cũng reject
+     cùng lỗi, `Promise.all` vẫn ném tiếp cho `error.tsx` như cũ.
+
+     CẢNH BÁO trang full `/phim/[slug]` là ISR (`REVALIDATE.detail` = 30 phút):
+     thua đua ở lần render lạnh thì HTML đã cache giữ `movie.thumb` trọn 30 phút,
+     không phải chỉ một lượt. Trang đó nên gọi `{ imagesGraceMs: Infinity }` để
+     chờ đủ ảnh như trước; modal render động mỗi lượt nên mới hưởng mốc ngắn. */
+  const imagesP = getMovieImages(slug);
+  let graceTimer: ReturnType<typeof setTimeout> | undefined;
+  const imagesOrEmpty = Number.isFinite(imagesGraceMs)
+    ? Promise.race([
+        imagesP,
+        detailP.then(
+          () =>
+            new Promise<MovieImages>((resolve) => {
+              graceTimer = setTimeout(
+                () => resolve({ backdrops: [], posters: [], logos: [] }),
+                imagesGraceMs,
+              );
+            }),
+        ),
+      ]).finally(() => clearTimeout(graceTimer))
+    : imagesP;
+
+  const detail = Promise.all([detailP, imagesOrEmpty]).then(([core, images]) =>
     core?.movie.slug ? { ...core, images } : null,
   );
   const related = detailP

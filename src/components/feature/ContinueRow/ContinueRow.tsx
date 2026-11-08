@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { IconButton } from '@/components/ui/Button';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from '@/components/ui/icons';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/cn';
 import { episodeLabel, formatTime } from '@/lib/derive';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
 import { PLACEHOLDER_BACKDROP } from '@/lib/constants';
+import { preloadPlayer } from '@/lib/player-preload';
 import { routes } from '@/lib/routes';
 import type { WatchIndexEntry } from '@/lib/storage';
 import { resumePoint, useWatchStore } from '@/store/useWatchStore';
@@ -110,6 +111,27 @@ export function ContinueRow() {
     return () => clearTimeout(timer);
   }, [firstHref, tier, router]);
 
+  /**
+   * Prefetch theo Ý ĐỊNH cho mọi card, cùng kiểu `EpisodePicker`: chuột lướt tới,
+   * focus bàn phím, ngón tay chạm xuống. Card 2..N không có prefetch nào khác, mà
+   * layout `/xem` chờ `getDetail` trước khi `loading.tsx` kịp hiện — không làm ấm
+   * trước thì bấm vào là màn cũ đứng im suốt một vòng server rồi player bật ra.
+   *
+   * Mỗi href một lần (đúng href có `?t=`, router cache khoá theo cả URL). Kèm theo
+   * là chunk trình phát + hls.js: card này dẫn thẳng vào player, nên chạm vào nó
+   * chính là ý định phát. Tier `low` (gồm cả saveData) thì thôi, như `MovieCard`.
+   */
+  const warmed = useRef(new Set<string>());
+  const warm = useCallback(
+    (href: string) => {
+      if (tier === 'low' || warmed.current.has(href)) return;
+      warmed.current.add(href);
+      router.prefetch(href);
+      preloadPlayer();
+    },
+    [router, tier],
+  );
+
   // Chưa đọc xong localStorage → giữ khung, để chỗ đã chừa không nháy rồi mới có card.
   if (!loaded) return <ContinueSkeleton />;
   if (items.length === 0) return null;
@@ -146,6 +168,7 @@ export function ContinueRow() {
               key={entry.slug}
               entry={entry}
               canHover={canHover}
+              onIntent={warm}
               onForget={() => forget(entry.slug)}
             />
           ))}
@@ -158,10 +181,12 @@ export function ContinueRow() {
 function ContinueCard({
   entry,
   canHover,
+  onIntent,
   onForget,
 }: {
   entry: WatchIndexEntry;
   canHover: boolean;
+  onIntent: (href: string) => void;
   onForget: () => void;
 }) {
   const snapshot = entry.snapshot;
@@ -170,6 +195,7 @@ function ContinueCard({
 
   const label = episodeLabel(snapshot.episodeName);
   const href = routes.watch(entry.slug, resume.ep, { startAt: resume.position });
+  const intent = () => onIntent(href);
 
   return (
     <li className={cn('row-item group/cw relative', CARD_WIDTH)}>
@@ -179,9 +205,13 @@ function ContinueCard({
         /**
          * KHÔNG prefetch: 12 card ở đây là 12 route trình phát, tải trước hết là
          * đúng kiểu nghẽn băng thông mà §11.2 cấm — và chúng nằm ngay trên màn hình
-         * đầu, nơi băng thông đang thuộc về ảnh hero.
+         * đầu, nơi băng thông đang thuộc về ảnh hero. Thay bằng prefetch theo ý
+         * định (`onIntent`), xem `warm` ở `ContinueRow`.
          */
         prefetch={false}
+        onPointerEnter={intent}
+        onFocus={intent}
+        onTouchStart={intent}
       >
         <div className="relative aspect-backdrop">
           <SmartImage

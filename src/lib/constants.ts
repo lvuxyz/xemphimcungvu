@@ -39,9 +39,13 @@ const HOUR = 60 * MINUTE;
 export const CACHE = {
   taxonomy: { staleTime: 24 * HOUR, gcTime: 24 * HOUR },
   detail: { staleTime: 30 * MINUTE, gcTime: 1 * HOUR },
-  list: { staleTime: 5 * MINUTE, gcTime: 15 * MINUTE },
+  /**
+   * gcTime dài hơn một tập phim: home → `/xem` gỡ hết observer, quá gcTime là
+   * cache bị dọn, Back về thì lưới chỉ còn trang 1 và các row lazy lại skeleton.
+   */
+  list: { staleTime: 5 * MINUTE, gcTime: 1 * HOUR },
   search: { staleTime: 2 * MINUTE, gcTime: 5 * MINUTE },
-  home: { staleTime: 5 * MINUTE, gcTime: 15 * MINUTE },
+  home: { staleTime: 5 * MINUTE, gcTime: 2 * HOUR },
 } as const;
 
 /** `revalidate` (giây) cho fetch phía RSC — khớp với staleTime ở trên. */

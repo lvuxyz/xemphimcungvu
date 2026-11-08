@@ -397,6 +397,17 @@
     scroll-behavior: auto;
   }
 
+  /**
+   * Stagger của row: quy tắc chung ở trên chỉ rút `animation-duration`, còn
+   * `animation-delay` (tới 8 × 40ms) vẫn giữ nguyên, và `fill-mode: both` giữ card
+   * ở `opacity: 0` suốt khoảng chờ đó — người cần giảm chuyển động lại phải nhìn
+   * card hiện lần lượt. Tắt hẳn: không có animation thì card đứng sẵn ở opacity 1.
+   * Chỉ nhắm đúng lớp này, KHÔNG xoá delay trên `*` — modal và spinner cần giữ.
+   */
+  .row-item-enter {
+    animation: none !important;
+  }
+
   /* Modal: vẫn fade (§9.4), bỏ scale, rút ngắn — như ngoại lệ `data-motion='fade'`. */
   .modal-backdrop-in,
   .modal-panel-in {

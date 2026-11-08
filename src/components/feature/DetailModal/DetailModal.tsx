@@ -9,7 +9,7 @@ import { useScrollLock } from '@/hooks/useScrollLock';
 import { IconButton } from '@/components/ui/Button';
 import { CloseIcon } from '@/components/ui/icons';
 import { InTitleModalContext } from './modal-context';
-import { modalOnScreen, trackModalLayer } from './modal-motion';
+import { focusRestore, modalOnScreen, trackModalLayer } from './modal-motion';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -139,11 +139,25 @@ function DetailModalPanel({ label, documentTitle, children }: DetailModalProps) 
     };
   }, [documentTitle]);
 
-  // Ghi nhớ phần tử đang focus để trả lại khi đóng.
+  /**
+   * Ghi nhớ phần tử đang focus để trả lại khi đóng.
+   *
+   * `focusRestore` báo cho card biết đây là focus trả về chứ không phải người
+   * dùng Tab tới — không thì card mở lại HoverPreview ngay sau khi modal đóng.
+   * `preventScroll`: lúc này scroll lock vừa nhả, để focus() tự cuộn trang tới
+   * card là giật thêm một nhịp. `isConnected`: card mở modal có thể đã bị gỡ.
+   */
   useEffect(() => {
     triggerRef.current = document.activeElement;
     return () => {
-      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+      const el = triggerRef.current;
+      if (!(el instanceof HTMLElement) || !el.isConnected) return;
+      focusRestore.active = true;
+      try {
+        el.focus({ preventScroll: true });
+      } finally {
+        focusRestore.active = false;
+      }
     };
   }, []);
 

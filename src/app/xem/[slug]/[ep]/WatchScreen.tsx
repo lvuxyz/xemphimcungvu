@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PLAYER } from '@/lib/constants';
+import { loadHls } from '@/lib/player-preload';
 import { episodeLabel, resolveEpisode } from '@/lib/derive';
 import { routes } from '@/lib/routes';
 import type { MovieDetailResult } from '@/types/movie';
@@ -13,7 +14,12 @@ import { Button } from '@/components/ui/Button';
 import { ArrowLeftIcon } from '@/components/ui/icons';
 import { EpisodePicker } from '@/components/feature/DetailModal/EpisodePicker';
 
-/** §12.2 — VideoPlayer code-split, không nằm trong bundle initial. */
+/**
+ * §12.2 — VideoPlayer code-split, không nằm trong bundle initial.
+ *
+ * Specifier `import()` phải trùng với `preloadPlayer` (lib/player-preload.ts) để
+ * cú tải trước lúc bấm Phát rơi đúng vào chunk này.
+ */
 const VideoPlayer = dynamic(
   () => import('@/components/feature/VideoPlayer/VideoPlayer').then((m) => m.VideoPlayer),
   {
@@ -42,6 +48,14 @@ export function WatchScreen({ detail, episodeSlug }: WatchScreenProps) {
   const episode = resolveEpisode(list, episodeSlug);
   const index = episode ? list.indexOf(episode) : -1;
   const next = index >= 0 ? list[index + 1] : undefined;
+
+  /**
+   * Khởi động hls.js NGAY lượt render này, song song với chunk `VideoPlayer`.
+   * Để `useHls` tự gọi thì nó chỉ chạy sau khi chunk player đã về và mount — hai
+   * vòng mạng nối đuôi trước khi xin được m3u8. Chỉ phía client và chỉ khi tập có
+   * m3u8; idempotent vì dùng chung một promise, nên render lại không tải thêm.
+   */
+  if (typeof window !== 'undefined' && episode?.linkM3u8) loadHls().catch(() => {});
 
   /**
    * Tải trước tập kế tiếp — đích người xem chắc chắn sẽ tới (Tập tiếp, auto-next).

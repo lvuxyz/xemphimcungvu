@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { FocusEvent, PointerEvent } from 'react';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { cn } from '@/lib/cn';
 import { BLUR_DATA_URL, IMAGE_SIZES } from '@/lib/image';
@@ -16,6 +17,7 @@ import { useDevice, useHoverPreviewEnabled } from '@/hooks/useDevice';
 import { MatchScore } from '@/components/ui/Chip';
 import { routes } from '@/lib/routes';
 import { useInTitleModal } from '../DetailModal/modal-context';
+import { focusRestore } from '../DetailModal/modal-motion';
 import { HoverPreview } from '../HoverPreview/HoverPreview';
 
 interface MovieCardProps {
@@ -77,7 +79,15 @@ export function MovieCard({
    * thêm một ảnh thumb nữa cho mỗi card người dùng lướt qua.
    */
   const previewEnabled = enableHoverPreview && hoverPreviewEnabled;
-  const { mounted, visible } = usePresence(previewEnabled && isHovered);
+  const { mounted, visible, dismiss } = usePresence(previewEnabled && isHovered);
+
+  /**
+   * Card vừa bị "đóng gấp" vì người dùng bấm mở chi tiết: tắt transition của
+   * card để nó hiện lại tức thì thay vì fade-in 300ms dưới lớp blur của modal.
+   * Chỉ bật lại ở lần hover kế tiếp — bật lại trong rAF là transition quay về
+   * đúng lúc modal còn đang mở.
+   */
+  const [leaving, setLeaving] = useState(false);
 
   /**
    * §11.4 — hover 200ms thì prefetch route chi tiết.
@@ -94,6 +104,7 @@ export function MovieCard({
   };
 
   const handleEnter = useCallback(() => {
+    setLeaving(false);
     if (previewEnabled) onMouseEnter();
 
     if (prefetchEnabled && !prefetchedRef.current) {
@@ -113,6 +124,48 @@ export function MovieCard({
   useEffect(() => clearPrefetchTimer, []);
 
   /**
+   * Focus chỉ mở preview khi đến từ bàn phím. Hai trường hợp KHÔNG:
+   *   · Modal đóng và trả focus về card (`focusRestore`) — preview bật lên
+   *     ~400ms sau khi modal biến mất, dù chuột ở tận nút ✕ bên kia màn hình.
+   *   · Bấm chuột vào card: Chrome focus `<a>` lúc mousedown, tức là thêm một
+   *     timer trùng với `onMouseEnter` đã chạy.
+   * Trình duyệt cũ không hiểu `:focus-visible` thì `matches` ném lỗi — coi như
+   * focus bàn phím, đúng hành vi cũ.
+   */
+  const handleFocus = useCallback(
+    (e: FocusEvent<HTMLDivElement>) => {
+      if (focusRestore.active) return;
+      let keyboard = true;
+      try {
+        keyboard = e.target.matches(':focus-visible');
+      } catch {
+        // giữ `true`
+      }
+      if (keyboard) handleEnter();
+    },
+    [handleEnter],
+  );
+
+  /**
+   * §11.4 cho màn cảm ứng: không có hover nên prefetch ở trên không bao giờ chạy,
+   * chạm vào card là chờ trọn một vòng server mới thấy skeleton. Chạm xuống sớm
+   * hơn `click` ~80–150ms — đủ để request đã bay khi điều hướng bắt đầu, và router
+   * dùng lại đúng request đó. Như `warm` của EpisodePicker.
+   *
+   * `pointerType !== 'mouse'` để chuột vẫn đi đường hover. Mỗi card tối đa một
+   * lần (`prefetchedRef`) — vuốt ngang qua row cũng chỉ tốn một request mỗi card.
+   * Mạng yếu thì bỏ, cùng lý do như trên.
+   */
+  const handlePointerDown = useCallback(
+    (e: PointerEvent<HTMLAnchorElement>) => {
+      if (e.pointerType === 'mouse' || tier === 'low' || prefetchedRef.current) return;
+      prefetchedRef.current = true;
+      router.prefetch(href);
+    },
+    [tier, router, href],
+  );
+
+  /**
    * §1.4 L7 — cùng một ý định "mở chi tiết" mà trước đây có hai đường: ảnh card
    * là `<Link>`, còn nút ⌄ của HoverPreview là `router.push()`. Hai đường đó
    * khác nhau ở những chỗ thấy được: `<Link>` cho ctrl/cmd + bấm để mở tab mới,
@@ -123,8 +176,36 @@ export function MovieCard({
    */
   const linkRef = useRef<HTMLAnchorElement>(null);
 
-  const openDetail = () => {
+  /**
+   * Bấm mở chi tiết thì preview biến mất NGAY, không chạy nhịp thoát 300ms:
+   * nhịp đó trùng khớp với lúc modal mở, thành ba hiệu ứng chồng nhau dưới lớp
+   * backdrop blur. React gộp các setState này với cú click, nên preview rời DOM
+   * trong cùng commit bắt đầu điều hướng. Rời chuột bình thường vẫn có exit.
+   *
+   * Focus đang nằm trong preview (Tab tới nút ⌄ rồi Enter, hay bấm vào ảnh) thì
+   * dời về link của card TRƯỚC khi gỡ: gỡ phần tử đang focus là focus rơi về
+   * `<body>`, panel modal ghi nhớ `<body>` làm chỗ trả focus và đóng modal xong
+   * người dùng bàn phím mất chỗ. `focusRestore` để `handleFocus` không coi lần
+   * focus này là Tab mà mở lại preview.
+   */
+  const instantClose = () => {
+    const link = linkRef.current;
+    const active = document.activeElement;
+    if (link && active && active !== link && link.parentElement?.contains(active)) {
+      focusRestore.active = true;
+      try {
+        link.focus({ preventScroll: true });
+      } finally {
+        focusRestore.active = false;
+      }
+    }
     cancel();
+    dismiss();
+    setLeaving(true);
+  };
+
+  const openDetail = () => {
+    instantClose();
     linkRef.current?.click();
   };
 
@@ -144,7 +225,7 @@ export function MovieCard({
       className={cn('relative', className)}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
-      onFocus={handleEnter}
+      onFocus={handleFocus}
       onBlur={handleLeave}
     >
       <Link
@@ -155,9 +236,12 @@ export function MovieCard({
         data-card=""
         tabIndex={tabIndex}
         onFocus={() => onFocusCard?.()}
+        onPointerDown={handlePointerDown}
         className={cn(
           'group block overflow-hidden rounded-card bg-raised',
-          'transition-[box-shadow,transform,opacity] duration-standard ease-standard',
+          leaving
+            ? 'transition-none'
+            : 'transition-[box-shadow,transform,opacity] duration-standard ease-standard',
           'focus-visible:outline-offset-4',
           // Ngón tay không có hover: phản hồi chạm là cách duy nhất báo "đã nhận"
           'active:scale-[0.98]',
@@ -235,7 +319,7 @@ export function MovieCard({
           reducedMotion={reducedMotion}
           visible={visible}
           onOpenDetail={openDetail}
-          onCancelHover={cancel}
+          onCancelHover={instantClose}
         />
       )}
     </div>
